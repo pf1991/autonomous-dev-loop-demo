@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { createDefaultMap } from '../../src/game/map.js'
+import { createDefaultMap, getPathWaypoints } from '../../src/game/map.js'
 
 describe('createDefaultMap', () => {
   it('returns 15 rows', () => {
@@ -61,5 +61,29 @@ describe('createDefaultMap', () => {
         expect(validTypes.has(tile)).toBe(true)
       }
     }
+  })
+})
+
+describe('getPathWaypoints', () => {
+  it('returns at least 2 waypoints', () => {
+    const waypoints = getPathWaypoints()
+    expect(waypoints.length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('every waypoint has numeric row and col properties', () => {
+    const waypoints = getPathWaypoints()
+    for (const wp of waypoints) {
+      expect(typeof wp.row).toBe('number')
+      expect(typeof wp.col).toBe('number')
+    }
+  })
+
+  it('first waypoint lies on the path, last waypoint lies on the path', () => {
+    const map = createDefaultMap()
+    const waypoints = getPathWaypoints()
+    const first = waypoints[0]
+    const last = waypoints[waypoints.length - 1]
+    expect(map[first.row][first.col]).toBe('path')
+    expect(map[last.row][last.col]).toBe('path')
   })
 })
