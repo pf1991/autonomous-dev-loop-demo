@@ -185,6 +185,7 @@ function App() {
         tiles={INITIAL_MAP}
         onTileClick={placeTower}
         towers={towers}
+        enemies={enemies}
       />
       {gamePhase === 'lose' && (
         <GameOver result="lose" onRestart={handleRestart} />
