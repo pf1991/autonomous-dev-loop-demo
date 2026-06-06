@@ -68,4 +68,29 @@ describe('processCombat', () => {
     // lastFiredAt must remain unchanged since the tower did not fire
     expect(towers[0].lastFiredAt).toBe(500)
   })
+
+  it('no enemies returns goldEarned: 0', () => {
+    const tower = makeTower({ row: 0, col: 0, range: 5, damage: 25, fireRate: 1, lastFiredAt: 0 })
+
+    const { goldEarned, enemies } = processCombat([tower], [], 1000)
+
+    expect(goldEarned).toBe(0)
+    expect(enemies).toHaveLength(0)
+  })
+
+  it('two enemies equidistant — first in array is targeted', () => {
+    // Both enemies are exactly 3 tiles away from the tower
+    const tower = makeTower({ row: 0, col: 0, range: 5, damage: 10, fireRate: 1, lastFiredAt: 0 })
+    const first  = makeEnemy({ id: 1, hp: 100, row: 3, col: 0 })  // dist 3
+    const second = makeEnemy({ id: 2, hp: 100, row: 0, col: 3 })  // dist 3 (same)
+
+    const { enemies } = processCombat([tower], [first, second], 1000)
+
+    const firstSurvived  = enemies.find(e => e.id === 1)
+    const secondSurvived = enemies.find(e => e.id === 2)
+
+    // First in array takes the damage; second is untouched
+    expect(firstSurvived.hp).toBe(90)
+    expect(secondSurvived.hp).toBe(100)
+  })
 })

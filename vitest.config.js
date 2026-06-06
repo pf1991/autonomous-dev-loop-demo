@@ -6,5 +6,12 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['tests/**/*.{test,spec}.{js,jsx}'],
+    coverage: {
+      provider: 'v8',
+      include: ['src/game/**'],
+      thresholds: {
+        lines: 80,
+      },
+    },
   },
 })
