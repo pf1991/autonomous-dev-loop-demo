@@ -118,3 +118,91 @@ body {
   pointer-events: none;
   user-select: none;
 }
+
+/* ===== Game Over overlay ===== */
+.game-over-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.game-over-box {
+  background: #16213e;
+  border: 3px solid #e94560;
+  border-radius: 12px;
+  padding: 48px 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+.game-over-message {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: #eee;
+}
+
+.game-over-restart {
+  background: #e94560;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 32px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.game-over-restart:hover {
+  background: #c0304a;
+}
+
+/* ===== Next Wave overlay ===== */
+.next-wave-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.next-wave-box {
+  background: #16213e;
+  border: 3px solid #4ecca3;
+  border-radius: 12px;
+  padding: 40px 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.next-wave-message {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #4ecca3;
+}
+
+.next-wave-start {
+  background: #4ecca3;
+  color: #16213e;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 32px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.next-wave-start:hover {
+  background: #38b08a;
+}
