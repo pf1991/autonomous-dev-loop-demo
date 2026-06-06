@@ -1,0 +1,120 @@
+/* ===== Reset / base ===== */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: sans-serif;
+  background: #1a1a2e;
+  color: #eee;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100vh;
+  padding: 16px;
+}
+
+/* ===== Game container ===== */
+#game {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ===== HUD ===== */
+.hud {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 24px;
+  background: #16213e;
+  border: 2px solid #0f3460;
+  border-radius: 8px;
+  padding: 8px 20px;
+  font-size: 1rem;
+  font-weight: 600;
+  width: 800px;
+}
+
+.hud-lives {
+  color: #e94560;
+}
+
+.hud-gold {
+  color: #f5a623;
+}
+
+.hud-wave {
+  color: #4ecca3;
+}
+
+.hud-speed {
+  margin-left: auto;
+  background: #0f3460;
+  color: #eee;
+  border: 1px solid #4ecca3;
+  border-radius: 4px;
+  padding: 4px 12px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.hud-speed:hover {
+  background: #4ecca3;
+  color: #16213e;
+}
+
+/* ===== Game board ===== */
+.game-board {
+  display: grid;
+  grid-template-columns: repeat(20, 40px);
+  grid-template-rows: repeat(15, 40px);
+  border: 2px solid #0f3460;
+}
+
+/* ===== Tile base ===== */
+.tile {
+  width: 40px;
+  height: 40px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ===== Tile variants ===== */
+.tile.grass {
+  background-color: #4a7c59;
+}
+
+.tile.path {
+  background-color: #c8a96e;
+}
+
+.tile.tower-slot {
+  background-color: #6aab72;
+  cursor: pointer;
+}
+
+.tile.tower-slot:hover {
+  background-color: #88cc92;
+}
+
+/* ===== Tower icon overlay ===== */
+.tower-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 24px;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+}
