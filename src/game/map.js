@@ -48,3 +48,16 @@ export function createDefaultMap() {
 
   return grid
 }
+
+/**
+ * getPathWaypoints returns the ordered waypoints that define the L-shaped enemy path.
+ * Matches the path layout created by createDefaultMap().
+ * @returns {Array<{row: number, col: number}>}
+ */
+export function getPathWaypoints() {
+  return [
+    { row: 2, col: 1 },   // entry point (left side of horizontal leg)
+    { row: 2, col: 14 },  // corner (end of horizontal leg / top of vertical leg)
+    { row: 12, col: 14 }, // exit point (bottom of vertical leg)
+  ]
+}
