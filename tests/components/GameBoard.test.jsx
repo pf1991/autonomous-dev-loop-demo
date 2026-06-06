@@ -1,47 +1,70 @@
-import { describe, it, expect, vi } from 'vitest'
+// @vitest-environment happy-dom
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { createElement } from 'react'
+import { createRoot } from 'react-dom/client'
+import { act } from 'react'
 import GameBoard from '../../src/components/GameBoard.jsx'
 import { createDefaultMap } from '../../src/game/map.js'
 
+let container
+
+beforeEach(() => {
+  container = document.createElement('div')
+  document.body.appendChild(container)
+})
+
+afterEach(() => {
+  document.body.removeChild(container)
+  container = null
+})
+
 describe('GameBoard', () => {
-  it('creates a React element without throwing', () => {
-    const tiles = createDefaultMap()
-    const onTileClick = vi.fn()
-    const element = createElement(GameBoard, { tiles, onTileClick })
-    expect(element).toBeTruthy()
-    expect(element.type).toBe(GameBoard)
-  })
-
-  it('tiles prop has 300 tile entries (15 rows × 20 cols)', () => {
-    const tiles = createDefaultMap()
-    let count = 0
-    for (const row of tiles) {
-      count += row.length
-    }
-    expect(count).toBe(300)
-  })
-
-  it('each tile in the default map has a valid CSS class string', () => {
-    const tiles = createDefaultMap()
-    const validClasses = ['path', 'grass', 'tower-slot']
-    for (const row of tiles) {
-      for (const tileType of row) {
-        // The component applies className={`tile ${tileType}`}
-        const className = `tile ${tileType}`
-        expect(validClasses.some(cls => className.includes(cls))).toBe(true)
-      }
-    }
-  })
-
-  it('onTileClick is called with correct row and col when invoked', () => {
+  it('renders 300 tiles total', () => {
     const tiles = createDefaultMap()
     const onTileClick = vi.fn()
 
-    // Simulate what the component does when a tile is clicked
-    const rowIndex = 3
-    const colIndex = 7
-    onTileClick(rowIndex, colIndex)
+    act(() => {
+      createRoot(container).render(createElement(GameBoard, { tiles, onTileClick }))
+    })
+
+    const tileDivs = container.querySelectorAll('.tile')
+    expect(tileDivs.length).toBe(300)
+  })
+
+  it('applies correct CSS class per tile type', () => {
+    const tiles = createDefaultMap()
+    const onTileClick = vi.fn()
+
+    act(() => {
+      createRoot(container).render(createElement(GameBoard, { tiles, onTileClick }))
+    })
+
+    const tileDivs = container.querySelectorAll('.tile')
+    const validTypes = ['path', 'grass', 'tower-slot']
+
+    tileDivs.forEach(div => {
+      const hasValid = validTypes.some(type => div.classList.contains(type))
+      expect(hasValid).toBe(true)
+    })
+  })
+
+  it('calls onTileClick with correct (row, col) when a tile is clicked', () => {
+    const tiles = createDefaultMap()
+    const onTileClick = vi.fn()
+
+    act(() => {
+      createRoot(container).render(createElement(GameBoard, { tiles, onTileClick }))
+    })
+
+    // Click the tile at row=3, col=7 (index = 3*20 + 7 = 67)
+    const tileDivs = container.querySelectorAll('.tile')
+    const targetTile = tileDivs[3 * 20 + 7]
+
+    act(() => {
+      targetTile.click()
+    })
 
     expect(onTileClick).toHaveBeenCalledWith(3, 7)
+    expect(onTileClick).toHaveBeenCalledTimes(1)
   })
 })
