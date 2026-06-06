@@ -10,6 +10,15 @@ describe('TOWER_TYPES', () => {
     expect(bt.damage).toBe(25)
     expect(bt.fireRate).toBe(1)
   })
+
+  it('every TOWER_TYPES entry has cost, range, damage, and fireRate', () => {
+    for (const [name, config] of Object.entries(TOWER_TYPES)) {
+      expect(typeof config.cost, `${name}.cost`).toBe('number')
+      expect(typeof config.range, `${name}.range`).toBe('number')
+      expect(typeof config.damage, `${name}.damage`).toBe('number')
+      expect(typeof config.fireRate, `${name}.fireRate`).toBe('number')
+    }
+  })
 })
 
 describe('createTower', () => {
