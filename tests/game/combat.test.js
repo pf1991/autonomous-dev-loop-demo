@@ -93,4 +93,32 @@ describe('processCombat', () => {
     expect(firstSurvived.hp).toBe(90)
     expect(secondSurvived.hp).toBe(100)
   })
+
+  it('tower adjacent to enemy reduces enemy HP each game-clock second', () => {
+    // Simulates the game-loop calling processCombat once per second with advancing nowMs.
+    // fireRate=1 means the tower fires once per second (interval = 1000 ms).
+    const tower = makeTower({ row: 2, col: 2, range: 3, damage: 25, fireRate: 1, lastFiredAt: 0 })
+    const enemy = makeEnemy({ id: 1, hp: 100, row: 2, col: 3 })  // adjacent (dist 1)
+
+    // Tick at t=1000 ms — tower fires, enemy takes 25 damage
+    const tick1 = processCombat([tower], [enemy], 1000)
+    expect(tick1.enemies[0].hp).toBe(75)
+
+    // Tick at t=2000 ms — tower fires again; nowMs=2000, lastFiredAt=1000 → 1000ms elapsed ≥ interval
+    const tick2 = processCombat(tick1.towers, tick1.enemies, 2000)
+    expect(tick2.enemies[0].hp).toBe(50)
+  })
+
+  it('gold increases when an enemy is killed by a tower', () => {
+    // Tower with enough damage to one-shot the enemy
+    const tower = makeTower({ row: 0, col: 0, range: 5, damage: 100, fireRate: 1, lastFiredAt: 0 })
+    const enemy = makeEnemy({ id: 1, hp: 100, row: 0, col: 1 })
+
+    const { goldEarned, enemies } = processCombat([tower], [enemy], 1000)
+
+    // Enemy is dead and removed
+    expect(enemies).toHaveLength(0)
+    // Gold is awarded for the kill
+    expect(goldEarned).toBe(10)
+  })
 })
