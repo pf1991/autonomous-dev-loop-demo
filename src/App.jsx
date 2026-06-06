@@ -1,6 +1,8 @@
 import { useState, useCallback, useRef } from 'react'
 import GameBoard from './components/GameBoard'
 import HUD from './components/HUD'
+import GameOver from './components/GameOver'
+import NextWave from './components/NextWave'
 import { createDefaultMap, getPathWaypoints } from './game/map'
 import { TOWER_TYPES, createTower, canAfford } from './game/tower'
 import { createEnemy, moveEnemy } from './game/enemy'
@@ -11,25 +13,66 @@ const PATH_WAYPOINTS = getPathWaypoints()
 
 // Spawn one enemy every 3 seconds (3000 ms)
 const SPAWN_INTERVAL_MS = 3000
+// Enemies per wave
+const ENEMIES_PER_WAVE = 5
+// Total waves in game
+const TOTAL_WAVES = 10
+
+const INITIAL_STATE = {
+  lives: 20,
+  gold: 100,
+  wave: 1,
+  towers: [],
+  enemies: [],
+  speed: 1,
+}
 
 function App() {
-  const [gold, setGold] = useState(100)
-  const [lives, setLives] = useState(20)
-  const [wave] = useState(1)
-  const [speed, setSpeed] = useState(1)
-  const [towers, setTowers] = useState([])
-  const [enemies, setEnemies] = useState([])
+  const [gold, setGold] = useState(INITIAL_STATE.gold)
+  const [lives, setLives] = useState(INITIAL_STATE.lives)
+  const [wave, setWave] = useState(INITIAL_STATE.wave)
+  const [speed, setSpeed] = useState(INITIAL_STATE.speed)
+  const [towers, setTowers] = useState(INITIAL_STATE.towers)
+  const [enemies, setEnemies] = useState(INITIAL_STATE.enemies)
+  // 'playing' | 'between-waves' | 'win' | 'lose'
+  const [gamePhase, setGamePhase] = useState('between-waves')
 
   const nextEnemyIdRef = useRef(0)
   const spawnTimerRef = useRef(0)
+  const spawnedInWaveRef = useRef(0)
+  const killedInWaveRef = useRef(0)
+  const livesRef = useRef(INITIAL_STATE.lives)
+  const waveRef = useRef(INITIAL_STATE.wave)
+  const gamePhaseRef = useRef('between-waves')
+
+  function syncLives(val) {
+    livesRef.current = val
+    setLives(val)
+  }
+
+  function syncWave(val) {
+    waveRef.current = val
+    setWave(val)
+  }
+
+  function syncPhase(val) {
+    gamePhaseRef.current = val
+    setGamePhase(val)
+  }
 
   const onTick = useCallback((deltaMs) => {
+    if (gamePhaseRef.current !== 'playing') return
+
     // Accumulate time for spawning
     spawnTimerRef.current += deltaMs
     let newEnemy = null
-    if (spawnTimerRef.current >= SPAWN_INTERVAL_MS) {
+    if (
+      spawnTimerRef.current >= SPAWN_INTERVAL_MS &&
+      spawnedInWaveRef.current < ENEMIES_PER_WAVE
+    ) {
       spawnTimerRef.current = 0
       newEnemy = createEnemy(nextEnemyIdRef.current++, PATH_WAYPOINTS)
+      spawnedInWaveRef.current += 1
     }
 
     // Move all enemies along the path; collect those that exit (reached the end)
@@ -37,19 +80,44 @@ function App() {
       const all = newEnemy ? [...prev, newEnemy] : [...prev]
       const surviving = []
       let livesLost = 0
+      let killedNow = 0
 
       for (const enemy of all) {
         const updated = moveEnemy(enemy, deltaMs, PATH_WAYPOINTS)
         if (updated === null) {
           // Enemy reached the end of the path — lose a life
           livesLost++
+          killedNow++
         } else {
           surviving.push(updated)
         }
       }
 
       if (livesLost > 0) {
-        setLives(l => Math.max(0, l - livesLost))
+        const newLives = Math.max(0, livesRef.current - livesLost)
+        livesRef.current = newLives
+        setLives(newLives)
+
+        if (newLives <= 0) {
+          syncPhase('lose')
+        }
+      }
+
+      killedInWaveRef.current += killedNow
+
+      // Check wave completion: all enemies spawned and none remaining
+      if (
+        spawnedInWaveRef.current >= ENEMIES_PER_WAVE &&
+        surviving.length === 0 &&
+        gamePhaseRef.current === 'playing' &&
+        livesRef.current > 0
+      ) {
+        const currentWave = waveRef.current
+        if (currentWave >= TOTAL_WAVES) {
+          syncPhase('win')
+        } else {
+          syncPhase('between-waves')
+        }
       }
 
       return surviving
@@ -78,6 +146,32 @@ function App() {
     setTowers(ts => [...ts, createTower(type, row, col)])
   }
 
+  function handleRestart() {
+    setGold(INITIAL_STATE.gold)
+    syncLives(INITIAL_STATE.lives)
+    syncWave(INITIAL_STATE.wave)
+    setSpeed(INITIAL_STATE.speed)
+    setTowers(INITIAL_STATE.towers)
+    setEnemies(INITIAL_STATE.enemies)
+    nextEnemyIdRef.current = 0
+    spawnTimerRef.current = 0
+    spawnedInWaveRef.current = 0
+    killedInWaveRef.current = 0
+    syncPhase('between-waves')
+  }
+
+  function handleStartWave() {
+    spawnTimerRef.current = 0
+    spawnedInWaveRef.current = 0
+    killedInWaveRef.current = 0
+    syncPhase('playing')
+  }
+
+  function handleNextWaveStart() {
+    syncWave(waveRef.current + 1)
+    handleStartWave()
+  }
+
   return (
     <div id="game">
       <HUD
@@ -92,6 +186,15 @@ function App() {
         onTileClick={placeTower}
         towers={towers}
       />
+      {gamePhase === 'lose' && (
+        <GameOver result="lose" onRestart={handleRestart} />
+      )}
+      {gamePhase === 'win' && (
+        <GameOver result="win" onRestart={handleRestart} />
+      )}
+      {gamePhase === 'between-waves' && (
+        <NextWave wave={wave} onStart={handleNextWaveStart} />
+      )}
     </div>
   )
 }
