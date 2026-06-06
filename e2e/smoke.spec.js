@@ -104,4 +104,28 @@ test.describe('Tower Defense - smoke tests', () => {
     await expect(page.locator('.game-over-overlay')).not.toBeVisible();
     await expect(page.locator('.next-wave-overlay')).toBeVisible();
   });
+
+  // --- Enemy rendering (issue #19) ---
+
+  test('enemy elements appear on the board after a wave starts', async ({ page }) => {
+    // Start the wave so enemies begin spawning
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Wait up to 5 s for at least one .enemy div to appear
+    await expect(page.locator('.enemy').first()).toBeVisible({ timeout: 5000 });
+  });
+
+  test('enemy-hp-bar is rendered inside each enemy element', async ({ page }) => {
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Wait for an enemy to appear
+    await expect(page.locator('.enemy').first()).toBeVisible({ timeout: 5000 });
+    // Each enemy must contain an hp bar
+    const hpBar = page.locator('.enemy .enemy-hp-bar').first();
+    await expect(hpBar).toBeVisible();
+  });
 });
