@@ -5,7 +5,7 @@ import GameOver from './components/GameOver'
 import NextWave from './components/NextWave'
 import TowerPicker from './components/TowerPicker'
 import { createDefaultMap, getPathWaypoints } from './game/map'
-import { TOWER_TYPES, createTower, canAfford, canUpgrade, upgradeTower, getUpgradeCost } from './game/tower'
+import { TOWER_TYPES, createTower, canAfford, canUpgrade, upgradeTower, getUpgradeCost, getNextUpgradeStats } from './game/tower'
 import { createEnemy, moveEnemy } from './game/enemy'
 import { processCombat } from './game/combat'
 import { useGameLoop } from './hooks/useGameLoop'
@@ -257,6 +257,7 @@ function App() {
         onUpgrade={handleUpgrade}
         getUpgradeCost={getUpgradeCost}
         canUpgrade={canUpgrade}
+        getNextUpgradeStats={getNextUpgradeStats}
       />
       {gamePhase === 'lose' && (
         <GameOver result="lose" onRestart={handleRestart} />

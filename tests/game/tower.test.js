@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { TOWER_TYPES, createTower, canAfford, canUpgrade, upgradeTower, getUpgradeCost } from '../../src/game/tower'
+import { TOWER_TYPES, createTower, canAfford, canUpgrade, upgradeTower, getUpgradeCost, getNextUpgradeStats } from '../../src/game/tower'
 
 describe('TOWER_TYPES', () => {
   it('BasicTower has all required fields', () => {
@@ -175,6 +175,30 @@ describe('getUpgradeCost', () => {
     const maxLevel = TOWER_TYPES.BasicTower.upgrades.length
     const maxTower = { ...tower, upgradeLevel: maxLevel }
     expect(getUpgradeCost(maxTower)).toBeNull()
+  })
+})
+
+describe('getNextUpgradeStats', () => {
+  it('returns next level stats for an upgradable tower', () => {
+    const tower = createTower('BasicTower', 0, 0)
+    const stats = getNextUpgradeStats(tower)
+    const expected = TOWER_TYPES.BasicTower.upgrades[0]
+    expect(stats).toEqual({ range: expected.range, damage: expected.damage, fireRate: expected.fireRate })
+  })
+
+  it('returns null when tower is at max level', () => {
+    const tower = createTower('BasicTower', 0, 0)
+    const maxLevel = TOWER_TYPES.BasicTower.upgrades.length
+    const maxTower = { ...tower, upgradeLevel: maxLevel }
+    expect(getNextUpgradeStats(maxTower)).toBeNull()
+  })
+
+  it('returns level-1 upgrade stats for a level-1 SniperTower', () => {
+    const tower = createTower('SniperTower', 0, 0)
+    const level1 = { ...tower, upgradeLevel: 1 }
+    const stats = getNextUpgradeStats(level1)
+    const expected = TOWER_TYPES.SniperTower.upgrades[1]
+    expect(stats).toEqual({ range: expected.range, damage: expected.damage, fireRate: expected.fireRate })
   })
 })
 

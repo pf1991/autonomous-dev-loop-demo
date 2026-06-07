@@ -12,8 +12,9 @@ import UpgradePanel from './UpgradePanel.jsx'
  *   selectedTower  — { row, col } | null — the currently-selected tower for upgrade panel
  *   gold           — current gold (number), used to determine if upgrade button should be enabled
  *   onUpgrade      — callback(row, col) invoked when Upgrade button is clicked
- *   getUpgradeCost — function(tower) returning the upgrade cost (number | null)
- *   canUpgrade     — function(tower) returning boolean
+ *   getUpgradeCost      — function(tower) returning the upgrade cost (number | null)
+ *   canUpgrade          — function(tower) returning boolean
+ *   getNextUpgradeStats — function(tower) returning next level stats object or null
  */
 function GameBoard({
   tiles,
@@ -26,6 +27,7 @@ function GameBoard({
   onUpgrade,
   getUpgradeCost,
   canUpgrade,
+  getNextUpgradeStats,
 }) {
   // Build a map from "row-col" key to tower object for O(1) lookup
   const towerMap = {}
@@ -88,6 +90,7 @@ function GameBoard({
                   onUpgrade={onUpgrade}
                   getUpgradeCost={getUpgradeCost}
                   canUpgrade={canUpgrade}
+                  getNextUpgradeStats={getNextUpgradeStats}
                 />
               )}
             </div>

@@ -1,16 +1,12 @@
-import { TOWER_TYPES } from '../game/tower.js'
-
 /**
  * UpgradePanel — shown inside a tile when a tower is selected.
  * Displays current stats, next-level stats (when upgradable), and an "Upgrade (N gold)" button.
  */
-function UpgradePanel({ tower, gold, onUpgrade, getUpgradeCost, canUpgrade }) {
+function UpgradePanel({ tower, gold, onUpgrade, getUpgradeCost, canUpgrade, getNextUpgradeStats }) {
   const upgradable = canUpgrade ? canUpgrade(tower) : false
   const cost = getUpgradeCost ? getUpgradeCost(tower) : null
   const canAffordUpgrade = upgradable && cost !== null && gold >= cost
-
-  const typeDef = TOWER_TYPES[tower.type]
-  const nextStats = upgradable && typeDef ? typeDef.upgrades[tower.upgradeLevel] : null
+  const nextStats = getNextUpgradeStats ? getNextUpgradeStats(tower) : null
 
   return (
     <div className="upgrade-panel" onClick={e => e.stopPropagation()}>

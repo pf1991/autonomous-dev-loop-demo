@@ -85,3 +85,15 @@ export function getUpgradeCost(tower) {
   const typeDef = TOWER_TYPES[tower.type]
   return typeDef.upgrades[tower.upgradeLevel].cost
 }
+
+/**
+ * getNextUpgradeStats(tower) — returns the next upgrade level's stats { range, damage, fireRate }.
+ * Returns null if the tower is already at max level.
+ */
+export function getNextUpgradeStats(tower) {
+  if (!canUpgrade(tower)) return null
+  const typeDef = TOWER_TYPES[tower.type]
+  if (!typeDef) return null
+  const { range, damage, fireRate } = typeDef.upgrades[tower.upgradeLevel]
+  return { range, damage, fireRate }
+}
