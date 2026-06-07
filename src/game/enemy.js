@@ -25,6 +25,22 @@ export function createEnemy(id, pathWaypoints) {
 }
 
 /**
+ * Compute enemy display radius in px based on HP ratio:
+ *   full HP (>= 0.5)    → 14 px (large)
+ *   half HP (>= 0.25)   → 11 px (medium)
+ *   near death (< 0.25) → 8 px (small)
+ * @param {number} hp - Current HP
+ * @param {number} maxHp - Maximum HP
+ * @returns {number} Radius in pixels
+ */
+export function getEnemyRadius(hp, maxHp) {
+  const ratio = maxHp > 0 ? hp / maxHp : 0
+  if (ratio >= 0.5) return 14
+  if (ratio >= 0.25) return 11
+  return 8
+}
+
+/**
  * moveEnemy advances the enemy along the path by the given time delta.
  * Returns null if the enemy has reached (or passed) the last waypoint.
  * @param {{ id, hp, maxHp, pos: {row, col}, waypointIndex: number, speed: number }} enemy

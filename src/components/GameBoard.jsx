@@ -1,9 +1,41 @@
 import UpgradePanel from './UpgradePanel.jsx'
+import { getEnemyRadius } from '../game/enemy.js'
 
 // Tile size in pixels — must match the CSS (.tile width/height)
 const TILE_PX = 40
-// Enemy visual radius in pixels — must match half of CSS .enemy width/height (28px / 2)
-const ENEMY_RADIUS = 14
+
+/**
+ * Render an SVG tower icon based on tower type and upgrade level.
+ * BasicTower: filled teal square (28×28) rotated 45° (diamond).
+ *   level 1 adds an inner ring, level 2 adds a second ring.
+ * SniperTower: filled red upward-pointing triangle (SVG polygon, 30 px tall).
+ * The container keeps .tower-icon for E2E selector compatibility.
+ */
+function TowerSVG({ type, upgradeLevel }) {
+  if (type === 'SniperTower') {
+    return (
+      <span className="tower-icon">
+        <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
+          <polygon className="tower-sniper" points="15,2 28,28 2,28" />
+        </svg>
+      </span>
+    )
+  }
+  // BasicTower — teal diamond with optional inner rings for upgrade levels
+  return (
+    <span className="tower-icon">
+      <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
+        <rect className="tower-basic" x="7" y="7" width="16" height="16" transform="rotate(45 15 15)" />
+        {upgradeLevel >= 1 && (
+          <rect className="tower-basic-ring" x="4" y="4" width="22" height="22" transform="rotate(45 15 15)" />
+        )}
+        {upgradeLevel >= 2 && (
+          <rect className="tower-basic-ring" x="1" y="1" width="28" height="28" transform="rotate(45 15 15)" />
+        )}
+      </svg>
+    </span>
+  )
+}
 
 /**
  * GameBoard — CSS-grid tile map component.
@@ -74,7 +106,7 @@ function GameBoard({
                 className={`tile ${tileType}`}
                 onClick={handleClick}
               >
-                {hasTower && <span className="tower-icon">🗼</span>}
+                {hasTower && <TowerSVG type={tower.type} upgradeLevel={tower.upgradeLevel} />}
                 {showPanel && (
                   <UpgradePanel
                     tower={tower}
@@ -112,13 +144,15 @@ function GameBoard({
       {enemies.length > 0 && (
         <div className="enemy-layer" aria-hidden="true">
           {enemies.map(enemy => {
-            const left = (enemy.pos.col + 0.5) * TILE_PX - ENEMY_RADIUS
-            const top = (enemy.pos.row + 0.5) * TILE_PX - ENEMY_RADIUS
+            const radius = getEnemyRadius(enemy.hp, enemy.maxHp)
+            const left = (enemy.pos.col + 0.5) * TILE_PX - radius
+            const top = (enemy.pos.row + 0.5) * TILE_PX - radius
+            const diameter = radius * 2
             return (
               <div
                 key={enemy.id}
                 className="enemy"
-                style={{ left, top }}
+                style={{ left, top, width: diameter, height: diameter }}
               >
                 <div
                   className="enemy-hp-bar"
