@@ -261,6 +261,7 @@ function App() {
         wave={wave}
         speed={speed}
         onSpeedToggle={handleSpeedToggle}
+        onRestart={handleRestart}
       />
       <TowerPicker
         selectedType={selectedTowerType}

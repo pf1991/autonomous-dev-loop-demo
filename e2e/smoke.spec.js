@@ -372,4 +372,74 @@ test.describe('Tower Defense - smoke tests', () => {
       await expect(page.locator('.game-board')).toBeVisible();
     }
   });
+
+  // --- Geometric SVG shapes for towers and enemies (issue #32) ---
+
+  test('BasicTower renders an SVG with a teal diamond (rect.tower-basic)', async ({ page }) => {
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Ensure BasicTower is selected in the picker
+    const basicBtn = page.locator('.tower-picker button').filter({ hasText: 'BasicTower' });
+    if (await basicBtn.isVisible() && (await basicBtn.getAttribute('disabled')) === null) {
+      await basicBtn.click();
+    }
+    // Place a BasicTower on the first slot
+    const slot = page.locator('.tower-slot').first();
+    await slot.click();
+    // .tower-icon should now contain an SVG
+    const towerIcon = page.locator('.tower-icon').first();
+    await expect(towerIcon).toBeVisible();
+    const svgEl = towerIcon.locator('svg');
+    await expect(svgEl).toBeAttached();
+    // The SVG must contain a rect with class tower-basic (the diamond shape)
+    const diamond = svgEl.locator('rect.tower-basic');
+    await expect(diamond).toBeAttached();
+    // Verify no emoji text remains — the icon element should contain an SVG, not raw text
+    const innerText = await towerIcon.evaluate(el => el.innerText.trim());
+    expect(innerText).toBe('');
+  });
+
+  test('SniperTower renders an SVG with a red triangle (polygon.tower-sniper)', async ({ page }) => {
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Select SniperTower — it costs 100 gold and player starts with 100 gold
+    const sniperBtn = page.locator('.tower-picker button').filter({ hasText: 'SniperTower' });
+    const isAffordable = await sniperBtn.getAttribute('disabled');
+    if (isAffordable !== null) {
+      // Cannot afford — skip assertion (insufficient gold after earlier actions)
+      return;
+    }
+    await sniperBtn.click();
+    await expect(sniperBtn).toHaveClass(/selected/);
+    // Place a SniperTower on the first available slot
+    const slot = page.locator('.tower-slot').first();
+    await slot.click();
+    // .tower-icon should now contain an SVG with a polygon.tower-sniper
+    const towerIcon = page.locator('.tower-icon').first();
+    await expect(towerIcon).toBeVisible();
+    const svgEl = towerIcon.locator('svg');
+    await expect(svgEl).toBeAttached();
+    const triangle = svgEl.locator('polygon.tower-sniper');
+    await expect(triangle).toBeAttached();
+  });
+
+  test('enemy circle size reflects HP ratio via inline width/height styles', async ({ page }) => {
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Wait for at least one enemy to appear in the enemy-layer
+    await expect(page.locator('.enemy-layer .enemy').first()).toBeAttached({ timeout: 5000 });
+    // At full HP the enemy radius is 14 px → diameter 28 px
+    const enemy = page.locator('.enemy-layer .enemy').first();
+    const widthStyle = await enemy.evaluate(el => el.style.width);
+    const heightStyle = await enemy.evaluate(el => el.style.height);
+    // Must be one of the valid diameters: 28px (radius 14), 22px (radius 11), or 16px (radius 8)
+    expect(['28px', '22px', '16px']).toContain(widthStyle);
+    expect(['28px', '22px', '16px']).toContain(heightStyle);
+  });
 });
