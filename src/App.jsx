@@ -281,6 +281,9 @@ function App() {
         getUpgradeCost={getUpgradeCost}
         canUpgrade={canUpgrade}
         getNextUpgradeStats={getNextUpgradeStats}
+        showCountdownBanner={gamePhase === 'between-waves' && wave > 1}
+        countdownWave={wave + 1}
+        onCountdownStart={handleNextWaveStart}
       />
       {gamePhase === 'lose' && (
         <GameOver result="lose" onRestart={handleRestart} />
@@ -288,7 +291,7 @@ function App() {
       {gamePhase === 'win' && (
         <GameOver result="win" onRestart={handleRestart} />
       )}
-      {gamePhase === 'between-waves' && (
+      {gamePhase === 'between-waves' && wave === 1 && (
         <NextWave wave={wave} onStart={handleNextWaveStart} />
       )}
     </div>

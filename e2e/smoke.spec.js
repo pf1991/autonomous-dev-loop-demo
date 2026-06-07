@@ -443,6 +443,134 @@ test.describe('Tower Defense - smoke tests', () => {
     expect(['28px', '22px', '16px']).toContain(heightStyle);
   });
 
+  // --- WaveCountdownBanner component (issue #34) ---
+
+  /**
+   * Helper injected into tests below: set wave and gamePhase via React fiber to trigger
+   * the countdown banner (shown when gamePhase === 'between-waves' && wave > 1).
+   * App.jsx hook order: gold(0), lives(1), wave(2), speed(3), towers(4), enemies(5),
+   *   projectiles(6), selectedTowerType(7), selectedTower(8), gamePhase(9)
+   */
+
+  test('countdown banner is visible when between-waves with wave > 1', async ({ page }) => {
+    // Inject wave=2 and gamePhase='between-waves' via React fiber
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          let hookNode = fiber.memoizedState;
+          let waveHook = null;
+          let phaseHook = null;
+          let i = 0;
+          while (hookNode) {
+            if (i === 2) waveHook = hookNode;
+            if (i === 9) phaseHook = hookNode;
+            hookNode = hookNode.next;
+            i++;
+          }
+          if (waveHook && waveHook.queue && waveHook.queue.dispatch) {
+            waveHook.queue.dispatch(2);
+          }
+          if (phaseHook && phaseHook.queue && phaseHook.queue.dispatch) {
+            phaseHook.queue.dispatch('between-waves');
+          }
+          return;
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find App fiber hooks');
+    });
+    // Countdown banner should now be visible (wave > 1 and between-waves)
+    await expect(page.locator('.wave-countdown-banner')).toBeVisible({ timeout: 2000 });
+    // Banner should contain countdown text mentioning "Wave"
+    await expect(page.locator('.wave-countdown-text')).toContainText('Wave');
+    // "Start Now" button should be visible
+    await expect(page.locator('.wave-countdown-start-now')).toBeVisible();
+  });
+
+  test('wave auto-starts within 4 s after countdown banner appears (wave > 1)', async ({ page }) => {
+    // Inject wave=2 and gamePhase='between-waves'
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          let hookNode = fiber.memoizedState;
+          let waveHook = null;
+          let phaseHook = null;
+          let i = 0;
+          while (hookNode) {
+            if (i === 2) waveHook = hookNode;
+            if (i === 9) phaseHook = hookNode;
+            hookNode = hookNode.next;
+            i++;
+          }
+          if (waveHook && waveHook.queue && waveHook.queue.dispatch) {
+            waveHook.queue.dispatch(2);
+          }
+          if (phaseHook && phaseHook.queue && phaseHook.queue.dispatch) {
+            phaseHook.queue.dispatch('between-waves');
+          }
+          return;
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find App fiber hooks');
+    });
+    // Banner must appear first
+    await expect(page.locator('.wave-countdown-banner')).toBeVisible({ timeout: 2000 });
+    // Within 4 s the banner should disappear (auto-start fires after 3 countdown seconds)
+    await expect(page.locator('.wave-countdown-banner')).not.toBeVisible({ timeout: 4000 });
+    // Game should now be in 'playing' phase — HUD wave should show 2 (or 3 if wave incremented)
+    await expect(page.locator('.hud-wave')).toBeVisible();
+  });
+
+  test('"Start Now" button dismisses countdown banner and starts wave immediately', async ({ page }) => {
+    // Inject wave=2 and gamePhase='between-waves'
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          let hookNode = fiber.memoizedState;
+          let waveHook = null;
+          let phaseHook = null;
+          let i = 0;
+          while (hookNode) {
+            if (i === 2) waveHook = hookNode;
+            if (i === 9) phaseHook = hookNode;
+            hookNode = hookNode.next;
+            i++;
+          }
+          if (waveHook && waveHook.queue && waveHook.queue.dispatch) {
+            waveHook.queue.dispatch(2);
+          }
+          if (phaseHook && phaseHook.queue && phaseHook.queue.dispatch) {
+            phaseHook.queue.dispatch('between-waves');
+          }
+          return;
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find App fiber hooks');
+    });
+    // Banner must appear
+    await expect(page.locator('.wave-countdown-banner')).toBeVisible({ timeout: 2000 });
+    // Click "Start Now"
+    await page.locator('.wave-countdown-start-now').click();
+    // Banner should disappear immediately (no 3-second wait)
+    await expect(page.locator('.wave-countdown-banner')).not.toBeVisible({ timeout: 1000 });
+    // Game should be in playing phase — enemies start spawning
+    await expect(page.locator('.hud-wave')).toBeVisible();
+  });
+
   // --- HUD restart button (issue #33) ---
 
   test('HUD restart button resets game to initial state', async ({ page }) => {
