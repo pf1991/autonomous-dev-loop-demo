@@ -5,7 +5,7 @@ import GameOver from './components/GameOver'
 import NextWave from './components/NextWave'
 import TowerPicker from './components/TowerPicker'
 import { createDefaultMap, getPathWaypoints } from './game/map'
-import { TOWER_TYPES, createTower, canAfford } from './game/tower'
+import { TOWER_TYPES, createTower, canAfford, canUpgrade, upgradeTower, getUpgradeCost } from './game/tower'
 import { createEnemy, moveEnemy } from './game/enemy'
 import { processCombat } from './game/combat'
 import { useGameLoop } from './hooks/useGameLoop'
@@ -37,6 +37,8 @@ function App() {
   const [towers, setTowers] = useState(INITIAL_STATE.towers)
   const [enemies, setEnemies] = useState(INITIAL_STATE.enemies)
   const [selectedTowerType, setSelectedTowerType] = useState('BasicTower')
+  // { row, col } | null — the tower tile currently selected for upgrade
+  const [selectedTower, setSelectedTower] = useState(null)
   // 'playing' | 'between-waves' | 'win' | 'lose'
   const [gamePhase, setGamePhase] = useState('between-waves')
 
@@ -180,6 +182,26 @@ function App() {
     const cost = TOWER_TYPES[type].cost
     setGold(g => g - cost)
     setTowers(ts => [...ts, createTower(type, row, col)])
+    // Deselect upgrade panel when placing a new tower
+    setSelectedTower(null)
+  }
+
+  function handleTowerClick(row, col) {
+    // Toggle: clicking the already-selected tower deselects it
+    setSelectedTower(prev =>
+      prev && prev.row === row && prev.col === col ? null : { row, col }
+    )
+  }
+
+  function handleUpgrade(row, col) {
+    const tower = towers.find(t => t.row === row && t.col === col)
+    if (!tower) return
+    const cost = getUpgradeCost(tower)
+    if (cost === null || gold < cost) return
+    setGold(g => g - cost)
+    setTowers(ts =>
+      ts.map(t => (t.row === row && t.col === col ? upgradeTower(t) : t))
+    )
   }
 
   function handleRestart() {
@@ -189,6 +211,7 @@ function App() {
     setSpeed(INITIAL_STATE.speed)
     setTowers(INITIAL_STATE.towers)
     setEnemies(INITIAL_STATE.enemies)
+    setSelectedTower(null)
     nextEnemyIdRef.current = 0
     spawnTimerRef.current = 0
     spawnedInWaveRef.current = 0
@@ -226,8 +249,14 @@ function App() {
       <GameBoard
         tiles={INITIAL_MAP}
         onTileClick={placeTower}
+        onTowerClick={handleTowerClick}
         towers={towers}
         enemies={enemies}
+        selectedTower={selectedTower}
+        gold={gold}
+        onUpgrade={handleUpgrade}
+        getUpgradeCost={getUpgradeCost}
+        canUpgrade={canUpgrade}
       />
       {gamePhase === 'lose' && (
         <GameOver result="lose" onRestart={handleRestart} />

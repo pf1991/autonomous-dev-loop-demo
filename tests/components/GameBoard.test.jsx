@@ -5,6 +5,7 @@ import { createRoot } from 'react-dom/client'
 import { act } from 'react'
 import GameBoard from '../../src/components/GameBoard.jsx'
 import { createDefaultMap } from '../../src/game/map.js'
+import { createTower, canUpgrade, getUpgradeCost } from '../../src/game/tower.js'
 
 let container
 
@@ -48,7 +49,7 @@ describe('GameBoard', () => {
     })
   })
 
-  it('calls onTileClick with correct (row, col) when a tile is clicked', () => {
+  it('calls onTileClick with correct (row, col) when an empty tile is clicked', () => {
     const tiles = createDefaultMap()
     const onTileClick = vi.fn()
 
@@ -66,6 +67,30 @@ describe('GameBoard', () => {
 
     expect(onTileClick).toHaveBeenCalledWith(3, 7)
     expect(onTileClick).toHaveBeenCalledTimes(1)
+  })
+
+  it('calls onTowerClick (not onTileClick) when a tile with a tower is clicked', () => {
+    const tiles = createDefaultMap()
+    const onTileClick = vi.fn()
+    const onTowerClick = vi.fn()
+    const tower = createTower('BasicTower', 3, 7)
+    const towers = [tower]
+
+    act(() => {
+      createRoot(container).render(
+        createElement(GameBoard, { tiles, onTileClick, onTowerClick, towers })
+      )
+    })
+
+    const tileDivs = container.querySelectorAll('.tile')
+    const targetTile = tileDivs[3 * 20 + 7]
+
+    act(() => {
+      targetTile.click()
+    })
+
+    expect(onTowerClick).toHaveBeenCalledWith(3, 7)
+    expect(onTileClick).not.toHaveBeenCalled()
   })
 
   it('renders one .enemy div when one enemy is passed with a matching tile position', () => {
@@ -102,5 +127,76 @@ describe('GameBoard', () => {
     expect(hpBar).not.toBeNull()
     // width style should be '50%'
     expect(hpBar.style.width).toBe('50%')
+  })
+
+  it('renders .upgrade-panel when selectedTower matches a tower tile', () => {
+    const tiles = createDefaultMap()
+    const onTileClick = vi.fn()
+    const onTowerClick = vi.fn()
+    const tower = createTower('BasicTower', 3, 7)
+    const towers = [tower]
+    const selectedTower = { row: 3, col: 7 }
+
+    act(() => {
+      createRoot(container).render(
+        createElement(GameBoard, {
+          tiles,
+          onTileClick,
+          onTowerClick,
+          towers,
+          selectedTower,
+          gold: 200,
+          onUpgrade: vi.fn(),
+          getUpgradeCost,
+          canUpgrade,
+        })
+      )
+    })
+
+    const panel = container.querySelector('.upgrade-panel')
+    expect(panel).not.toBeNull()
+  })
+
+  it('does not render .upgrade-panel when no tower is selected', () => {
+    const tiles = createDefaultMap()
+    const onTileClick = vi.fn()
+    const tower = createTower('BasicTower', 3, 7)
+    const towers = [tower]
+
+    act(() => {
+      createRoot(container).render(
+        createElement(GameBoard, { tiles, onTileClick, towers, selectedTower: null })
+      )
+    })
+
+    const panel = container.querySelector('.upgrade-panel')
+    expect(panel).toBeNull()
+  })
+
+  it('upgrade button is disabled when player cannot afford upgrade', () => {
+    const tiles = createDefaultMap()
+    const onTileClick = vi.fn()
+    const tower = createTower('BasicTower', 3, 7)
+    const towers = [tower]
+    const selectedTower = { row: 3, col: 7 }
+
+    act(() => {
+      createRoot(container).render(
+        createElement(GameBoard, {
+          tiles,
+          onTileClick,
+          towers,
+          selectedTower,
+          gold: 0, // cannot afford
+          onUpgrade: vi.fn(),
+          getUpgradeCost,
+          canUpgrade,
+        })
+      )
+    })
+
+    const btn = container.querySelector('.upgrade-panel-btn')
+    expect(btn).not.toBeNull()
+    expect(btn.disabled).toBe(true)
   })
 })
