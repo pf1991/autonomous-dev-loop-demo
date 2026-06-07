@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import GameBoard from './components/GameBoard'
 import HUD from './components/HUD'
 import GameOver from './components/GameOver'
@@ -6,6 +6,7 @@ import NextWave from './components/NextWave'
 import { createDefaultMap, getPathWaypoints } from './game/map'
 import { TOWER_TYPES, createTower, canAfford } from './game/tower'
 import { createEnemy, moveEnemy } from './game/enemy'
+import { processCombat } from './game/combat'
 import { useGameLoop } from './hooks/useGameLoop'
 
 const INITIAL_MAP = createDefaultMap()
@@ -44,6 +45,10 @@ function App() {
   const livesRef = useRef(INITIAL_STATE.lives)
   const waveRef = useRef(INITIAL_STATE.wave)
   const gamePhaseRef = useRef('between-waves')
+  // Mirror towers in a ref so onTick can read latest towers without a stale closure
+  const towersRef = useRef(INITIAL_STATE.towers)
+  // Accumulated game clock (scaled by speed) — used as nowMs for combat
+  const gameClockRef = useRef(0)
 
   function syncLives(val) {
     livesRef.current = val
@@ -60,8 +65,23 @@ function App() {
     setGamePhase(val)
   }
 
+  // Keep towersRef in sync with towers state so onTick always sees the latest tower list
+  useEffect(() => {
+    towersRef.current = towers
+  }, [towers])
+
+  // Transition to 'lose' when lives hit 0 — scheduled outside setEnemies callback
+  useEffect(() => {
+    if (lives <= 0 && gamePhase === 'playing') {
+      syncPhase('lose')
+    }
+  }, [lives, gamePhase])
+
   const onTick = useCallback((deltaMs) => {
     if (gamePhaseRef.current !== 'playing') return
+
+    // Advance the game clock (scaled delta already applied by useGameLoop)
+    gameClockRef.current += deltaMs
 
     // Accumulate time for spawning
     spawnTimerRef.current += deltaMs
@@ -75,7 +95,10 @@ function App() {
       spawnedInWaveRef.current += 1
     }
 
-    // Move all enemies along the path; collect those that exit (reached the end)
+    const nowMs = gameClockRef.current
+
+    // Snapshot current enemies to compute the next state outside a functional updater
+    // We use a ref snapshot trick: compute all updates synchronously then batch-set them.
     setEnemies(prev => {
       const all = newEnemy ? [...prev, newEnemy] : [...prev]
       const surviving = []
@@ -97,10 +120,21 @@ function App() {
         const newLives = Math.max(0, livesRef.current - livesLost)
         livesRef.current = newLives
         setLives(newLives)
+      }
 
-        if (newLives <= 0) {
-          syncPhase('lose')
-        }
+      // Run combat: towers fire at surviving enemies; dead enemies removed; gold awarded
+      const combatResult = processCombat(towersRef.current, surviving, nowMs)
+      const afterCombat = combatResult.enemies
+      killedNow += surviving.length - afterCombat.length
+
+      if (combatResult.goldEarned > 0) {
+        setGold(g => g + combatResult.goldEarned)
+      }
+
+      // Update towers with new lastFiredAt values when any tower fired
+      if (towersRef.current.length > 0) {
+        towersRef.current = combatResult.towers
+        setTowers(combatResult.towers)
       }
 
       killedInWaveRef.current += killedNow
@@ -108,7 +142,7 @@ function App() {
       // Check wave completion: all enemies spawned and none remaining
       if (
         spawnedInWaveRef.current >= ENEMIES_PER_WAVE &&
-        surviving.length === 0 &&
+        afterCombat.length === 0 &&
         gamePhaseRef.current === 'playing' &&
         livesRef.current > 0
       ) {
@@ -120,7 +154,7 @@ function App() {
         }
       }
 
-      return surviving
+      return afterCombat
     })
   }, [])
 
@@ -157,6 +191,7 @@ function App() {
     spawnTimerRef.current = 0
     spawnedInWaveRef.current = 0
     killedInWaveRef.current = 0
+    gameClockRef.current = 0
     syncPhase('between-waves')
   }
 

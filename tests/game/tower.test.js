@@ -22,9 +22,17 @@ describe('TOWER_TYPES', () => {
 })
 
 describe('createTower', () => {
-  it('returns a tower object with correct shape', () => {
+  it('returns a tower object with correct shape including combat stats', () => {
     const tower = createTower('BasicTower', 2, 5)
-    expect(tower).toEqual({ type: 'BasicTower', row: 2, col: 5, lastFiredAt: 0 })
+    expect(tower).toEqual({
+      type: 'BasicTower',
+      row: 2,
+      col: 5,
+      range: 3,
+      damage: 25,
+      fireRate: 1,
+      lastFiredAt: 0,
+    })
   })
 })
 

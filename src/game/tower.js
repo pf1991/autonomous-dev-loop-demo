@@ -16,10 +16,11 @@ export const TOWER_TYPES = {
 }
 
 /**
- * createTower(type, row, col) — returns a new tower object.
+ * createTower(type, row, col) — returns a new tower object with combat stats from TOWER_TYPES.
  */
 export function createTower(type, row, col) {
-  return { type, row, col, lastFiredAt: 0 }
+  const { range, damage, fireRate } = TOWER_TYPES[type]
+  return { type, row, col, range, damage, fireRate, lastFiredAt: 0 }
 }
 
 /**

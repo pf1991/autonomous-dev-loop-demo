@@ -33,6 +33,43 @@ async function triggerGamePhase(page, phase) {
   }, phase);
 }
 
+/**
+ * Helper: force lives to a given value via React fiber injection and set gamePhase to 'playing'.
+ * App.jsx hook order: gold(0), lives(1), wave(2), speed(3), towers(4), enemies(5), gamePhase(6)
+ */
+async function setLivesAndPhase(page, livesValue, phase) {
+  await page.evaluate(({ livesValue, phase }) => {
+    const gameEl = document.querySelector('#game');
+    const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+    if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+    let fiber = gameEl[fiberKey];
+    while (fiber) {
+      if (fiber.memoizedState && typeof fiber.type === 'function') {
+        // index 1 = lives, index 6 = gamePhase
+        let hookNode = fiber.memoizedState;
+        let livesHook = null;
+        let phaseHook = null;
+        let i = 0;
+        while (hookNode) {
+          if (i === 1) livesHook = hookNode;
+          if (i === 6) phaseHook = hookNode;
+          hookNode = hookNode.next;
+          i++;
+        }
+        if (livesHook && livesHook.queue && livesHook.queue.dispatch) {
+          livesHook.queue.dispatch(livesValue);
+        }
+        if (phaseHook && phaseHook.queue && phaseHook.queue.dispatch) {
+          phaseHook.queue.dispatch(phase);
+        }
+        return;
+      }
+      fiber = fiber.return;
+    }
+    throw new Error('Could not find App fiber hooks');
+  }, { livesValue, phase });
+}
+
 test.describe('Tower Defense - smoke tests', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
@@ -127,5 +164,38 @@ test.describe('Tower Defense - smoke tests', () => {
     // Each enemy must contain an hp bar
     const hpBar = page.locator('.enemy .enemy-hp-bar').first();
     await expect(hpBar).toBeVisible();
+  });
+
+  // --- Game-over via lives depletion (issue #21) ---
+
+  test('game-over overlay appears when lives reach 0', async ({ page }) => {
+    // Set lives to 0 and phase to 'playing' via fiber injection to trigger the useEffect
+    await setLivesAndPhase(page, 0, 'playing');
+    // The useEffect in App.jsx should fire and transition gamePhase to 'lose'
+    await expect(page.locator('.game-over-overlay')).toBeVisible({ timeout: 3000 });
+    await expect(page.locator('.game-over-message')).toContainText('Game Over');
+  });
+
+  test('game-over overlay does not appear simultaneously with NextWave overlay', async ({ page }) => {
+    // Trigger lose phase directly
+    await triggerGamePhase(page, 'lose');
+    await expect(page.locator('.game-over-overlay')).toBeVisible();
+    // NextWave must NOT be visible at the same time
+    await expect(page.locator('.next-wave-overlay')).not.toBeVisible();
+  });
+
+  test('Restart button from game-over resets lives to 20 and returns to between-waves', async ({ page }) => {
+    // Force lose phase
+    await triggerGamePhase(page, 'lose');
+    await expect(page.locator('.game-over-overlay')).toBeVisible();
+    // Click restart
+    await page.locator('.game-over-restart').click();
+    // Should be back to between-waves with NextWave overlay visible
+    await expect(page.locator('.game-over-overlay')).not.toBeVisible();
+    await expect(page.locator('.next-wave-overlay')).toBeVisible();
+    // HUD should show lives = 20, gold = 100, wave = 1
+    await expect(page.locator('.hud-lives')).toContainText('20');
+    await expect(page.locator('.hud-gold')).toContainText('100');
+    await expect(page.locator('.hud-wave')).toContainText('1');
   });
 });
