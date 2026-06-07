@@ -442,4 +442,37 @@ test.describe('Tower Defense - smoke tests', () => {
     expect(['28px', '22px', '16px']).toContain(widthStyle);
     expect(['28px', '22px', '16px']).toContain(heightStyle);
   });
+
+  // --- HUD restart button (issue #33) ---
+
+  test('HUD restart button resets game to initial state', async ({ page }) => {
+    // Dismiss the NextWave overlay so the board is interactive
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+
+    // Place a tower on the first available slot
+    const slot = page.locator('.tower-slot').first();
+    await expect(slot).toBeVisible();
+    await slot.click();
+    // Verify the tower was placed
+    await expect(page.locator('.tower-icon').first()).toBeVisible();
+
+    // Click the HUD restart button
+    const restartBtn = page.locator('.hud-restart');
+    await expect(restartBtn).toBeVisible();
+    await restartBtn.click();
+
+    // Game state should be reset: lives=20, gold=100, wave=1
+    await expect(page.locator('.hud-lives')).toContainText('20');
+    await expect(page.locator('.hud-gold')).toContainText('100');
+    await expect(page.locator('.hud-wave')).toContainText('1');
+
+    // The between-waves overlay should be visible (Wave 1 start)
+    await expect(page.locator('.next-wave-overlay')).toBeVisible();
+
+    // No towers should remain on the board
+    await expect(page.locator('.tower-icon')).toHaveCount(0);
+  });
 });

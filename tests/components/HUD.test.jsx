@@ -87,4 +87,20 @@ describe('HUD', () => {
     act(() => { button.click() })
     expect(onSpeedToggle).toHaveBeenCalledTimes(2)
   })
+
+  it('renders a Restart button that calls onRestart when clicked', () => {
+    const onRestart = vi.fn()
+
+    act(() => {
+      root.render(
+        createElement(HUD, { lives: 20, gold: 100, wave: 1, speed: 1, onSpeedToggle: vi.fn(), onRestart })
+      )
+    })
+
+    const btn = container.querySelector('.hud-restart')
+    expect(btn).not.toBeNull()
+
+    act(() => { btn.click() })
+    expect(onRestart).toHaveBeenCalledTimes(1)
+  })
 })
