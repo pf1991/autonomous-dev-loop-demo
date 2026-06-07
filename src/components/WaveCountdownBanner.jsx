@@ -9,6 +9,10 @@ import { useState, useEffect, useRef } from 'react'
 function WaveCountdownBanner({ wave, onStart }) {
   const [countdown, setCountdown] = useState(3)
   const firedRef = useRef(false)
+  // Hold latest onStart in a ref so the countdown effect is not sensitive to
+  // reference changes caused by the parent re-rendering on every game-loop tick.
+  const onStartRef = useRef(onStart)
+  useEffect(() => { onStartRef.current = onStart }, [onStart])
 
   useEffect(() => {
     // Reset state whenever the banner appears for a new wave
@@ -20,17 +24,17 @@ function WaveCountdownBanner({ wave, onStart }) {
     if (firedRef.current) return
     if (countdown <= 0) {
       firedRef.current = true
-      onStart()
+      onStartRef.current()
       return
     }
     const id = setTimeout(() => setCountdown(c => c - 1), 1000)
     return () => clearTimeout(id)
-  }, [countdown, onStart])
+  }, [countdown])
 
   function handleStartNow() {
     if (firedRef.current) return
     firedRef.current = true
-    onStart()
+    onStartRef.current()
   }
 
   return (
