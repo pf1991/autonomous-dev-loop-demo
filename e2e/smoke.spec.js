@@ -571,6 +571,60 @@ test.describe('Tower Defense - smoke tests', () => {
     await expect(page.locator('.hud-wave')).toBeVisible();
   });
 
+  // --- Wave difficulty scaling (issue #35) ---
+
+  test('NextWave overlay shows enemy count and HP info for wave 1', async ({ page }) => {
+    // On initial load, NextWave overlay is visible for wave 1
+    await expect(page.locator('.next-wave-overlay')).toBeVisible();
+    // .next-wave-info should show wave-1 values: 5 enemies, 100 HP
+    const info = page.locator('.next-wave-info');
+    await expect(info).toBeVisible();
+    await expect(info).toContainText('5 enemies');
+    await expect(info).toContainText('100 HP');
+  });
+
+  test('WaveCountdownBanner shows enemy count and HP info for upcoming wave', async ({ page }) => {
+    // Inject wave=5 and gamePhase='between-waves' to show the countdown banner
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          let hookNode = fiber.memoizedState;
+          let waveHook = null;
+          let phaseHook = null;
+          let i = 0;
+          while (hookNode) {
+            if (i === 2) waveHook = hookNode;
+            if (i === 9) phaseHook = hookNode;
+            hookNode = hookNode.next;
+            i++;
+          }
+          if (waveHook && waveHook.queue && waveHook.queue.dispatch) {
+            waveHook.queue.dispatch(5);
+          }
+          if (phaseHook && phaseHook.queue && phaseHook.queue.dispatch) {
+            phaseHook.queue.dispatch('between-waves');
+          }
+          return;
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find App fiber hooks');
+    });
+    // Countdown banner for wave 5 shows NEXT wave (wave+1=6) stats:
+    // count = 5 + floor(5/2) = 7 enemies, HP = 100 + 5*25 = 225
+    await expect(page.locator('.wave-countdown-banner')).toBeVisible({ timeout: 2000 });
+    const info = page.locator('.wave-countdown-info');
+    // Use toBeAttached + inner text check — the span may be visually clipped in headless
+    await expect(info).toBeAttached();
+    const infoText = await info.textContent();
+    expect(infoText).toContain('7 enemies');
+    expect(infoText).toContain('225 HP');
+  });
+
   // --- HUD restart button (issue #33) ---
 
   test('HUD restart button resets game to initial state', async ({ page }) => {

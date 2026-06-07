@@ -7,17 +7,18 @@
  * createEnemy creates a new enemy object.
  * @param {string|number} id - Unique enemy identifier
  * @param {Array<{row: number, col: number}>} pathWaypoints - Array of waypoints defining the path
+ * @param {number} [hp=100] - Starting HP (scaled by wave difficulty)
  * @returns {{ id, hp: number, maxHp: number, pos: {row, col}, waypointIndex: number, speed: number }}
  */
-export function createEnemy(id, pathWaypoints) {
+export function createEnemy(id, pathWaypoints, hp = 100) {
   const startPos = pathWaypoints && pathWaypoints.length > 0
     ? { row: pathWaypoints[0].row, col: pathWaypoints[0].col }
     : { row: 0, col: 0 }
 
   return {
     id,
-    hp: 100,
-    maxHp: 100,
+    hp,
+    maxHp: hp,
     pos: { ...startPos },
     waypointIndex: 0,
     speed: 2,

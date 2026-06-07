@@ -8,6 +8,7 @@ import { createDefaultMap, getPathWaypoints } from './game/map'
 import { TOWER_TYPES, createTower, canAfford, canUpgrade, upgradeTower, getUpgradeCost, getNextUpgradeStats } from './game/tower'
 import { createEnemy, moveEnemy } from './game/enemy'
 import { processCombat } from './game/combat'
+import { getWaveEnemyHp, getWaveEnemyCount } from './game/wave'
 import { useGameLoop } from './hooks/useGameLoop'
 
 const INITIAL_MAP = createDefaultMap()
@@ -15,8 +16,6 @@ const PATH_WAYPOINTS = getPathWaypoints()
 
 // Spawn one enemy every 3 seconds (3000 ms)
 const SPAWN_INTERVAL_MS = 3000
-// Enemies per wave
-const ENEMIES_PER_WAVE = 5
 // Total waves in game
 const TOTAL_WAVES = 10
 
@@ -94,13 +93,17 @@ function App() {
     gameClockRef.current += deltaMs
     spawnTimerRef.current += deltaMs
 
+    const currentWaveNum = waveRef.current
+    const enemiesThisWave = getWaveEnemyCount(currentWaveNum)
+    const enemyHp = getWaveEnemyHp(currentWaveNum)
+
     let newEnemy = null
     if (
       spawnTimerRef.current >= SPAWN_INTERVAL_MS &&
-      spawnedInWaveRef.current < ENEMIES_PER_WAVE
+      spawnedInWaveRef.current < enemiesThisWave
     ) {
       spawnTimerRef.current = 0
-      newEnemy = createEnemy(nextEnemyIdRef.current++, PATH_WAYPOINTS)
+      newEnemy = createEnemy(nextEnemyIdRef.current++, PATH_WAYPOINTS, enemyHp)
       spawnedInWaveRef.current += 1
     }
 
@@ -165,13 +168,12 @@ function App() {
 
     // Check wave completion: all enemies spawned and none remaining
     if (
-      spawnedInWaveRef.current >= ENEMIES_PER_WAVE &&
+      spawnedInWaveRef.current >= enemiesThisWave &&
       afterCombat.length === 0 &&
       gamePhaseRef.current === 'playing' &&
       livesRef.current > 0
     ) {
-      const currentWave = waveRef.current
-      if (currentWave >= TOTAL_WAVES) {
+      if (currentWaveNum >= TOTAL_WAVES) {
         syncPhase('win')
       } else {
         syncPhase('between-waves')
@@ -283,6 +285,8 @@ function App() {
         getNextUpgradeStats={getNextUpgradeStats}
         showCountdownBanner={gamePhase === 'between-waves' && wave > 1}
         countdownWave={wave + 1}
+        countdownEnemyCount={getWaveEnemyCount(wave + 1)}
+        countdownEnemyHp={getWaveEnemyHp(wave + 1)}
         onCountdownStart={handleNextWaveStart}
       />
       {gamePhase === 'lose' && (
@@ -292,7 +296,12 @@ function App() {
         <GameOver result="win" onRestart={handleRestart} />
       )}
       {gamePhase === 'between-waves' && wave === 1 && (
-        <NextWave wave={wave} onStart={handleNextWaveStart} />
+        <NextWave
+          wave={wave}
+          enemyCount={getWaveEnemyCount(wave)}
+          enemyHp={getWaveEnemyHp(wave)}
+          onStart={handleNextWaveStart}
+        />
       )}
     </div>
   )
