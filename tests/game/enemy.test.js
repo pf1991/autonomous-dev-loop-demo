@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { createEnemy, moveEnemy } from '../../src/game/enemy.js'
+import { createEnemy, moveEnemy, getEnemyRadius } from '../../src/game/enemy.js'
 
 const WAYPOINTS = [
   { row: 0, col: 0 },
@@ -65,4 +65,14 @@ describe('moveEnemy', () => {
     const result = moveEnemy(enemy, 100, WAYPOINTS)
     expect(result).toBeNull()
   })
+})
+
+describe('getEnemyRadius', () => {
+  it('returns 14 for full HP', () => expect(getEnemyRadius(100, 100)).toBe(14))
+  it('returns 14 at exactly 50% HP', () => expect(getEnemyRadius(50, 100)).toBe(14))
+  it('returns 11 for 49% HP', () => expect(getEnemyRadius(49, 100)).toBe(11))
+  it('returns 11 at exactly 25% HP', () => expect(getEnemyRadius(25, 100)).toBe(11))
+  it('returns 8 for 24% HP', () => expect(getEnemyRadius(24, 100)).toBe(8))
+  it('returns 8 for 0 HP', () => expect(getEnemyRadius(0, 100)).toBe(8))
+  it('returns 8 when maxHp is 0 (guard)', () => expect(getEnemyRadius(0, 0)).toBe(8))
 })
