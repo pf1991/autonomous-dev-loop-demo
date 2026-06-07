@@ -256,6 +256,83 @@ body {
   color: #aaa;
 }
 
+/* ===== Upgrade Panel ===== */
+.upgrade-panel {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #16213e;
+  border: 2px solid #f5a623;
+  border-radius: 6px;
+  padding: 6px 8px;
+  min-width: 120px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.7rem;
+  white-space: nowrap;
+  pointer-events: all;
+  cursor: default;
+}
+
+.upgrade-panel-header {
+  font-weight: 700;
+  color: #f5a623;
+  font-size: 0.75rem;
+}
+
+.upgrade-panel-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  color: #ccc;
+}
+
+.upgrade-panel-next-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  color: #4ecca3;
+  font-size: 0.68rem;
+  border-top: 1px solid #334;
+  padding-top: 3px;
+}
+
+.upgrade-panel-next-label {
+  font-weight: 700;
+  color: #4ecca3;
+  font-size: 0.68rem;
+}
+
+.upgrade-panel-btn {
+  background: #4ecca3;
+  color: #16213e;
+  border: none;
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.upgrade-panel-btn:hover:not(:disabled) {
+  background: #38b08a;
+}
+
+.upgrade-panel-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.upgrade-panel-max {
+  color: #888;
+  font-style: italic;
+  font-size: 0.7rem;
+}
+
 /* ===== Next Wave overlay ===== */
 .next-wave-overlay {
   position: fixed;
