@@ -71,12 +71,35 @@ body {
   color: #16213e;
 }
 
+/* ===== Game board wrapper (positions projectile SVG over the grid) ===== */
+.game-board-wrapper {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+}
+
 /* ===== Game board ===== */
 .game-board {
   display: grid;
   grid-template-columns: repeat(20, 40px);
   grid-template-rows: repeat(15, 40px);
   border: 2px solid #0f3460;
+}
+
+/* ===== Projectile SVG overlay ===== */
+.projectile-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.projectile {
+  stroke: #ffe066;
+  stroke-width: 3;
+  stroke-linecap: round;
+  opacity: 0.85;
 }
 
 /* ===== Tile base ===== */

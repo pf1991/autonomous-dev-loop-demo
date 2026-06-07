@@ -36,6 +36,7 @@ function App() {
   const [speed, setSpeed] = useState(INITIAL_STATE.speed)
   const [towers, setTowers] = useState(INITIAL_STATE.towers)
   const [enemies, setEnemies] = useState(INITIAL_STATE.enemies)
+  const [projectiles, setProjectiles] = useState([])
   const [selectedTowerType, setSelectedTowerType] = useState('BasicTower')
   // { row, col } | null — the tower tile currently selected for upgrade
   const [selectedTower, setSelectedTower] = useState(null)
@@ -51,8 +52,13 @@ function App() {
   const gamePhaseRef = useRef('between-waves')
   // Mirror towers in a ref so onTick can read latest towers without a stale closure
   const towersRef = useRef(INITIAL_STATE.towers)
+  // Mirror enemies in a ref so onTick can read latest state without a functional updater
+  const enemiesRef = useRef(INITIAL_STATE.enemies)
+  // Mirror projectiles in a ref so onTick can merge/expire them without a functional updater
+  const projectilesRef = useRef([])
   // Accumulated game clock (scaled by speed) — used as nowMs for combat
   const gameClockRef = useRef(0)
+  const PROJECTILE_LIFETIME_MS = 200
 
   function syncLives(val) {
     livesRef.current = val
@@ -86,9 +92,8 @@ function App() {
 
     // Advance the game clock (scaled delta already applied by useGameLoop)
     gameClockRef.current += deltaMs
-
-    // Accumulate time for spawning
     spawnTimerRef.current += deltaMs
+
     let newEnemy = null
     if (
       spawnTimerRef.current >= SPAWN_INTERVAL_MS &&
@@ -101,72 +106,77 @@ function App() {
 
     const nowMs = gameClockRef.current
 
-    // Snapshot current enemies to compute the next state outside a functional updater
-    // We use a ref snapshot trick: compute all updates synchronously then batch-set them.
-    setEnemies(prev => {
-      const all = newEnemy ? [...prev, newEnemy] : [...prev]
-      const surviving = []
-      let livesLost = 0
-      let killedNow = 0
+    // Read current enemies from ref — avoids functional updater side effects that break
+    // under React 18 StrictMode (which double-invokes updater functions to detect impurity)
+    const all = newEnemy ? [...enemiesRef.current, newEnemy] : [...enemiesRef.current]
+    const surviving = []
+    let livesLost = 0
+    let killedNow = 0
 
-      for (const enemy of all) {
-        const updated = moveEnemy(enemy, deltaMs, PATH_WAYPOINTS)
-        if (updated === null) {
-          // Enemy reached the end of the path — lose a life
-          livesLost++
-          killedNow++
-        } else {
-          surviving.push(updated)
-        }
+    for (const enemy of all) {
+      const updated = moveEnemy(enemy, deltaMs, PATH_WAYPOINTS)
+      if (updated === null) {
+        livesLost++
+        killedNow++
+      } else {
+        surviving.push(updated)
       }
+    }
 
-      if (livesLost > 0) {
-        const newLives = Math.max(0, livesRef.current - livesLost)
-        livesRef.current = newLives
-        setLives(newLives)
+    if (livesLost > 0) {
+      const newLives = Math.max(0, livesRef.current - livesLost)
+      livesRef.current = newLives
+      setLives(newLives)
+    }
+
+    // Run combat: towers fire at surviving enemies; dead enemies removed; gold awarded
+    const combatResult = processCombat(towersRef.current, surviving, nowMs)
+    const afterCombat = combatResult.enemies
+    killedNow += surviving.length - afterCombat.length
+
+    if (combatResult.goldEarned > 0) {
+      setGold(g => g + combatResult.goldEarned)
+    }
+
+    // Keep projectiles alive for PROJECTILE_LIFETIME_MS so they are visible to the player
+    const aliveProjectiles = projectilesRef.current.filter(
+      p => nowMs - p.createdAt < PROJECTILE_LIFETIME_MS
+    )
+    const nextProjectiles = [...aliveProjectiles, ...combatResult.projectiles]
+    projectilesRef.current = nextProjectiles
+    setProjectiles(nextProjectiles)
+
+    // Update towers with new lastFiredAt values when any tower fired.
+    // Only call setTowers when a tower actually fired to avoid a re-render every tick.
+    const anyFired = combatResult.towers.some(
+      (t, i) => t.lastFiredAt !== towersRef.current[i]?.lastFiredAt
+    )
+    if (anyFired) {
+      towersRef.current = combatResult.towers
+      setTowers(combatResult.towers)
+    } else if (towersRef.current.length > 0) {
+      towersRef.current = combatResult.towers
+    }
+
+    killedInWaveRef.current += killedNow
+
+    enemiesRef.current = afterCombat
+    setEnemies(afterCombat)
+
+    // Check wave completion: all enemies spawned and none remaining
+    if (
+      spawnedInWaveRef.current >= ENEMIES_PER_WAVE &&
+      afterCombat.length === 0 &&
+      gamePhaseRef.current === 'playing' &&
+      livesRef.current > 0
+    ) {
+      const currentWave = waveRef.current
+      if (currentWave >= TOTAL_WAVES) {
+        syncPhase('win')
+      } else {
+        syncPhase('between-waves')
       }
-
-      // Run combat: towers fire at surviving enemies; dead enemies removed; gold awarded
-      const combatResult = processCombat(towersRef.current, surviving, nowMs)
-      const afterCombat = combatResult.enemies
-      killedNow += surviving.length - afterCombat.length
-
-      if (combatResult.goldEarned > 0) {
-        setGold(g => g + combatResult.goldEarned)
-      }
-
-      // Update towers with new lastFiredAt values when any tower fired.
-      // Only call setTowers when a tower actually fired to avoid a re-render every tick.
-      const anyFired = combatResult.towers.some(
-        (t, i) => t.lastFiredAt !== towersRef.current[i]?.lastFiredAt
-      )
-      if (anyFired) {
-        towersRef.current = combatResult.towers
-        setTowers(combatResult.towers)
-      } else if (towersRef.current.length > 0) {
-        // Keep ref in sync even when no tower fired (e.g. no enemies in range)
-        towersRef.current = combatResult.towers
-      }
-
-      killedInWaveRef.current += killedNow
-
-      // Check wave completion: all enemies spawned and none remaining
-      if (
-        spawnedInWaveRef.current >= ENEMIES_PER_WAVE &&
-        afterCombat.length === 0 &&
-        gamePhaseRef.current === 'playing' &&
-        livesRef.current > 0
-      ) {
-        const currentWave = waveRef.current
-        if (currentWave >= TOTAL_WAVES) {
-          syncPhase('win')
-        } else {
-          syncPhase('between-waves')
-        }
-      }
-
-      return afterCombat
-    })
+    }
   }, [])
 
   useGameLoop(onTick, speed)
@@ -216,8 +226,12 @@ function App() {
     syncLives(INITIAL_STATE.lives)
     syncWave(INITIAL_STATE.wave)
     setSpeed(INITIAL_STATE.speed)
+    towersRef.current = INITIAL_STATE.towers
     setTowers(INITIAL_STATE.towers)
+    enemiesRef.current = INITIAL_STATE.enemies
     setEnemies(INITIAL_STATE.enemies)
+    projectilesRef.current = []
+    setProjectiles([])
     setSelectedTower(null)
     nextEnemyIdRef.current = 0
     spawnTimerRef.current = 0
@@ -259,6 +273,7 @@ function App() {
         onTowerClick={handleTowerClick}
         towers={towers}
         enemies={enemies}
+        projectiles={projectiles}
         selectedTower={selectedTower}
         gold={gold}
         onUpgrade={handleUpgrade}

@@ -16,10 +16,10 @@ async function triggerGamePhase(page, phase) {
       if (fiber.memoizedState && typeof fiber.type === 'function') {
         // Walk the hooks linked list to find the gamePhase hook dispatcher
         // App.jsx order: gold(0), lives(1), wave(2), speed(3), towers(4), enemies(5),
-        //   selectedTowerType(6), selectedTower(7), gamePhase(8)
+        //   projectiles(6), selectedTowerType(7), selectedTower(8), gamePhase(9)
         let hookNode = fiber.memoizedState;
         let i = 0;
-        while (hookNode && i < 8) {
+        while (hookNode && i < 9) {
           hookNode = hookNode.next;
           i++;
         }
@@ -47,14 +47,14 @@ async function setLivesAndPhase(page, livesValue, phase) {
     while (fiber) {
       if (fiber.memoizedState && typeof fiber.type === 'function') {
         // App.jsx hook order: gold(0), lives(1), wave(2), speed(3), towers(4), enemies(5),
-        //   selectedTowerType(6), selectedTower(7), gamePhase(8)
+        //   projectiles(6), selectedTowerType(7), selectedTower(8), gamePhase(9)
         let hookNode = fiber.memoizedState;
         let livesHook = null;
         let phaseHook = null;
         let i = 0;
         while (hookNode) {
           if (i === 1) livesHook = hookNode;
-          if (i === 8) phaseHook = hookNode;
+          if (i === 9) phaseHook = hookNode;
           hookNode = hookNode.next;
           i++;
         }
@@ -288,6 +288,47 @@ test.describe('Tower Defense - smoke tests', () => {
     const panel = page.locator('.upgrade-panel');
     await expect(panel).toBeVisible();
     await expect(panel.locator('.upgrade-panel-btn')).toBeVisible();
+  });
+
+  // --- Projectile visualization and enemy combat (issue #29) ---
+
+  test('.game-board-wrapper container is present and wraps the game board', async ({ page }) => {
+    await expect(page.locator('.game-board-wrapper')).toBeVisible();
+    await expect(page.locator('.game-board-wrapper .game-board')).toBeVisible();
+  });
+
+  test('projectile SVG layer appears when a tower fires at an enemy', async ({ page }) => {
+    // Start the wave, place a tower on the first slot (row 1, col 1) — directly above the
+    // path start at (row 2, col 1) where enemies enter. Distance = 1 tile, well within range 3.
+    await page.locator('.next-wave-start').click();
+    await page.locator('.tower-slot').first().click();
+    await expect(page.locator('.tower-icon').first()).toBeVisible();
+
+    // Wait for first enemy to spawn, then for the projectile SVG overlay to appear.
+    // .projectile-layer is only rendered when projectiles[] is non-empty (conditional in GameBoard).
+    // Use waitForFunction for reliable detection of this short-lived (200 ms) DOM state.
+    await expect(page.locator('.enemy').first()).toBeVisible({ timeout: 4000 });
+    await page.waitForFunction(
+      () => document.querySelector('.projectile-layer') !== null,
+      { timeout: 5000 }
+    );
+  });
+
+  test('enemy HP bar decreases after being hit by a tower', async ({ page }) => {
+    // Start wave, place tower at the first slot adjacent to the enemy spawn point.
+    await page.locator('.next-wave-start').click();
+    await page.locator('.tower-slot').first().click();
+    await expect(page.locator('.tower-icon').first()).toBeVisible();
+
+    // Wait for at least one HP bar to drop below 100 % (enemy takes damage).
+    // Timeout: 8 s — first enemy spawns at ~3 s, tower fires at ~3 s, second shot at ~4 s.
+    await page.waitForFunction(() => {
+      const bars = document.querySelectorAll('.enemy-hp-bar');
+      for (const bar of bars) {
+        if (parseFloat(bar.style.width) < 100) return true;
+      }
+      return false;
+    }, { timeout: 8000 });
   });
 
   test('upgrade panel closes when clicking an empty tile after opening', async ({ page }) => {
