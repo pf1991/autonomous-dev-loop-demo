@@ -290,6 +290,22 @@ body {
   color: #ccc;
 }
 
+.upgrade-panel-next-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  color: #4ecca3;
+  font-size: 0.68rem;
+  border-top: 1px solid #334;
+  padding-top: 3px;
+}
+
+.upgrade-panel-next-label {
+  font-weight: 700;
+  color: #4ecca3;
+  font-size: 0.68rem;
+}
+
 .upgrade-panel-btn {
   background: #4ecca3;
   color: #16213e;

@@ -1,3 +1,5 @@
+import UpgradePanel from './UpgradePanel.jsx'
+
 /**
  * GameBoard — CSS-grid tile map component.
  * Renders a 20×15 grid of <div> tiles.
@@ -91,41 +93,6 @@ function GameBoard({
             </div>
           )
         })
-      )}
-    </div>
-  )
-}
-
-/**
- * UpgradePanel — shown inside a tile when a tower is selected.
- * Displays current stats, next-level stats, and an "Upgrade (N gold)" button.
- */
-function UpgradePanel({ tower, gold, onUpgrade, getUpgradeCost, canUpgrade }) {
-  const upgradable = canUpgrade ? canUpgrade(tower) : false
-  const cost = getUpgradeCost ? getUpgradeCost(tower) : null
-  const canAffordUpgrade = upgradable && cost !== null && gold >= cost
-
-  return (
-    <div className="upgrade-panel" onClick={e => e.stopPropagation()}>
-      <div className="upgrade-panel-header">
-        Lv {tower.upgradeLevel} {tower.type}
-      </div>
-      <div className="upgrade-panel-stats">
-        <span>Dmg: {tower.damage}</span>
-        <span>Range: {tower.range}</span>
-        <span>Rate: {tower.fireRate}</span>
-      </div>
-      {upgradable && cost !== null && (
-        <button
-          className="upgrade-panel-btn"
-          disabled={!canAffordUpgrade}
-          onClick={() => onUpgrade && onUpgrade(tower.row, tower.col)}
-        >
-          Upgrade ({cost} gold)
-        </button>
-      )}
-      {!upgradable && (
-        <div className="upgrade-panel-max">Max Level</div>
       )}
     </div>
   )
