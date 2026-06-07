@@ -625,6 +625,39 @@ test.describe('Tower Defense - smoke tests', () => {
     expect(infoText).toContain('225 HP');
   });
 
+  // --- Tower range preview ring (issue #36) ---
+
+  test('hovering an empty tower-slot shows the range-preview-ring', async ({ page }) => {
+    // Dismiss the NextWave overlay so the board is interactive
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Hover over the first empty tower-slot
+    const slot = page.locator('.tower-slot').first();
+    await expect(slot).toBeVisible();
+    await slot.hover();
+    // The range-preview-ring SVG circle should be present in the DOM while hovering
+    await expect(page.locator('.range-preview-ring')).toBeAttached({ timeout: 2000 });
+  });
+
+  test('moving mouse away from tower-slot hides the range-preview-ring', async ({ page }) => {
+    // Dismiss the NextWave overlay so the board is interactive
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Hover over the first empty tower-slot to show the ring
+    const slot = page.locator('.tower-slot').first();
+    await expect(slot).toBeVisible();
+    await slot.hover();
+    await expect(page.locator('.range-preview-ring')).toBeAttached({ timeout: 2000 });
+    // Move the mouse to the game-board-wrapper (outside any tower-slot) to trigger mouse-leave
+    await page.locator('.hud').hover();
+    // The range-preview-ring should no longer be in the DOM
+    await expect(page.locator('.range-preview-ring')).not.toBeAttached({ timeout: 2000 });
+  });
+
   // --- HUD restart button (issue #33) ---
 
   test('HUD restart button resets game to initial state', async ({ page }) => {
