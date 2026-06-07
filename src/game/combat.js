@@ -68,6 +68,7 @@ export function processCombat(towers, enemies, nowMs) {
       fromCol: tower.col,
       toRow: target.pos.row,
       toCol: target.pos.col,
+      createdAt: nowMs,
     })
 
     return { ...tower, lastFiredAt: nowMs }

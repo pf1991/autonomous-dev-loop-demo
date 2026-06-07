@@ -290,24 +290,45 @@ test.describe('Tower Defense - smoke tests', () => {
     await expect(panel.locator('.upgrade-panel-btn')).toBeVisible();
   });
 
-  // --- Projectile visualization (issue #29) ---
+  // --- Projectile visualization and enemy combat (issue #29) ---
 
   test('.game-board-wrapper container is present and wraps the game board', async ({ page }) => {
-    // The game-board-wrapper is always present and wraps both the grid and the projectile layer SVG
     await expect(page.locator('.game-board-wrapper')).toBeVisible();
     await expect(page.locator('.game-board-wrapper .game-board')).toBeVisible();
   });
 
-  test('.projectile CSS styles are applied and projectile-layer is structurally available', async ({ page }) => {
-    // Verify the .game-board-wrapper contains the game board — the SVG projectile layer
-    // is injected into this wrapper when projectiles are active (conditionally rendered
-    // for one RAF tick ~16 ms, making direct DOM detection unreliable in E2E).
-    // Instead verify the containing wrapper exists and CSS rules for .projectile are loaded.
-    const wrapper = page.locator('.game-board-wrapper');
-    await expect(wrapper).toBeVisible();
-    // Verify CSS is loaded for .projectile by checking position style on the wrapper
-    const position = await wrapper.evaluate(el => getComputedStyle(el).position);
-    expect(['relative', 'absolute']).toContain(position);
+  test('projectile SVG layer appears when a tower fires at an enemy', async ({ page }) => {
+    // Start the wave, place a tower on the first slot (row 1, col 1) — directly above the
+    // path start at (row 2, col 1) where enemies enter. Distance = 1 tile, well within range 3.
+    await page.locator('.next-wave-start').click();
+    await page.locator('.tower-slot').first().click();
+    await expect(page.locator('.tower-icon').first()).toBeVisible();
+
+    // Wait for first enemy to spawn, then for the projectile SVG overlay to appear.
+    // .projectile-layer is only rendered when projectiles[] is non-empty (conditional in GameBoard).
+    // Use waitForFunction for reliable detection of this short-lived (200 ms) DOM state.
+    await expect(page.locator('.enemy').first()).toBeVisible({ timeout: 4000 });
+    await page.waitForFunction(
+      () => document.querySelector('.projectile-layer') !== null,
+      { timeout: 5000 }
+    );
+  });
+
+  test('enemy HP bar decreases after being hit by a tower', async ({ page }) => {
+    // Start wave, place tower at the first slot adjacent to the enemy spawn point.
+    await page.locator('.next-wave-start').click();
+    await page.locator('.tower-slot').first().click();
+    await expect(page.locator('.tower-icon').first()).toBeVisible();
+
+    // Wait for at least one HP bar to drop below 100 % (enemy takes damage).
+    // Timeout: 8 s — first enemy spawns at ~3 s, tower fires at ~3 s, second shot at ~4 s.
+    await page.waitForFunction(() => {
+      const bars = document.querySelectorAll('.enemy-hp-bar');
+      for (const bar of bars) {
+        if (parseFloat(bar.style.width) < 100) return true;
+      }
+      return false;
+    }, { timeout: 8000 });
   });
 
   test('upgrade panel closes when clicking an empty tile after opening', async ({ page }) => {
