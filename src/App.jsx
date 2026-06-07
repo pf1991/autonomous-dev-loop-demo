@@ -135,10 +135,17 @@ function App() {
         setGold(g => g + combatResult.goldEarned)
       }
 
-      // Update towers with new lastFiredAt values when any tower fired
-      if (towersRef.current.length > 0) {
+      // Update towers with new lastFiredAt values when any tower fired.
+      // Only call setTowers when a tower actually fired to avoid a re-render every tick.
+      const anyFired = combatResult.towers.some(
+        (t, i) => t.lastFiredAt !== towersRef.current[i]?.lastFiredAt
+      )
+      if (anyFired) {
         towersRef.current = combatResult.towers
         setTowers(combatResult.towers)
+      } else if (towersRef.current.length > 0) {
+        // Keep ref in sync even when no tower fired (e.g. no enemies in range)
+        towersRef.current = combatResult.towers
       }
 
       killedInWaveRef.current += killedNow
