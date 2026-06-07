@@ -1,20 +1,8 @@
 import UpgradePanel from './UpgradePanel.jsx'
+import { getEnemyRadius } from '../game/enemy.js'
 
 // Tile size in pixels — must match the CSS (.tile width/height)
 const TILE_PX = 40
-
-/**
- * Compute enemy radius in px based on HP ratio:
- *   full HP (> 0.5)    → 14 px (large)
- *   half HP (>= 0.25)  → 11 px (medium)
- *   near death (< 0.25) → 8 px (small)
- */
-function getEnemyRadius(hp, maxHp) {
-  const ratio = maxHp > 0 ? hp / maxHp : 0
-  if (ratio > 0.5) return 14
-  if (ratio >= 0.25) return 11
-  return 8
-}
 
 /**
  * Render an SVG tower icon based on tower type and upgrade level.
