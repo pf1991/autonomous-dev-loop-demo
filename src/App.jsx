@@ -36,6 +36,7 @@ function App() {
   const [speed, setSpeed] = useState(INITIAL_STATE.speed)
   const [towers, setTowers] = useState(INITIAL_STATE.towers)
   const [enemies, setEnemies] = useState(INITIAL_STATE.enemies)
+  const [projectiles, setProjectiles] = useState([])
   const [selectedTowerType, setSelectedTowerType] = useState('BasicTower')
   // { row, col } | null — the tower tile currently selected for upgrade
   const [selectedTower, setSelectedTower] = useState(null)
@@ -135,6 +136,9 @@ function App() {
         setGold(g => g + combatResult.goldEarned)
       }
 
+      // Show projectiles for this tick; they are cleared on the next tick
+      setProjectiles(combatResult.projectiles)
+
       // Update towers with new lastFiredAt values when any tower fired.
       // Only call setTowers when a tower actually fired to avoid a re-render every tick.
       const anyFired = combatResult.towers.some(
@@ -218,6 +222,7 @@ function App() {
     setSpeed(INITIAL_STATE.speed)
     setTowers(INITIAL_STATE.towers)
     setEnemies(INITIAL_STATE.enemies)
+    setProjectiles([])
     setSelectedTower(null)
     nextEnemyIdRef.current = 0
     spawnTimerRef.current = 0
@@ -259,6 +264,7 @@ function App() {
         onTowerClick={handleTowerClick}
         towers={towers}
         enemies={enemies}
+        projectiles={projectiles}
         selectedTower={selectedTower}
         gold={gold}
         onUpgrade={handleUpgrade}

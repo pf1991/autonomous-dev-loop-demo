@@ -16,16 +16,23 @@ function tileDistance(tower, pos) {
 }
 
 /**
+ * A projectile represents a single shot fired from a tower toward an enemy position.
+ * @typedef {{ id: string, fromRow: number, fromCol: number, toRow: number, toCol: number }} Projectile
+ */
+
+/**
  * processCombat applies one combat tick: each tower fires at the nearest enemy in range.
  *
  * @param {Array<{ row: number, col: number, range: number, damage: number, fireRate: number, lastFiredAt: number }>} towers
  * @param {Array<{ id: string|number, hp: number, pos: { row: number, col: number } }>} enemies
  * @param {number} nowMs - current timestamp in milliseconds
- * @returns {{ enemies: Array, towers: Array, goldEarned: number }}
+ * @returns {{ enemies: Array, towers: Array, goldEarned: number, projectiles: Projectile[] }}
  */
 export function processCombat(towers, enemies, nowMs) {
   // Work with mutable copies so multiple towers can hit different enemies in the same tick
   const enemyMap = new Map(enemies.map(e => [e.id, { ...e, pos: { ...e.pos } }]))
+
+  const projectiles = []
 
   const updatedTowers = towers.map(tower => {
     const fireInterval = 1000 / tower.fireRate
@@ -54,6 +61,15 @@ export function processCombat(towers, enemies, nowMs) {
     const target = enemyMap.get(nearestId)
     enemyMap.set(nearestId, { ...target, hp: target.hp - tower.damage })
 
+    // Record the projectile for visual feedback
+    projectiles.push({
+      id: `${tower.row}-${tower.col}-${nowMs}`,
+      fromRow: tower.row,
+      fromCol: tower.col,
+      toRow: target.pos.row,
+      toCol: target.pos.col,
+    })
+
     return { ...tower, lastFiredAt: nowMs }
   })
 
@@ -69,5 +85,5 @@ export function processCombat(towers, enemies, nowMs) {
     }
   }
 
-  return { enemies: updatedEnemies, towers: updatedTowers, goldEarned }
+  return { enemies: updatedEnemies, towers: updatedTowers, goldEarned, projectiles }
 }

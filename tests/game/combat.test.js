@@ -121,4 +121,47 @@ describe('processCombat', () => {
     // Gold is awarded for the kill
     expect(goldEarned).toBe(10)
   })
+
+  it('firing tower produces a projectile with correct from/to positions', () => {
+    const tower = makeTower({ row: 2, col: 2, range: 5, damage: 10, fireRate: 1, lastFiredAt: 0 })
+    const enemy = makeEnemy({ id: 1, hp: 100, row: 2, col: 4 })
+
+    const { projectiles } = processCombat([tower], [enemy], 1000)
+
+    expect(projectiles).toHaveLength(1)
+    expect(projectiles[0].fromRow).toBe(2)
+    expect(projectiles[0].fromCol).toBe(2)
+    expect(projectiles[0].toRow).toBeCloseTo(2)
+    expect(projectiles[0].toCol).toBeCloseTo(4)
+  })
+
+  it('no projectiles when tower is on cooldown', () => {
+    // lastFiredAt=500, fireRate=1 → interval=1000ms; nowMs=1499 → not ready
+    const tower = makeTower({ row: 0, col: 0, range: 5, damage: 10, fireRate: 1, lastFiredAt: 500 })
+    const enemy = makeEnemy({ id: 1, hp: 100, row: 0, col: 1 })
+
+    const { projectiles } = processCombat([tower], [enemy], 1499)
+
+    expect(projectiles).toHaveLength(0)
+  })
+
+  it('no projectiles when no enemies in range', () => {
+    const tower = makeTower({ row: 0, col: 0, range: 2, damage: 50, fireRate: 1, lastFiredAt: 0 })
+    const enemy = makeEnemy({ id: 1, hp: 100, row: 10, col: 0 })
+
+    const { projectiles } = processCombat([tower], [enemy], 1000)
+
+    expect(projectiles).toHaveLength(0)
+  })
+
+  it('two towers each produce one projectile when both fire', () => {
+    const tower1 = makeTower({ row: 0, col: 0, range: 5, damage: 10, fireRate: 1, lastFiredAt: 0 })
+    const tower2 = makeTower({ row: 10, col: 0, range: 5, damage: 10, fireRate: 1, lastFiredAt: 0 })
+    const enemy1 = makeEnemy({ id: 1, hp: 100, row: 1, col: 0 })
+    const enemy2 = makeEnemy({ id: 2, hp: 100, row: 9, col: 0 })
+
+    const { projectiles } = processCombat([tower1, tower2], [enemy1, enemy2], 1000)
+
+    expect(projectiles).toHaveLength(2)
+  })
 })

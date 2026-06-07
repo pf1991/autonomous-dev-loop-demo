@@ -173,6 +173,38 @@ describe('GameBoard', () => {
     expect(panel).toBeNull()
   })
 
+  it('renders a .projectile SVG line for each projectile in the projectiles prop', () => {
+    const tiles = createDefaultMap()
+    const onTileClick = vi.fn()
+    const projectiles = [
+      { id: 'p1', fromRow: 1, fromCol: 1, toRow: 2, toCol: 3 },
+      { id: 'p2', fromRow: 3, fromCol: 2, toRow: 4, toCol: 5 },
+    ]
+
+    act(() => {
+      createRoot(container).render(
+        createElement(GameBoard, { tiles, onTileClick, projectiles })
+      )
+    })
+
+    const lines = container.querySelectorAll('.projectile')
+    expect(lines.length).toBe(2)
+  })
+
+  it('renders no projectile SVG when projectiles prop is empty', () => {
+    const tiles = createDefaultMap()
+    const onTileClick = vi.fn()
+
+    act(() => {
+      createRoot(container).render(
+        createElement(GameBoard, { tiles, onTileClick, projectiles: [] })
+      )
+    })
+
+    const lines = container.querySelectorAll('.projectile')
+    expect(lines.length).toBe(0)
+  })
+
   it('upgrade button is disabled when player cannot afford upgrade', () => {
     const tiles = createDefaultMap()
     const onTileClick = vi.fn()
