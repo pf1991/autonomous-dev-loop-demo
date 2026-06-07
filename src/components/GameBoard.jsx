@@ -2,6 +2,8 @@ import UpgradePanel from './UpgradePanel.jsx'
 
 // Tile size in pixels — must match the CSS (.tile width/height)
 const TILE_PX = 40
+// Enemy visual radius in pixels — must match half of CSS .enemy width/height (28px / 2)
+const ENEMY_RADIUS = 14
 
 /**
  * GameBoard — CSS-grid tile map component.
@@ -40,16 +42,6 @@ function GameBoard({
     towerMap[`${t.row}-${t.col}`] = t
   }
 
-  // Build a map from "row-col" key to array of enemies on that tile
-  const enemyMap = {}
-  for (const enemy of enemies) {
-    const r = Math.round(enemy.pos.row)
-    const c = Math.round(enemy.pos.col)
-    const key = `${r}-${c}`
-    if (!enemyMap[key]) enemyMap[key] = []
-    enemyMap[key].push(enemy)
-  }
-
   const isSelectedTower = (rowIndex, colIndex) =>
     selectedTower !== null &&
     selectedTower.row === rowIndex &&
@@ -66,7 +58,6 @@ function GameBoard({
             const key = `${rowIndex}-${colIndex}`
             const tower = towerMap[key]
             const hasTower = Boolean(tower)
-            const tileEnemies = enemyMap[key] || []
             const showPanel = hasTower && isSelectedTower(rowIndex, colIndex)
 
             const handleClick = () => {
@@ -84,14 +75,6 @@ function GameBoard({
                 onClick={handleClick}
               >
                 {hasTower && <span className="tower-icon">🗼</span>}
-                {tileEnemies.map(enemy => (
-                  <div key={enemy.id} className="enemy">
-                    <div
-                      className="enemy-hp-bar"
-                      style={{ width: `${Math.max(0, (enemy.hp / enemy.maxHp) * 100)}%` }}
-                    />
-                  </div>
-                ))}
                 {showPanel && (
                   <UpgradePanel
                     tower={tower}
@@ -125,6 +108,26 @@ function GameBoard({
             />
           ))}
         </svg>
+      )}
+      {enemies.length > 0 && (
+        <div className="enemy-layer" aria-hidden="true">
+          {enemies.map(enemy => {
+            const left = (enemy.pos.col + 0.5) * TILE_PX - ENEMY_RADIUS
+            const top = (enemy.pos.row + 0.5) * TILE_PX - ENEMY_RADIUS
+            return (
+              <div
+                key={enemy.id}
+                className="enemy"
+                style={{ left, top }}
+              >
+                <div
+                  className="enemy-hp-bar"
+                  style={{ width: `${Math.max(0, (enemy.hp / enemy.maxHp) * 100)}%` }}
+                />
+              </div>
+            )
+          })}
+        </div>
       )}
     </div>
   )
