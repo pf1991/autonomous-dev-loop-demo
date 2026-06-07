@@ -72,10 +72,10 @@ function App() {
 
   // Transition to 'lose' when lives hit 0 — scheduled outside setEnemies callback
   useEffect(() => {
-    if (lives <= 0 && gamePhaseRef.current === 'playing') {
+    if (lives <= 0 && gamePhase === 'playing') {
       syncPhase('lose')
     }
-  }, [lives])
+  }, [lives, gamePhase])
 
   const onTick = useCallback((deltaMs) => {
     if (gamePhaseRef.current !== 'playing') return
