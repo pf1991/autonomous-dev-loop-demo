@@ -136,10 +136,31 @@ body {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  font-size: 24px;
-  line-height: 1;
+  line-height: 0;
   pointer-events: none;
   user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* BasicTower — teal filled diamond */
+.tower-basic {
+  fill: #4ecca3;
+  stroke: none;
+}
+
+/* Inner rings for upgraded BasicTower (level 1 and level 2) */
+.tower-basic-ring {
+  fill: none;
+  stroke: #4ecca3;
+  stroke-width: 1.5;
+}
+
+/* SniperTower — red upward-pointing triangle */
+.tower-sniper {
+  fill: #e94560;
+  stroke: none;
 }
 
 /* ===== Enemy layer overlay (absolutely positioned over the game board) ===== */
@@ -151,11 +172,10 @@ body {
   z-index: 15;
 }
 
-/* ===== Enemy element (positioned via left/top inline styles from enemy-layer) ===== */
+/* ===== Enemy element (positioned via left/top/width/height inline styles from enemy-layer) ===== */
+/* width and height are set dynamically based on HP ratio — see GameBoard.jsx getEnemyRadius() */
 .enemy {
   position: absolute;
-  width: 28px;
-  height: 28px;
   background: #e94560;
   border-radius: 50%;
   pointer-events: none;
