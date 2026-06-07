@@ -17,6 +17,17 @@ describe('createEnemy', () => {
     expect(enemy.speed).toBe(2)
     expect(enemy.pos).toEqual({ row: 0, col: 0 })
   })
+
+  it('accepts a custom hp value for wave-scaled difficulty', () => {
+    const enemy = createEnemy('e2', WAYPOINTS, 200)
+    expect(enemy.hp).toBe(200)
+    expect(enemy.maxHp).toBe(200)
+  })
+
+  it('speed is always 2 tiles/sec regardless of hp', () => {
+    const enemy = createEnemy('e3', WAYPOINTS, 325)
+    expect(enemy.speed).toBe(2)
+  })
 })
 
 describe('moveEnemy', () => {

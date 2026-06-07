@@ -6,7 +6,7 @@ import { useState, useEffect, useRef } from 'react'
  * then calls onStart. The player may also click "Start Now" to skip.
  * Rendered inside .game-board-wrapper so it does not block the board tiles.
  */
-function WaveCountdownBanner({ wave, onStart }) {
+function WaveCountdownBanner({ wave, enemyCount = 5, enemyHp = 100, onStart }) {
   const [countdown, setCountdown] = useState(3)
   const firedRef = useRef(false)
   // Hold latest onStart in a ref so the countdown effect is not sensitive to
@@ -41,6 +41,9 @@ function WaveCountdownBanner({ wave, onStart }) {
     <div className="wave-countdown-banner">
       <span className="wave-countdown-text">
         Wave {wave} in {countdown}&hellip;
+      </span>
+      <span className="wave-countdown-info">
+        {enemyCount} enemies &middot; {enemyHp} HP each
       </span>
       <button className="wave-countdown-start-now" onClick={handleStartNow}>
         Start Now

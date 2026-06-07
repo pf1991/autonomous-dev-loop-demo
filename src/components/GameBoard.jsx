@@ -70,6 +70,8 @@ function GameBoard({
   getNextUpgradeStats,
   showCountdownBanner = false,
   countdownWave = 2,
+  countdownEnemyCount = 5,
+  countdownEnemyHp = 100,
   onCountdownStart,
 }) {
   // Build a map from "row-col" key to tower object for O(1) lookup
@@ -168,7 +170,12 @@ function GameBoard({
         </div>
       )}
       {showCountdownBanner && (
-        <WaveCountdownBanner wave={countdownWave} onStart={onCountdownStart} />
+        <WaveCountdownBanner
+          wave={countdownWave}
+          enemyCount={countdownEnemyCount}
+          enemyHp={countdownEnemyHp}
+          onStart={onCountdownStart}
+        />
       )}
     </div>
   )

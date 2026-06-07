@@ -421,6 +421,12 @@ body {
   color: #4ecca3;
 }
 
+.wave-countdown-info {
+  font-size: 0.85rem;
+  color: #e0e0e0;
+  opacity: 0.85;
+}
+
 .wave-countdown-start-now {
   background: #4ecca3;
   color: #16213e;
@@ -463,6 +469,12 @@ body {
   font-size: 2rem;
   font-weight: 800;
   color: #4ecca3;
+}
+
+.next-wave-info {
+  font-size: 1rem;
+  color: #e0e0e0;
+  margin: 0;
 }
 
 .next-wave-start {
