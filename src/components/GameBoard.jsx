@@ -1,6 +1,7 @@
 import UpgradePanel from './UpgradePanel.jsx'
 import WaveCountdownBanner from './WaveCountdownBanner.jsx'
 import { getEnemyRadius } from '../game/enemy.js'
+import { TOWER_TYPES } from '../game/tower.js'
 
 // Tile size in pixels — must match the CSS (.tile width/height)
 const TILE_PX = 40
@@ -63,6 +64,9 @@ function GameBoard({
   enemies = [],
   projectiles = [],
   selectedTower = null,
+  hoveredSlot = null,
+  onHoverSlot,
+  selectedTowerType = 'BasicTower',
   gold = 0,
   onUpgrade,
   getUpgradeCost,
@@ -106,11 +110,25 @@ function GameBoard({
               }
             }
 
+            const isTowerSlot = tileType === 'tower-slot'
+            const handleMouseEnter = () => {
+              if (isTowerSlot && !hasTower && onHoverSlot) {
+                onHoverSlot({ row: rowIndex, col: colIndex })
+              }
+            }
+            const handleMouseLeave = () => {
+              if (isTowerSlot && !hasTower && onHoverSlot) {
+                onHoverSlot(null)
+              }
+            }
+
             return (
               <div
                 key={key}
                 className={`tile ${tileType}`}
                 onClick={handleClick}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
               >
                 {hasTower && <TowerSVG type={tower.type} upgradeLevel={tower.upgradeLevel} />}
                 {showPanel && (
@@ -128,25 +146,62 @@ function GameBoard({
           })
         )}
       </div>
-      {projectiles.length > 0 && (
-        <svg
-          className="projectile-layer"
-          width={COLS * TILE_PX}
-          height={ROWS * TILE_PX}
-          aria-hidden="true"
-        >
-          {projectiles.map(p => (
-            <line
-              key={p.id}
-              className="projectile"
-              x1={(p.fromCol + 0.5) * TILE_PX}
-              y1={(p.fromRow + 0.5) * TILE_PX}
-              x2={(p.toCol + 0.5) * TILE_PX}
-              y2={(p.toRow + 0.5) * TILE_PX}
-            />
-          ))}
-        </svg>
-      )}
+      {(() => {
+        // Determine range ring parameters:
+        // 1. Hover ring — empty tower-slot hovered: use selected tower type's range
+        // 2. Selected tower ring — a placed tower is selected: use tower.range
+        let ringCx = null
+        let ringCy = null
+        let ringR = null
+
+        if (hoveredSlot !== null) {
+          const typeDef = TOWER_TYPES[selectedTowerType]
+          if (typeDef) {
+            ringCx = (hoveredSlot.col + 0.5) * TILE_PX
+            ringCy = (hoveredSlot.row + 0.5) * TILE_PX
+            ringR = typeDef.range * TILE_PX
+          }
+        } else if (selectedTower !== null) {
+          const key = `${selectedTower.row}-${selectedTower.col}`
+          const t = towerMap[key]
+          if (t) {
+            ringCx = (t.col + 0.5) * TILE_PX
+            ringCy = (t.row + 0.5) * TILE_PX
+            ringR = t.range * TILE_PX
+          }
+        }
+
+        const showSvg = projectiles.length > 0 || ringR !== null
+        if (!showSvg) return null
+
+        return (
+          <svg
+            className="projectile-layer"
+            width={COLS * TILE_PX}
+            height={ROWS * TILE_PX}
+            aria-hidden="true"
+          >
+            {ringR !== null && (
+              <circle
+                className="range-preview-ring"
+                cx={ringCx}
+                cy={ringCy}
+                r={ringR}
+              />
+            )}
+            {projectiles.map(p => (
+              <line
+                key={p.id}
+                className="projectile"
+                x1={(p.fromCol + 0.5) * TILE_PX}
+                y1={(p.fromRow + 0.5) * TILE_PX}
+                x2={(p.toCol + 0.5) * TILE_PX}
+                y2={(p.toRow + 0.5) * TILE_PX}
+              />
+            ))}
+          </svg>
+        )
+      })()}
       {enemies.length > 0 && (
         <div className="enemy-layer" aria-hidden="true">
           {enemies.map(enemy => {

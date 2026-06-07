@@ -39,6 +39,8 @@ function App() {
   const [selectedTowerType, setSelectedTowerType] = useState('BasicTower')
   // { row, col } | null — the tower tile currently selected for upgrade
   const [selectedTower, setSelectedTower] = useState(null)
+  // { row, col } | null — the empty tower-slot the player is hovering over
+  const [hoveredSlot, setHoveredSlot] = useState(null)
   // 'playing' | 'between-waves' | 'win' | 'lose'
   const [gamePhase, setGamePhase] = useState('between-waves')
 
@@ -278,6 +280,9 @@ function App() {
         enemies={enemies}
         projectiles={projectiles}
         selectedTower={selectedTower}
+        hoveredSlot={hoveredSlot}
+        onHoverSlot={setHoveredSlot}
+        selectedTowerType={selectedTowerType}
         gold={gold}
         onUpgrade={handleUpgrade}
         getUpgradeCost={getUpgradeCost}
