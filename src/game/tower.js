@@ -13,6 +13,12 @@ export const TOWER_TYPES = {
     damage: 25,
     fireRate: 1,
   },
+  SniperTower: {
+    cost: 100,
+    range: 6,
+    damage: 75,
+    fireRate: 0.5,
+  },
 }
 
 /**
