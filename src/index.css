@@ -142,17 +142,22 @@ body {
   user-select: none;
 }
 
-/* ===== Enemy overlay ===== */
+/* ===== Enemy layer overlay (absolutely positioned over the game board) ===== */
+.enemy-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 15;
+}
+
+/* ===== Enemy element (positioned via left/top inline styles from enemy-layer) ===== */
 .enemy {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
   width: 28px;
   height: 28px;
   background: #e94560;
   border-radius: 50%;
-  z-index: 10;
   pointer-events: none;
   display: flex;
   align-items: flex-end;

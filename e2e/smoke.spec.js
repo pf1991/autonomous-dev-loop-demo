@@ -168,6 +168,25 @@ test.describe('Tower Defense - smoke tests', () => {
     await expect(hpBar).toBeVisible();
   });
 
+  // --- Smooth enemy movement via enemy-layer overlay (issue #31) ---
+
+  test('enemy-layer overlay is present and enemies are positioned within it', async ({ page }) => {
+    // Start the wave so enemies begin spawning
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Wait for the enemy-layer to be attached to the DOM (rendered when enemies.length > 0).
+    // It has pointer-events:none so toBeVisible() would fail — use toBeAttached() instead.
+    await expect(page.locator('.enemy-layer').first()).toBeAttached({ timeout: 5000 });
+    // Enemy elements must be inside the .enemy-layer, not inside tile divs
+    const enemyInLayer = page.locator('.enemy-layer .enemy').first();
+    await expect(enemyInLayer).toBeAttached();
+    // Enemies must have inline left/top styles (pixel-based smooth positioning)
+    const leftStyle = await enemyInLayer.evaluate(el => el.style.left);
+    expect(leftStyle).toMatch(/\d+px/);
+  });
+
   // --- Game-over via lives depletion (issue #21) ---
 
   test('game-over overlay appears when lives reach 0', async ({ page }) => {
