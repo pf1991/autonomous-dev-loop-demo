@@ -62,3 +62,34 @@ describe('placement deducts correct amount', () => {
     expect(goldAfter).toBe(50)
   })
 })
+
+describe('SniperTower', () => {
+  it('SniperTower has higher range and damage than BasicTower', () => {
+    const sniper = TOWER_TYPES.SniperTower
+    const basic = TOWER_TYPES.BasicTower
+    expect(sniper).toBeDefined()
+    expect(sniper.range).toBeGreaterThan(basic.range)
+    expect(sniper.damage).toBeGreaterThan(basic.damage)
+    expect(sniper.cost).toBeGreaterThan(basic.cost)
+  })
+
+  it('createTower places a SniperTower when selectedTowerType is SniperTower', () => {
+    const selectedTowerType = 'SniperTower'
+    const tower = createTower(selectedTowerType, 3, 7)
+    expect(tower.type).toBe('SniperTower')
+    expect(tower.range).toBe(TOWER_TYPES.SniperTower.range)
+    expect(tower.damage).toBe(TOWER_TYPES.SniperTower.damage)
+    expect(tower.fireRate).toBe(TOWER_TYPES.SniperTower.fireRate)
+    expect(tower.row).toBe(3)
+    expect(tower.col).toBe(7)
+    expect(tower.lastFiredAt).toBe(0)
+  })
+
+  it('canAfford returns false when gold < SniperTower cost', () => {
+    expect(canAfford(99, 'SniperTower')).toBe(false)
+  })
+
+  it('canAfford returns true when gold >= SniperTower cost', () => {
+    expect(canAfford(100, 'SniperTower')).toBe(true)
+  })
+})

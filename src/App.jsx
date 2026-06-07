@@ -3,6 +3,7 @@ import GameBoard from './components/GameBoard'
 import HUD from './components/HUD'
 import GameOver from './components/GameOver'
 import NextWave from './components/NextWave'
+import TowerPicker from './components/TowerPicker'
 import { createDefaultMap, getPathWaypoints } from './game/map'
 import { TOWER_TYPES, createTower, canAfford } from './game/tower'
 import { createEnemy, moveEnemy } from './game/enemy'
@@ -35,6 +36,7 @@ function App() {
   const [speed, setSpeed] = useState(INITIAL_STATE.speed)
   const [towers, setTowers] = useState(INITIAL_STATE.towers)
   const [enemies, setEnemies] = useState(INITIAL_STATE.enemies)
+  const [selectedTowerType, setSelectedTowerType] = useState('BasicTower')
   // 'playing' | 'between-waves' | 'win' | 'lose'
   const [gamePhase, setGamePhase] = useState('between-waves')
 
@@ -165,7 +167,7 @@ function App() {
   }
 
   function placeTower(row, col) {
-    const type = 'BasicTower'
+    const type = selectedTowerType
     if (!canAfford(gold, type)) return
 
     // Prevent placing on already-occupied slots
@@ -215,6 +217,11 @@ function App() {
         wave={wave}
         speed={speed}
         onSpeedToggle={handleSpeedToggle}
+      />
+      <TowerPicker
+        selectedType={selectedTowerType}
+        gold={gold}
+        onSelect={setSelectedTowerType}
       />
       <GameBoard
         tiles={INITIAL_MAP}
