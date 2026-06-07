@@ -3,6 +3,7 @@ import GameBoard from './components/GameBoard'
 import HUD from './components/HUD'
 import GameOver from './components/GameOver'
 import NextWave from './components/NextWave'
+import WaveCountdownBanner from './components/WaveCountdownBanner'
 import TowerPicker from './components/TowerPicker'
 import { createDefaultMap, getPathWaypoints } from './game/map'
 import { TOWER_TYPES, createTower, canAfford, canUpgrade, upgradeTower, getUpgradeCost, getNextUpgradeStats } from './game/tower'
@@ -281,6 +282,9 @@ function App() {
         getUpgradeCost={getUpgradeCost}
         canUpgrade={canUpgrade}
         getNextUpgradeStats={getNextUpgradeStats}
+        showCountdownBanner={gamePhase === 'between-waves' && wave > 1}
+        countdownWave={wave + 1}
+        onCountdownStart={handleNextWaveStart}
       />
       {gamePhase === 'lose' && (
         <GameOver result="lose" onRestart={handleRestart} />
@@ -288,7 +292,7 @@ function App() {
       {gamePhase === 'win' && (
         <GameOver result="win" onRestart={handleRestart} />
       )}
-      {gamePhase === 'between-waves' && (
+      {gamePhase === 'between-waves' && wave === 1 && (
         <NextWave wave={wave} onStart={handleNextWaveStart} />
       )}
     </div>

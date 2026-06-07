@@ -1,4 +1,5 @@
 import UpgradePanel from './UpgradePanel.jsx'
+import WaveCountdownBanner from './WaveCountdownBanner.jsx'
 import { getEnemyRadius } from '../game/enemy.js'
 
 // Tile size in pixels — must match the CSS (.tile width/height)
@@ -67,6 +68,9 @@ function GameBoard({
   getUpgradeCost,
   canUpgrade,
   getNextUpgradeStats,
+  showCountdownBanner = false,
+  countdownWave = 2,
+  onCountdownStart,
 }) {
   // Build a map from "row-col" key to tower object for O(1) lookup
   const towerMap = {}
@@ -162,6 +166,9 @@ function GameBoard({
             )
           })}
         </div>
+      )}
+      {showCountdownBanner && (
+        <WaveCountdownBanner wave={countdownWave} onStart={onCountdownStart} />
       )}
     </div>
   )
