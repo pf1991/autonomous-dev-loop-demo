@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { TOWER_TYPES, createTower, canAfford, canUpgrade, upgradeTower, getUpgradeCost, getNextUpgradeStats } from '../../src/game/tower'
+import { TOWER_TYPES, createTower, canAfford, canUpgrade, upgradeTower, getUpgradeCost, getNextUpgradeStats, sellTower } from '../../src/game/tower'
 
 describe('TOWER_TYPES', () => {
   it('BasicTower has all required fields', () => {
@@ -240,5 +240,28 @@ describe('SniperTower', () => {
 
   it('canAfford returns true when gold >= SniperTower cost', () => {
     expect(canAfford(100, 'SniperTower')).toBe(true)
+  })
+})
+
+describe('sellTower', () => {
+  it('returns 70% of BasicTower base cost (50), rounded down = 35', () => {
+    const tower = createTower('BasicTower', 0, 0)
+    expect(sellTower(tower)).toEqual({ refund: 35 })
+  })
+
+  it('returns 70% of SniperTower base cost (100), rounded down = 70', () => {
+    const tower = createTower('SniperTower', 2, 3)
+    expect(sellTower(tower)).toEqual({ refund: 70 })
+  })
+
+  it('refund is the same regardless of upgrade level (upgrade costs are not refunded)', () => {
+    const tower = createTower('BasicTower', 0, 0)
+    const upgraded = upgradeTower(tower)
+    expect(sellTower(tower).refund).toBe(sellTower(upgraded).refund)
+  })
+
+  it('returns refund: 0 for unknown tower type', () => {
+    const fakeTower = { type: 'UnknownTower', row: 0, col: 0, upgradeLevel: 0 }
+    expect(sellTower(fakeTower)).toEqual({ refund: 0 })
   })
 })

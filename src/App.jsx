@@ -5,7 +5,7 @@ import GameOver from './components/GameOver'
 import NextWave from './components/NextWave'
 import TowerPicker from './components/TowerPicker'
 import { createDefaultMap, getPathWaypoints } from './game/map'
-import { TOWER_TYPES, createTower, canAfford, canUpgrade, upgradeTower, getUpgradeCost, getNextUpgradeStats } from './game/tower'
+import { TOWER_TYPES, createTower, canAfford, canUpgrade, upgradeTower, getUpgradeCost, getNextUpgradeStats, sellTower } from './game/tower'
 import { createEnemy, moveEnemy } from './game/enemy'
 import { processCombat } from './game/combat'
 import { getWaveEnemyHp, getWaveEnemyCount } from './game/wave'
@@ -225,6 +225,15 @@ function App() {
     )
   }
 
+  function handleSell(row, col) {
+    const tower = towers.find(t => t.row === row && t.col === col)
+    if (!tower) return
+    const { refund } = sellTower(tower)
+    setGold(g => g + refund)
+    setTowers(ts => ts.filter(t => !(t.row === row && t.col === col)))
+    setSelectedTower(null)
+  }
+
   function handleRestart() {
     setGold(INITIAL_STATE.gold)
     syncLives(INITIAL_STATE.lives)
@@ -285,9 +294,11 @@ function App() {
         selectedTowerType={selectedTowerType}
         gold={gold}
         onUpgrade={handleUpgrade}
+        onSell={handleSell}
         getUpgradeCost={getUpgradeCost}
         canUpgrade={canUpgrade}
         getNextUpgradeStats={getNextUpgradeStats}
+        sellTower={sellTower}
         showCountdownBanner={gamePhase === 'between-waves' && wave > 1}
         countdownWave={wave + 1}
         countdownEnemyCount={getWaveEnemyCount(wave + 1)}

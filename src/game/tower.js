@@ -97,3 +97,13 @@ export function getNextUpgradeStats(tower) {
   const { range, damage, fireRate } = typeDef.upgrades[tower.upgradeLevel]
   return { range, damage, fireRate }
 }
+
+/**
+ * sellTower(tower) — returns the gold refund for selling a placed tower.
+ * Refund = Math.floor(baseCost * 0.7). Upgrade costs are NOT refunded.
+ */
+export function sellTower(tower) {
+  const typeDef = TOWER_TYPES[tower.type]
+  if (!typeDef) return { refund: 0 }
+  return { refund: Math.floor(typeDef.cost * 0.7) }
+}
