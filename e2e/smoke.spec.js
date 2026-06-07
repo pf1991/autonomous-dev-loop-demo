@@ -16,10 +16,10 @@ async function triggerGamePhase(page, phase) {
       if (fiber.memoizedState && typeof fiber.type === 'function') {
         // Walk the hooks linked list to find the gamePhase hook dispatcher
         // App.jsx order: gold(0), lives(1), wave(2), speed(3), towers(4), enemies(5),
-        //   projectiles(6), selectedTowerType(7), selectedTower(8), gamePhase(9)
+        //   projectiles(6), selectedTowerType(7), selectedTower(8), hoveredSlot(9), gamePhase(10)
         let hookNode = fiber.memoizedState;
         let i = 0;
-        while (hookNode && i < 9) {
+        while (hookNode && i < 10) {
           hookNode = hookNode.next;
           i++;
         }
@@ -36,7 +36,8 @@ async function triggerGamePhase(page, phase) {
 
 /**
  * Helper: force lives to a given value via React fiber injection and set gamePhase to 'playing'.
- * App.jsx hook order: gold(0), lives(1), wave(2), speed(3), towers(4), enemies(5), gamePhase(6)
+ * App.jsx hook order: gold(0), lives(1), wave(2), speed(3), towers(4), enemies(5),
+ *   projectiles(6), selectedTowerType(7), selectedTower(8), hoveredSlot(9), gamePhase(10)
  */
 async function setLivesAndPhase(page, livesValue, phase) {
   await page.evaluate(({ livesValue, phase }) => {
@@ -47,14 +48,14 @@ async function setLivesAndPhase(page, livesValue, phase) {
     while (fiber) {
       if (fiber.memoizedState && typeof fiber.type === 'function') {
         // App.jsx hook order: gold(0), lives(1), wave(2), speed(3), towers(4), enemies(5),
-        //   projectiles(6), selectedTowerType(7), selectedTower(8), gamePhase(9)
+        //   projectiles(6), selectedTowerType(7), selectedTower(8), hoveredSlot(9), gamePhase(10)
         let hookNode = fiber.memoizedState;
         let livesHook = null;
         let phaseHook = null;
         let i = 0;
         while (hookNode) {
           if (i === 1) livesHook = hookNode;
-          if (i === 9) phaseHook = hookNode;
+          if (i === 10) phaseHook = hookNode;
           hookNode = hookNode.next;
           i++;
         }
@@ -449,7 +450,7 @@ test.describe('Tower Defense - smoke tests', () => {
    * Helper injected into tests below: set wave and gamePhase via React fiber to trigger
    * the countdown banner (shown when gamePhase === 'between-waves' && wave > 1).
    * App.jsx hook order: gold(0), lives(1), wave(2), speed(3), towers(4), enemies(5),
-   *   projectiles(6), selectedTowerType(7), selectedTower(8), gamePhase(9)
+   *   projectiles(6), selectedTowerType(7), selectedTower(8), hoveredSlot(9), gamePhase(10)
    */
 
   test('countdown banner is visible when between-waves with wave > 1', async ({ page }) => {
@@ -467,7 +468,7 @@ test.describe('Tower Defense - smoke tests', () => {
           let i = 0;
           while (hookNode) {
             if (i === 2) waveHook = hookNode;
-            if (i === 9) phaseHook = hookNode;
+            if (i === 10) phaseHook = hookNode;
             hookNode = hookNode.next;
             i++;
           }
@@ -506,7 +507,7 @@ test.describe('Tower Defense - smoke tests', () => {
           let i = 0;
           while (hookNode) {
             if (i === 2) waveHook = hookNode;
-            if (i === 9) phaseHook = hookNode;
+            if (i === 10) phaseHook = hookNode;
             hookNode = hookNode.next;
             i++;
           }
@@ -545,7 +546,7 @@ test.describe('Tower Defense - smoke tests', () => {
           let i = 0;
           while (hookNode) {
             if (i === 2) waveHook = hookNode;
-            if (i === 9) phaseHook = hookNode;
+            if (i === 10) phaseHook = hookNode;
             hookNode = hookNode.next;
             i++;
           }
@@ -598,7 +599,7 @@ test.describe('Tower Defense - smoke tests', () => {
           let i = 0;
           while (hookNode) {
             if (i === 2) waveHook = hookNode;
-            if (i === 9) phaseHook = hookNode;
+            if (i === 10) phaseHook = hookNode;
             hookNode = hookNode.next;
             i++;
           }
