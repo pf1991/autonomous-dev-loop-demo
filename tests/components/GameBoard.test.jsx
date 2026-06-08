@@ -247,6 +247,56 @@ describe('GameBoard', () => {
     expect(ring).toBeNull()
   })
 
+  it('calls onDeselect when clicking a non-tower tile', () => {
+    const tiles = createDefaultMap()
+    const onTileClick = vi.fn()
+    const onDeselect = vi.fn()
+    const tower = createTower('BasicTower', 3, 7)
+    const towers = [tower]
+
+    act(() => {
+      createRoot(container).render(
+        createElement(GameBoard, { tiles, onTileClick, onDeselect, towers })
+      )
+    })
+
+    // Click a tile that has no tower (row=0, col=0 is a path tile)
+    const tileDivs = container.querySelectorAll('.tile')
+    const emptyTile = tileDivs[0]
+
+    act(() => {
+      emptyTile.click()
+    })
+
+    expect(onDeselect).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not call onDeselect when clicking a tower tile', () => {
+    const tiles = createDefaultMap()
+    const onTileClick = vi.fn()
+    const onTowerClick = vi.fn()
+    const onDeselect = vi.fn()
+    const tower = createTower('BasicTower', 3, 7)
+    const towers = [tower]
+
+    act(() => {
+      createRoot(container).render(
+        createElement(GameBoard, { tiles, onTileClick, onTowerClick, onDeselect, towers })
+      )
+    })
+
+    // Click the tower tile at row=3, col=7
+    const tileDivs = container.querySelectorAll('.tile')
+    const towerTile = tileDivs[3 * 20 + 7]
+
+    act(() => {
+      towerTile.click()
+    })
+
+    expect(onDeselect).not.toHaveBeenCalled()
+    expect(onTowerClick).toHaveBeenCalledWith(3, 7)
+  })
+
   it('upgrade button is disabled when player cannot afford upgrade', () => {
     const tiles = createDefaultMap()
     const onTileClick = vi.fn()

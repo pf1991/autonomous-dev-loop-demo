@@ -60,6 +60,7 @@ function GameBoard({
   tiles,
   onTileClick,
   onTowerClick,
+  onDeselect,
   towers = [],
   enemies = [],
   projectiles = [],
@@ -108,6 +109,7 @@ function GameBoard({
               if (hasTower) {
                 if (onTowerClick) onTowerClick(rowIndex, colIndex)
               } else {
+                if (onDeselect) onDeselect()
                 onTileClick(rowIndex, colIndex)
               }
             }

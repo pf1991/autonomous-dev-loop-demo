@@ -396,6 +396,7 @@ function App() {
         tiles={INITIAL_MAP}
         onTileClick={placeTower}
         onTowerClick={handleTowerClick}
+        onDeselect={() => setSelectedTower(null)}
         towers={towers}
         enemies={enemies}
         projectiles={projectiles}
