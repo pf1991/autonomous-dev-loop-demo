@@ -785,4 +785,81 @@ test.describe('Tower Defense - smoke tests', () => {
     // No towers should remain on the board
     await expect(page.locator('.tower-icon')).toHaveCount(0);
   });
+
+  // --- Score & Leaderboard (issue #39) ---
+
+  test('GameOver overlay shows final score', async ({ page }) => {
+    // Inject a non-null finalScore (hook index 11) then trigger game-over phase
+    // App.jsx hook order: gold(0), lives(1), wave(2), speed(3), towers(4), enemies(5),
+    //   projectiles(6), selectedTowerType(7), selectedTower(8), hoveredSlot(9), gamePhase(10), finalScore(11)
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          let hookNode = fiber.memoizedState;
+          let scoreHook = null;
+          let phaseHook = null;
+          let i = 0;
+          while (hookNode) {
+            if (i === 10) phaseHook = hookNode;
+            if (i === 11) scoreHook = hookNode;
+            hookNode = hookNode.next;
+            i++;
+          }
+          if (scoreHook && scoreHook.queue && scoreHook.queue.dispatch) {
+            scoreHook.queue.dispatch(1234);
+          }
+          if (phaseHook && phaseHook.queue && phaseHook.queue.dispatch) {
+            phaseHook.queue.dispatch('lose');
+          }
+          return;
+        }
+        fiber = fiber.return;
+      }
+    });
+    await expect(page.locator('.game-over-overlay')).toBeVisible();
+    // Final score element must be present with the injected score
+    await expect(page.locator('.final-score')).toBeVisible();
+    await expect(page.locator('.final-score')).toContainText('1234');
+  });
+
+  test('GameOver overlay shows leaderboard section with title', async ({ page }) => {
+    await triggerGamePhase(page, 'lose');
+    await expect(page.locator('.game-over-overlay')).toBeVisible();
+    await expect(page.locator('.leaderboard')).toBeVisible();
+    await expect(page.locator('.leaderboard-title')).toBeVisible();
+  });
+
+  test('GameOver overlay shows Clear scores button', async ({ page }) => {
+    await triggerGamePhase(page, 'lose');
+    await expect(page.locator('.game-over-overlay')).toBeVisible();
+    await expect(page.locator('.leaderboard-clear-btn')).toBeVisible();
+  });
+
+  test('Clear scores button wipes leaderboard and shows empty state', async ({ page }) => {
+    // Seed a leaderboard entry in localStorage so there is something to clear
+    await page.evaluate(() => {
+      localStorage.setItem('towerDefense_leaderboard', JSON.stringify([
+        { score: 999, date: '2025-01-01', result: 'win' }
+      ]));
+    });
+    await triggerGamePhase(page, 'lose');
+    await expect(page.locator('.game-over-overlay')).toBeVisible();
+
+    // Reload the overlay so the seeded entry is picked up
+    await page.reload();
+    await triggerGamePhase(page, 'lose');
+    await expect(page.locator('.game-over-overlay')).toBeVisible();
+    await expect(page.locator('.leaderboard-entry')).toHaveCount(1);
+
+    // Click Clear scores
+    await page.locator('.leaderboard-clear-btn').click();
+
+    // Leaderboard should now be empty
+    await expect(page.locator('.leaderboard-empty')).toBeVisible();
+    await expect(page.locator('.leaderboard-entry')).toHaveCount(0);
+  });
 });
