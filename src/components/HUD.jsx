@@ -11,13 +11,15 @@
  *   showNextWave      — whether to show the "Next Wave" early-call button (bool)
  *   earlyWaveDisabled — whether the early-call button is already used this wave (bool)
  *   onNextWaveEarly   — callback invoked when the player calls next wave early
+ *   endlessMode       — whether endless mode is active (bool)
  */
-function HUD({ lives, gold, wave, speed, onSpeedToggle, onRestart, showNextWave, earlyWaveDisabled, onNextWaveEarly }) {
+function HUD({ lives, gold, wave, speed, onSpeedToggle, onRestart, showNextWave, earlyWaveDisabled, onNextWaveEarly, endlessMode = false }) {
   return (
     <div className="hud">
       <span className="hud-lives">Lives: {lives}</span>
       <span className="hud-gold">Gold: {gold}</span>
       <span className="hud-wave">Wave: {wave}</span>
+      {endlessMode && <span className="hud-endless-badge">ENDLESS</span>}
       {showNextWave && (
         <button
           className="hud-next-wave"

@@ -908,9 +908,12 @@ test.describe('Tower Defense - smoke tests', () => {
   // --- Score & Leaderboard (issue #39) ---
 
   test('GameOver overlay shows final score', async ({ page }) => {
-    // Inject a non-null finalScore (hook index 11) then trigger game-over phase
-    // App.jsx hook order: gold(0), lives(1), wave(2), speed(3), towers(4), enemies(5),
-    //   projectiles(6), selectedTowerType(7), selectedTower(8), hoveredSlot(9), gamePhase(10), finalScore(11)
+    // Inject a non-null finalScore then trigger game-over phase.
+    // We detect useState hooks by queue.dispatch (useRef hooks have no dispatch).
+    // App.jsx useState declaration order (by line number):
+    //   0=gold,1=lives,2=wave,3=speed,4=towers,5=enemies,
+    //   6=projectiles,7=selectedTowerType,8=selectedTower,9=hoveredSlot,
+    //   10=gamePhase,11=endlessMode,12=finalScore,13=earlyWaveCalled,14=pendingWaveAdvance
     await page.evaluate(() => {
       const gameEl = document.querySelector('#game');
       const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
@@ -918,22 +921,17 @@ test.describe('Tower Defense - smoke tests', () => {
       let fiber = gameEl[fiberKey];
       while (fiber) {
         if (fiber.memoizedState && typeof fiber.type === 'function') {
+          const stateHooks = [];
           let hookNode = fiber.memoizedState;
-          let scoreHook = null;
-          let phaseHook = null;
-          let i = 0;
           while (hookNode) {
-            if (i === 10) phaseHook = hookNode;
-            if (i === 11) scoreHook = hookNode;
+            if (hookNode.queue && typeof hookNode.queue.dispatch === 'function') {
+              stateHooks.push(hookNode);
+            }
             hookNode = hookNode.next;
-            i++;
           }
-          if (scoreHook && scoreHook.queue && scoreHook.queue.dispatch) {
-            scoreHook.queue.dispatch(1234);
-          }
-          if (phaseHook && phaseHook.queue && phaseHook.queue.dispatch) {
-            phaseHook.queue.dispatch('lose');
-          }
+          // Dispatch both in same React batch so score is non-null when overlay renders
+          if (stateHooks[12]) stateHooks[12].queue.dispatch(1234);  // finalScore
+          if (stateHooks[10]) stateHooks[10].queue.dispatch('lose'); // gamePhase
           return;
         }
         fiber = fiber.return;
@@ -1047,6 +1045,44 @@ test.describe('Tower Defense - smoke tests', () => {
     await expect(page.locator('.enemy').first()).toBeAttached({ timeout: 2000 });
     // The button must now be disabled
     await expect(earlyBtn).toBeDisabled();
+  });
+
+  // --- Endless mode (issue #56) ---
+
+  test('endless mode toggle is visible on the pre-wave-1 start screen', async ({ page }) => {
+    // On initial load the NextWave overlay must be visible and contain the endless toggle
+    await expect(page.locator('.next-wave-overlay')).toBeVisible();
+    await expect(page.locator('.endless-mode-toggle')).toBeVisible();
+    await expect(page.locator('.endless-mode-checkbox')).toBeVisible();
+    await expect(page.locator('.endless-mode-label')).toContainText('Endless Mode');
+  });
+
+  test('endless mode checkbox is unchecked by default', async ({ page }) => {
+    await expect(page.locator('.endless-mode-checkbox')).not.toBeChecked();
+  });
+
+  test('checking endless mode checkbox enables endless mode', async ({ page }) => {
+    const checkbox = page.locator('.endless-mode-checkbox');
+    await expect(checkbox).not.toBeChecked();
+    await checkbox.check();
+    await expect(checkbox).toBeChecked();
+  });
+
+  test('HUD shows ENDLESS badge when endless mode is active', async ({ page }) => {
+    // Enable endless mode before starting
+    await page.locator('.endless-mode-checkbox').check();
+    // Start wave 1
+    await page.locator('.next-wave-start').click();
+    // ENDLESS badge must appear in the HUD
+    await expect(page.locator('.hud-endless-badge')).toBeVisible();
+    await expect(page.locator('.hud-endless-badge')).toContainText('ENDLESS');
+  });
+
+  test('HUD does not show ENDLESS badge in normal mode', async ({ page }) => {
+    // Do NOT enable endless mode — start wave 1 normally
+    await page.locator('.next-wave-start').click();
+    // Badge must not be present
+    await expect(page.locator('.hud-endless-badge')).not.toBeAttached();
   });
 
   test('tower shows .tower-level-badge with roman numeral I after one upgrade', async ({ page }) => {
