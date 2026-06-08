@@ -309,6 +309,28 @@ test.describe('Tower Defense - smoke tests', () => {
     await expect(panel.locator('.upgrade-panel-btn')).toBeVisible();
   });
 
+  // --- Upgrade menu overlapping text fix (issue #54) ---
+
+  test('upgrade panel text is not collapsed — line-height is not zero', async ({ page }) => {
+    // Dismiss NextWave overlay
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Place a tower to open the upgrade panel
+    const slot = page.locator('.tower-slot').first();
+    await slot.click();
+    await expect(page.locator('.tower-icon').first()).toBeVisible();
+    const panel = page.locator('.upgrade-panel');
+    await expect(panel).toBeVisible();
+    // Verify that line-height on the panel is NOT '0px' (the inherited collapsed value)
+    const lineHeight = await panel.evaluate(el => getComputedStyle(el).lineHeight);
+    expect(lineHeight).not.toBe('0px');
+    // Also verify the panel has non-zero height (text is actually rendered/visible)
+    const panelHeight = await panel.evaluate(el => el.getBoundingClientRect().height);
+    expect(panelHeight).toBeGreaterThan(20);
+  });
+
   // --- Projectile visualization and enemy combat (issue #29) ---
 
   test('.game-board-wrapper container is present and wraps the game board', async ({ page }) => {
