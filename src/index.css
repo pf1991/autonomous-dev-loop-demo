@@ -300,6 +300,26 @@ body {
   background: #e94560;
 }
 
+/* Speeder: very fast, tiny, yellow-green — resist slow effects */
+.enemy-speeder {
+  background: #a8ff3e;
+  border: 1px solid #70c000;
+}
+
+/* Armored: slow behemoth, steel-grey — resistant to chip damage */
+.enemy-armored {
+  background: #8a9bb0;
+  border: 2px solid #4a5568;
+  box-shadow: 0 0 4px 2px rgba(74, 85, 104, 0.6);
+}
+
+/* Phantom: semi-transparent purple — immune to basic/rapid fire */
+.enemy-phantom {
+  background: rgba(160, 80, 220, 0.75);
+  border: 1px solid #c060ff;
+  box-shadow: 0 0 6px 2px rgba(160, 80, 220, 0.5);
+}
+
 .enemy-hp-bar {
   position: absolute;
   bottom: -6px;

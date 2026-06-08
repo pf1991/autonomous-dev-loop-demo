@@ -284,7 +284,14 @@ function GameBoard({
             const left = (enemy.pos.col + 0.5) * TILE_PX - radius
             const top = (enemy.pos.row + 0.5) * TILE_PX - radius
             const diameter = radius * 2
-            const typeClass = enemy.type === 'tank' ? 'enemy-tank' : 'enemy-grunt'
+            const typeClassMap = {
+              grunt: 'enemy-grunt',
+              tank: 'enemy-tank',
+              speeder: 'enemy-speeder',
+              armored: 'enemy-armored',
+              phantom: 'enemy-phantom',
+            }
+            const typeClass = typeClassMap[enemy.type] ?? 'enemy-grunt'
             return (
               <div
                 key={enemy.id}

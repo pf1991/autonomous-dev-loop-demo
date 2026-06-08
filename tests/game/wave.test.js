@@ -122,37 +122,38 @@ describe('getWaveComposition', () => {
     expect(comp[0].count).toBe(getWaveEnemyCount(1))
   })
 
-  it('wave 4: 70% grunts, 30% tanks', () => {
+  it('wave 4: has grunts, speeders, and tanks', () => {
     const comp = getWaveComposition(4)
     const total = getWaveEnemyCount(4)
-    const grunt = comp.find(c => c.type === 'grunt')
-    const tank  = comp.find(c => c.type === 'tank')
+    const grunt   = comp.find(c => c.type === 'grunt')
+    const speeder = comp.find(c => c.type === 'speeder')
+    const tank    = comp.find(c => c.type === 'tank')
     expect(grunt).toBeDefined()
+    expect(speeder).toBeDefined()
     expect(tank).toBeDefined()
-    expect((grunt?.count ?? 0) + (tank?.count ?? 0)).toBe(total)
-    // Tank count ~30% of total
-    expect(tank.count).toBe(Math.round(total * 0.3))
+    const sum = comp.reduce((acc, c) => acc + c.count, 0)
+    expect(sum).toBe(total)
   })
 
-  it('wave 7: 40% grunts, 60% tanks', () => {
+  it('wave 7: includes all five enemy types', () => {
     const comp = getWaveComposition(7)
     const total = getWaveEnemyCount(7)
-    const grunt = comp.find(c => c.type === 'grunt')
-    const tank  = comp.find(c => c.type === 'tank')
-    expect(grunt).toBeDefined()
-    expect(tank).toBeDefined()
-    expect((grunt?.count ?? 0) + (tank?.count ?? 0)).toBe(total)
-    // Tank count ~60% of total
-    expect(tank.count).toBe(Math.round(total * 0.6))
+    expect(comp.some(c => c.type === 'grunt')).toBe(true)
+    expect(comp.some(c => c.type === 'speeder')).toBe(true)
+    expect(comp.some(c => c.type === 'tank')).toBe(true)
+    expect(comp.some(c => c.type === 'armored')).toBe(true)
+    expect(comp.some(c => c.type === 'phantom')).toBe(true)
+    const sum = comp.reduce((acc, c) => acc + c.count, 0)
+    expect(sum).toBe(total)
   })
 
-  it('wave 10: 40% grunts, 60% tanks', () => {
+  it('wave 10: includes harder enemy types (armored and phantom)', () => {
     const comp = getWaveComposition(10)
     const total = getWaveEnemyCount(10)
-    const grunt = comp.find(c => c.type === 'grunt')
-    const tank  = comp.find(c => c.type === 'tank')
-    expect((grunt?.count ?? 0) + (tank?.count ?? 0)).toBe(total)
-    expect(tank.count).toBe(Math.round(total * 0.6))
+    expect(comp.some(c => c.type === 'armored')).toBe(true)
+    expect(comp.some(c => c.type === 'phantom')).toBe(true)
+    const sum = comp.reduce((acc, c) => acc + c.count, 0)
+    expect(sum).toBe(total)
   })
 
   it('counts always sum to getWaveEnemyCount', () => {
@@ -251,12 +252,13 @@ describe('getEndlessWaveComposition', () => {
     }
   })
 
-  it('wave 11: heavy tank bias (70% tanks)', () => {
+  it('wave 11: includes armored and phantom enemies', () => {
     const comp = getEndlessWaveComposition(11)
     const total = getEndlessWaveEnemyCount(11)
-    const tank = comp.find(c => c.type === 'tank')
-    expect(tank).toBeDefined()
-    expect(tank.count).toBe(Math.round(total * 0.7))
+    expect(comp.some(c => c.type === 'armored')).toBe(true)
+    expect(comp.some(c => c.type === 'phantom')).toBe(true)
+    const sum = comp.reduce((acc, c) => acc + c.count, 0)
+    expect(sum).toBe(total)
   })
 
   it('wave 11: counts sum to total enemy count', () => {
@@ -266,20 +268,17 @@ describe('getEndlessWaveComposition', () => {
     expect(sum).toBe(total)
   })
 
-  it('wave 20: grunt and tank counts sum to total enemy count', () => {
+  it('wave 20: all counts sum to total enemy count', () => {
     const comp = getEndlessWaveComposition(20)
     const total = getEndlessWaveEnemyCount(20)
     const sum = comp.reduce((acc, c) => acc + c.count, 0)
     expect(sum).toBe(total)
   })
 
-  it('wave 20: grunt count is total minus rounded tank count', () => {
+  it('wave 20: includes harder enemy types (armored and phantom)', () => {
     const comp = getEndlessWaveComposition(20)
-    const total = getEndlessWaveEnemyCount(20)
-    const tankCount = Math.round(total * 0.7)
-    const grunt = comp.find(c => c.type === 'grunt')
-    expect(grunt).toBeDefined()
-    expect(grunt.count).toBe(total - tankCount)
+    expect(comp.some(c => c.type === 'armored')).toBe(true)
+    expect(comp.some(c => c.type === 'phantom')).toBe(true)
   })
 
   it('grunt count is never zero for endless waves 11+ when total >= 2', () => {
@@ -294,12 +293,12 @@ describe('getEndlessWaveComposition', () => {
     }
   })
 
-  it('wave 15: counts sum to getEndlessWaveEnemyCount(15) and tank is 70%', () => {
+  it('wave 15: counts sum to getEndlessWaveEnemyCount(15) and includes harder enemies', () => {
     const comp = getEndlessWaveComposition(15)
     const total = getEndlessWaveEnemyCount(15)
     const sum = comp.reduce((acc, c) => acc + c.count, 0)
-    const tank = comp.find(c => c.type === 'tank')
     expect(sum).toBe(total)
-    expect(tank.count).toBe(Math.round(total * 0.7))
+    expect(comp.some(c => c.type === 'armored')).toBe(true)
+    expect(comp.some(c => c.type === 'phantom')).toBe(true)
   })
 })

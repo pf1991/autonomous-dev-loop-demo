@@ -29,36 +29,59 @@ export function getWaveEnemyCount(waveNumber) {
  * getWaveComposition returns the mix of enemy types for the given wave.
  *
  * Wave composition rules:
- *   Waves 1–3:  Grunts only
- *   Waves 4–6:  70% Grunts, 30% Tanks
- *   Waves 7–10: 40% Grunts, 60% Tanks
+ *   Waves 1–2:  Grunts only
+ *   Wave  3:    70% Grunts, 30% Speeders  (introduces speeders)
+ *   Waves 4–5:  50% Grunts, 30% Speeders, 20% Tanks
+ *   Wave  6:    30% Grunts, 30% Speeders, 20% Tanks, 20% Armored  (introduces armored)
+ *   Wave  7:    20% Grunts, 20% Speeders, 20% Tanks, 20% Armored, 20% Phantoms (introduces phantoms)
+ *   Waves 8–10: 10% Grunts, 20% Speeders, 20% Tanks, 25% Armored, 25% Phantoms
  *
  * @param {number} waveNumber - 1-based wave number
- * @returns {Array<{ type: 'grunt'|'tank', count: number }>}
+ * @returns {Array<{ type: string, count: number }>}
  */
 export function getWaveComposition(waveNumber) {
   const total = getWaveEnemyCount(waveNumber)
 
-  if (waveNumber <= 3) {
+  function distribute(fractions) {
+    // fractions: array of [type, fraction] pairs; last entry absorbs rounding
+    const entries = fractions.filter(([, f]) => f > 0)
+    const result = []
+    let remaining = total
+    for (let i = 0; i < entries.length - 1; i++) {
+      const [type, frac] = entries[i]
+      const count = Math.round(total * frac)
+      if (count > 0) result.push({ type, count })
+      remaining -= count
+    }
+    const [lastType] = entries[entries.length - 1]
+    if (remaining > 0) result.push({ type: lastType, count: remaining })
+    return result
+  }
+
+  if (waveNumber <= 2) {
     return [{ type: 'grunt', count: total }]
   }
 
-  let gruntFraction, tankFraction
-  if (waveNumber <= 6) {
-    gruntFraction = 0.7
-    tankFraction  = 0.3
-  } else {
-    gruntFraction = 0.4
-    tankFraction  = 0.6
+  if (waveNumber === 3) {
+    return distribute([['grunt', 0.7], ['speeder', 0.3]])
   }
 
-  const tankCount  = Math.round(total * tankFraction)
-  const gruntCount = total - tankCount
+  if (waveNumber <= 5) {
+    return distribute([['grunt', 0.5], ['speeder', 0.3], ['tank', 0.2]])
+  }
 
-  const result = []
-  if (gruntCount > 0) result.push({ type: 'grunt', count: gruntCount })
-  if (tankCount  > 0) result.push({ type: 'tank',  count: tankCount  })
-  return result
+  if (waveNumber === 6) {
+    return distribute([['grunt', 0.3], ['speeder', 0.3], ['tank', 0.2], ['armored', 0.2]])
+  }
+
+  if (waveNumber === 7) {
+    // Five equal parts — use explicit proportions that round cleanly to guarantee each type appears.
+    // Wave 7 total = 8; 2 grunts, 2 speeders, 2 tanks, 1 armored, 1 phantom.
+    return distribute([['grunt', 0.25], ['speeder', 0.25], ['tank', 0.25], ['armored', 0.125], ['phantom', 0.125]])
+  }
+
+  // Waves 8–10
+  return distribute([['grunt', 0.1], ['speeder', 0.2], ['tank', 0.2], ['armored', 0.25], ['phantom', 0.25]])
 }
 
 /**
@@ -108,20 +131,38 @@ export function getEndlessWaveEnemyCount(waveNumber) {
 /**
  * getEndlessWaveComposition returns the enemy mix for an endless-mode wave.
  *
- * Wave 11+: always 30% Grunts / 70% Tanks (heavier tank-weighted).
+ * Waves 1–10: use standard composition.
+ * Wave 11–15: 10% Grunts, 15% Speeders, 15% Tanks, 30% Armored, 30% Phantoms.
+ * Wave 16+:   5% Grunts, 15% Speeders, 10% Tanks, 35% Armored, 35% Phantoms.
  *
  * @param {number} waveNumber - 1-based wave number
- * @returns {Array<{ type: 'grunt'|'tank', count: number }>}
+ * @returns {Array<{ type: string, count: number }>}
  */
 export function getEndlessWaveComposition(waveNumber) {
   if (waveNumber <= 10) return getWaveComposition(waveNumber)
+
   const total = getEndlessWaveEnemyCount(waveNumber)
-  const tankCount = Math.round(total * 0.7)
-  const gruntCount = total - tankCount
-  const result = []
-  if (gruntCount > 0) result.push({ type: 'grunt', count: gruntCount })
-  if (tankCount > 0) result.push({ type: 'tank', count: tankCount })
-  return result
+
+  function distribute(fractions) {
+    const entries = fractions.filter(([, f]) => f > 0)
+    const result = []
+    let remaining = total
+    for (let i = 0; i < entries.length - 1; i++) {
+      const [type, frac] = entries[i]
+      const count = Math.round(total * frac)
+      if (count > 0) result.push({ type, count })
+      remaining -= count
+    }
+    const [lastType] = entries[entries.length - 1]
+    if (remaining > 0) result.push({ type: lastType, count: remaining })
+    return result
+  }
+
+  if (waveNumber <= 15) {
+    return distribute([['grunt', 0.1], ['speeder', 0.15], ['tank', 0.15], ['armored', 0.3], ['phantom', 0.3]])
+  }
+
+  return distribute([['grunt', 0.05], ['speeder', 0.15], ['tank', 0.1], ['armored', 0.35], ['phantom', 0.35]])
 }
 
 /**
