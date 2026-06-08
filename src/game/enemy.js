@@ -6,18 +6,64 @@
 /**
  * Enemy type definitions.
  * Each entry specifies the base stats for a given enemy type.
+ *
+ * Special fields:
+ *   slowResist  (0–1) — fraction by which slow effects are diminished.
+ *                       0 = full slow applied; 1 = completely immune.
+ *   damageResist — object mapping tower type → damage multiplier (0–1).
+ *                  Keys: 'BasicTower', 'RapidTower', 'SniperTower', 'CannonTower', 'SlowTower'.
+ *                  Absent key = no resistance (multiplier 1.0).
+ *   damageBonus  — object mapping tower type → damage multiplier (>1).
+ *                  Used to mark specific towers that deal extra damage (weaknesses).
  */
 export const ENEMY_TYPES = {
   grunt: { hp: 80,  speed: 3.0, goldReward: 8  },
   tank:  { hp: 300, speed: 1.0, goldReward: 25 },
+
+  /**
+   * speeder — extremely fast but frail.
+   * Resists SlowTower (slow effects are cut in half).
+   * Small HP pool so basic towers can still kill it quickly if it gets hit.
+   */
+  speeder: {
+    hp: 50,
+    speed: 5.5,
+    goldReward: 12,
+    slowResist: 0.5,
+  },
+
+  /**
+   * armored — slow-moving, extremely high HP.
+   * Nearly immune to RapidTower's chip damage.
+   * Weak to CannonTower (full AoE still applies) and SniperTower high single hits.
+   * Requires coordinated fire to kill in time.
+   */
+  armored: {
+    hp: 600,
+    speed: 1.2,
+    goldReward: 45,
+    damageResist: { RapidTower: 0.15, SlowTower: 0.25 },
+  },
+
+  /**
+   * phantom — medium speed, phases through weak attacks.
+   * Nearly immune to BasicTower and RapidTower — only SniperTower or CannonTower deal
+   * meaningful damage.  Slow effects apply normally.
+   */
+  phantom: {
+    hp: 220,
+    speed: 2.5,
+    goldReward: 30,
+    damageResist: { BasicTower: 0.05, RapidTower: 0.05 },
+  },
 }
 
 /**
  * createEnemy creates a new enemy object.
  * @param {string|number} id - Unique enemy identifier
  * @param {Array<{row: number, col: number}>} pathWaypoints - Array of waypoints defining the path
- * @param {'grunt'|'tank'} [type='grunt'] - Enemy type; defaults to 'grunt' for backwards compatibility
- * @returns {{ id, hp: number, maxHp: number, pos: {row, col}, waypointIndex: number, speed: number, type: string, goldReward: number }}
+ * @param {'grunt'|'tank'|'speeder'|'armored'|'phantom'} [type='grunt'] - Enemy type; defaults to 'grunt' for backwards compatibility
+ * @returns {{ id, hp: number, maxHp: number, pos: {row, col}, waypointIndex: number, speed: number, type: string, goldReward: number, slowResist?: number, damageResist?: object }}
  */
 export function createEnemy(id, pathWaypoints, type = 'grunt') {
   const startPos = pathWaypoints && pathWaypoints.length > 0
@@ -26,7 +72,7 @@ export function createEnemy(id, pathWaypoints, type = 'grunt') {
 
   const stats = ENEMY_TYPES[type] ?? ENEMY_TYPES.grunt
 
-  return {
+  const enemy = {
     id,
     hp: stats.hp,
     maxHp: stats.hp,
@@ -36,6 +82,12 @@ export function createEnemy(id, pathWaypoints, type = 'grunt') {
     type,
     goldReward: stats.goldReward,
   }
+
+  // Carry over resistance fields when present
+  if (stats.slowResist != null)    enemy.slowResist    = stats.slowResist
+  if (stats.damageResist != null)  enemy.damageResist  = { ...stats.damageResist }
+
+  return enemy
 }
 
 /**
@@ -49,8 +101,11 @@ export function createEnemy(id, pathWaypoints, type = 'grunt') {
  * @returns {number} Radius in pixels
  */
 export function getEnemyRadius(hp, maxHp, type) {
-  if (type === 'grunt') return 10
-  if (type === 'tank') return 16
+  if (type === 'grunt')    return 10
+  if (type === 'tank')     return 16
+  if (type === 'speeder')  return 8   // tiny — hard to hit, fast-moving
+  if (type === 'armored')  return 18  // largest — lumbering behemoth
+  if (type === 'phantom')  return 12  // mid-size
   // Legacy fallback — hp-ratio sizing
   const ratio = maxHp > 0 ? hp / maxHp : 0
   if (ratio >= 0.5) return 14

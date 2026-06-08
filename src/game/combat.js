@@ -64,9 +64,11 @@ export function processCombat(towers, enemies, nowMs) {
       return { ...tower }
     }
 
-    // Fire: deal damage to primary target
+    // Fire: deal damage to primary target (respect enemy's damageResist for this tower type)
     const target = enemyMap.get(nearestId)
-    enemyMap.set(nearestId, { ...target, hp: target.hp - tower.damage })
+    const resistMultiplier = target.damageResist?.[tower.type] ?? 1
+    const effectiveDamage = tower.damage * resistMultiplier
+    enemyMap.set(nearestId, { ...target, hp: target.hp - effectiveDamage })
 
     // Splash damage — CannonTower damages all enemies within splashRadius of the primary target
     const splashRadius = tower.splashRadius ?? 0
@@ -75,21 +77,34 @@ export function processCombat(towers, enemies, nowMs) {
         if (id === nearestId) continue // already hit above
         const dist = tileDistance({ row: target.pos.row, col: target.pos.col }, enemy.pos)
         if (dist <= splashRadius) {
-          enemyMap.set(id, { ...enemy, hp: enemy.hp - tower.damage })
+          const splashResist = enemy.damageResist?.[tower.type] ?? 1
+          enemyMap.set(id, { ...enemy, hp: enemy.hp - tower.damage * splashResist })
         }
       }
     }
 
     // Slow debuff — SlowTower applies reduced speed to the primary target
+    // Enemies with slowResist reduce how strongly the slow is applied:
+    //   effectiveSlowFactor = 1 - (1 - rawSlowFactor) * (1 - slowResist)
+    //   e.g. rawSlow=0.4, slowResist=0.5 → effectiveSlowFactor = 1 - 0.6*0.5 = 0.7
     if (tower.slowFactor != null && tower.slowDuration != null) {
       const current = enemyMap.get(nearestId)
+      const slowResist = current.slowResist ?? 0
+      const rawFactor = tower.slowFactor
+      // When there is no resistance, pass the raw factor through unchanged (avoids floating-point drift).
+      // When resistance > 0, dilute the slow: effectiveFactor = 1 - (1 - raw) * (1 - resist)
+      const appliedFactor = slowResist <= 0
+        ? rawFactor
+        : slowResist >= 1
+          ? 1  // fully immune — no slow at all
+          : 1 - (1 - rawFactor) * (1 - slowResist)
       // Only apply if this slow is stronger (lower speedMult) or longer than existing slow
       const existingUntil = current.slowUntil ?? 0
       const newUntil = nowMs + tower.slowDuration
-      if (tower.slowFactor < (current.speedMult ?? 1) || newUntil > existingUntil) {
+      if (appliedFactor < (current.speedMult ?? 1) || newUntil > existingUntil) {
         enemyMap.set(nearestId, {
           ...current,
-          speedMult: tower.slowFactor,
+          speedMult: appliedFactor,
           slowUntil: newUntil,
         })
       }
