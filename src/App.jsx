@@ -236,8 +236,8 @@ function App() {
     const cost = TOWER_TYPES[type].cost
     setGold(g => g - cost)
     setTowers(ts => [...ts, createTower(type, row, col)])
-    // Deselect upgrade panel when placing a new tower
-    setSelectedTower(null)
+    // Auto-select the newly placed tower so its fire radius ring is visible immediately
+    setSelectedTower({ row, col })
   }
 
   function handleTowerClick(row, col) {
