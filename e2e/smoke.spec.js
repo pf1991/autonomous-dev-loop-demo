@@ -862,4 +862,44 @@ test.describe('Tower Defense - smoke tests', () => {
     await expect(page.locator('.leaderboard-empty')).toBeVisible();
     await expect(page.locator('.leaderboard-entry')).toHaveCount(0);
   });
+
+  // --- Upgrade-level indicator on placed towers (issue #40) ---
+
+  test('fresh tower shows no .tower-level-badge', async ({ page }) => {
+    // Dismiss NextWave overlay
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Place a BasicTower (upgradeLevel starts at 0)
+    const slot = page.locator('.tower-slot').first();
+    await slot.click();
+    await expect(page.locator('.tower-icon').first()).toBeVisible();
+    // No badge should be visible on a level-0 tower
+    await expect(page.locator('.tower-level-badge')).toHaveCount(0);
+  });
+
+  test('tower shows .tower-level-badge with roman numeral I after one upgrade', async ({ page }) => {
+    // Dismiss NextWave overlay
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Place a BasicTower — costs 50g, leaves 50g (enough for level-1 upgrade at 40g)
+    const slot = page.locator('.tower-slot').first();
+    await slot.click();
+    await expect(page.locator('.tower-icon').first()).toBeVisible();
+
+    // Open upgrade panel
+    await slot.click();
+    await expect(page.locator('.upgrade-panel')).toBeVisible();
+
+    // Click the Upgrade button
+    await page.locator('.upgrade-panel-btn').click();
+
+    // Badge should now show roman numeral I
+    const badge = page.locator('.tower-level-badge').first();
+    await expect(badge).toBeVisible();
+    await expect(badge).toHaveText('I');
+  });
 });

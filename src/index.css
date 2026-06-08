@@ -188,6 +188,23 @@ body {
   stroke: none;
 }
 
+/* ===== Tower level badge — bottom-right corner of a placed tower tile ===== */
+.tower-level-badge {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  color: #1a1a2e;
+  background-color: #f5a623;
+  border-radius: 3px;
+  padding: 1px 3px;
+  pointer-events: none;
+  user-select: none;
+  z-index: 5;
+}
+
 /* ===== Enemy layer overlay (absolutely positioned over the game board) ===== */
 .enemy-layer {
   position: absolute;
