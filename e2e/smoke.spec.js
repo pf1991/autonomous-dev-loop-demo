@@ -435,13 +435,47 @@ test.describe('Tower Defense - smoke tests', () => {
     }
     // Wait for at least one enemy to appear in the enemy-layer
     await expect(page.locator('.enemy-layer .enemy').first()).toBeAttached({ timeout: 5000 });
-    // At full HP the enemy radius is 14 px → diameter 28 px
+    // Wave 1 spawns only Grunts: radius 10 px → diameter 20 px
     const enemy = page.locator('.enemy-layer .enemy').first();
     const widthStyle = await enemy.evaluate(el => el.style.width);
     const heightStyle = await enemy.evaluate(el => el.style.height);
-    // Must be one of the valid diameters: 28px (radius 14), 22px (radius 11), or 16px (radius 8)
-    expect(['28px', '22px', '16px']).toContain(widthStyle);
-    expect(['28px', '22px', '16px']).toContain(heightStyle);
+    // Valid diameters: 20px (grunt radius 10) or 32px (tank radius 16)
+    expect(['20px', '32px']).toContain(widthStyle);
+    expect(['20px', '32px']).toContain(heightStyle);
+  });
+
+  // --- Two enemy types: Grunt and Tank (issue #38) ---
+
+  test('wave 1 spawns only grunt enemies with enemy-grunt CSS class', async ({ page }) => {
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Wait for at least one enemy to appear
+    await expect(page.locator('.enemy-layer .enemy').first()).toBeAttached({ timeout: 5000 });
+    // Wave 1 = Grunts only: every enemy must have class enemy-grunt, none should have enemy-tank
+    const enemies = page.locator('.enemy-layer .enemy');
+    const count = await enemies.count();
+    expect(count).toBeGreaterThan(0);
+    for (let i = 0; i < count; i++) {
+      const cls = await enemies.nth(i).getAttribute('class');
+      expect(cls).toContain('enemy-grunt');
+      expect(cls).not.toContain('enemy-tank');
+    }
+  });
+
+  test('grunt enemy has 20px diameter (radius 10)', async ({ page }) => {
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Wait for at least one grunt to appear
+    await expect(page.locator('.enemy-layer .enemy-grunt').first()).toBeAttached({ timeout: 5000 });
+    const grunt = page.locator('.enemy-layer .enemy-grunt').first();
+    const w = await grunt.evaluate(el => el.style.width);
+    const h = await grunt.evaluate(el => el.style.height);
+    expect(w).toBe('20px');
+    expect(h).toBe('20px');
   });
 
   // --- WaveCountdownBanner component (issue #34) ---
