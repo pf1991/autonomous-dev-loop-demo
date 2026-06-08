@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { createWave, getWaveEnemyHp, getWaveEnemyCount } from '../../src/game/wave.js'
+import { createWave, getWaveEnemyHp, getWaveEnemyCount, getWaveComposition } from '../../src/game/wave.js'
 
 describe('getWaveEnemyHp', () => {
   it('wave 1 returns 100 HP', () => {
@@ -82,5 +82,55 @@ describe('createWave', () => {
     const w = createWave(10)
     expect(w.totalEnemies).toBe(9)
     expect(w.enemyHp).toBe(325)
+  })
+})
+
+describe('getWaveComposition', () => {
+  it('wave 1: grunts only', () => {
+    const comp = getWaveComposition(1)
+    expect(comp).toHaveLength(1)
+    expect(comp[0].type).toBe('grunt')
+    expect(comp[0].count).toBe(getWaveEnemyCount(1))
+  })
+
+  it('wave 4: 70% grunts, 30% tanks', () => {
+    const comp = getWaveComposition(4)
+    const total = getWaveEnemyCount(4)
+    const grunt = comp.find(c => c.type === 'grunt')
+    const tank  = comp.find(c => c.type === 'tank')
+    expect(grunt).toBeDefined()
+    expect(tank).toBeDefined()
+    expect((grunt?.count ?? 0) + (tank?.count ?? 0)).toBe(total)
+    // Tank count ~30% of total
+    expect(tank.count).toBe(Math.round(total * 0.3))
+  })
+
+  it('wave 7: 40% grunts, 60% tanks', () => {
+    const comp = getWaveComposition(7)
+    const total = getWaveEnemyCount(7)
+    const grunt = comp.find(c => c.type === 'grunt')
+    const tank  = comp.find(c => c.type === 'tank')
+    expect(grunt).toBeDefined()
+    expect(tank).toBeDefined()
+    expect((grunt?.count ?? 0) + (tank?.count ?? 0)).toBe(total)
+    // Tank count ~60% of total
+    expect(tank.count).toBe(Math.round(total * 0.6))
+  })
+
+  it('wave 10: 40% grunts, 60% tanks', () => {
+    const comp = getWaveComposition(10)
+    const total = getWaveEnemyCount(10)
+    const grunt = comp.find(c => c.type === 'grunt')
+    const tank  = comp.find(c => c.type === 'tank')
+    expect((grunt?.count ?? 0) + (tank?.count ?? 0)).toBe(total)
+    expect(tank.count).toBe(Math.round(total * 0.6))
+  })
+
+  it('counts always sum to getWaveEnemyCount', () => {
+    for (const wave of [1, 4, 7, 10]) {
+      const comp = getWaveComposition(wave)
+      const sum = comp.reduce((acc, c) => acc + c.count, 0)
+      expect(sum).toBe(getWaveEnemyCount(wave))
+    }
   })
 })

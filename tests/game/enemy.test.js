@@ -8,25 +8,39 @@ const WAYPOINTS = [
 ]
 
 describe('createEnemy', () => {
-  it('creates an enemy with default stats at the first waypoint', () => {
+  it('defaults to grunt type', () => {
     const enemy = createEnemy('e1', WAYPOINTS)
-    expect(enemy.id).toBe('e1')
-    expect(enemy.hp).toBe(100)
-    expect(enemy.maxHp).toBe(100)
+    expect(enemy.type).toBe('grunt')
+    expect(enemy.hp).toBe(80)
+    expect(enemy.maxHp).toBe(80)
+    expect(enemy.speed).toBe(3.0)
+    expect(enemy.goldReward).toBe(8)
     expect(enemy.waypointIndex).toBe(0)
-    expect(enemy.speed).toBe(2)
     expect(enemy.pos).toEqual({ row: 0, col: 0 })
   })
 
-  it('accepts a custom hp value for wave-scaled difficulty', () => {
-    const enemy = createEnemy('e2', WAYPOINTS, 200)
-    expect(enemy.hp).toBe(200)
-    expect(enemy.maxHp).toBe(200)
+  it('creates a grunt with correct stats', () => {
+    const enemy = createEnemy('e2', WAYPOINTS, 'grunt')
+    expect(enemy.hp).toBe(80)
+    expect(enemy.maxHp).toBe(80)
+    expect(enemy.speed).toBe(3.0)
+    expect(enemy.goldReward).toBe(8)
+    expect(enemy.type).toBe('grunt')
   })
 
-  it('speed is always 2 tiles/sec regardless of hp', () => {
-    const enemy = createEnemy('e3', WAYPOINTS, 325)
-    expect(enemy.speed).toBe(2)
+  it('creates a tank with correct stats', () => {
+    const enemy = createEnemy('e3', WAYPOINTS, 'tank')
+    expect(enemy.hp).toBe(300)
+    expect(enemy.maxHp).toBe(300)
+    expect(enemy.speed).toBe(1.0)
+    expect(enemy.goldReward).toBe(25)
+    expect(enemy.type).toBe('tank')
+  })
+
+  it('unknown type falls back to grunt stats', () => {
+    const enemy = createEnemy('e4', WAYPOINTS, 'unknown')
+    expect(enemy.hp).toBe(80)
+    expect(enemy.speed).toBe(3.0)
   })
 })
 
@@ -41,8 +55,8 @@ describe('moveEnemy', () => {
 
   it('enemy moves toward next waypoint when given a positive deltaMs', () => {
     const enemy = createEnemy('e1', WAYPOINTS)
-    // speed=2 tiles/sec; 500ms → 1 tile of movement along col axis
-    const result = moveEnemy(enemy, 500, WAYPOINTS)
+    // grunt speed=3.0 tiles/sec; 333ms → ~1 tile of movement along col axis
+    const result = moveEnemy(enemy, 333, WAYPOINTS)
     expect(result).not.toBeNull()
     // Should have moved right (increasing col)
     expect(result.pos.col).toBeGreaterThan(0)
@@ -51,8 +65,8 @@ describe('moveEnemy', () => {
 
   it('enemy reaches and advances past a waypoint correctly', () => {
     const enemy = createEnemy('e1', WAYPOINTS)
-    // 5 cols to next waypoint at speed 2 tiles/sec → 2500ms to reach exactly
-    const result = moveEnemy(enemy, 2500, WAYPOINTS)
+    // 5 cols to next waypoint at grunt speed 3.0 tiles/sec → ~1667ms to reach exactly
+    const result = moveEnemy(enemy, 1667, WAYPOINTS)
     expect(result).not.toBeNull()
     expect(result.waypointIndex).toBe(1)
     expect(result.pos.col).toBeCloseTo(5)
@@ -79,11 +93,14 @@ describe('moveEnemy', () => {
 })
 
 describe('getEnemyRadius', () => {
-  it('returns 14 for full HP', () => expect(getEnemyRadius(100, 100)).toBe(14))
-  it('returns 14 at exactly 50% HP', () => expect(getEnemyRadius(50, 100)).toBe(14))
-  it('returns 11 for 49% HP', () => expect(getEnemyRadius(49, 100)).toBe(11))
-  it('returns 11 at exactly 25% HP', () => expect(getEnemyRadius(25, 100)).toBe(11))
-  it('returns 8 for 24% HP', () => expect(getEnemyRadius(24, 100)).toBe(8))
-  it('returns 8 for 0 HP', () => expect(getEnemyRadius(0, 100)).toBe(8))
-  it('returns 8 when maxHp is 0 (guard)', () => expect(getEnemyRadius(0, 0)).toBe(8))
+  it('returns 10 for grunt type', () => expect(getEnemyRadius(80, 80, 'grunt')).toBe(10))
+  it('returns 16 for tank type', () => expect(getEnemyRadius(300, 300, 'tank')).toBe(16))
+  // Legacy HP-ratio fallback (no type provided)
+  it('returns 14 for full HP (legacy)', () => expect(getEnemyRadius(100, 100)).toBe(14))
+  it('returns 14 at exactly 50% HP (legacy)', () => expect(getEnemyRadius(50, 100)).toBe(14))
+  it('returns 11 for 49% HP (legacy)', () => expect(getEnemyRadius(49, 100)).toBe(11))
+  it('returns 11 at exactly 25% HP (legacy)', () => expect(getEnemyRadius(25, 100)).toBe(11))
+  it('returns 8 for 24% HP (legacy)', () => expect(getEnemyRadius(24, 100)).toBe(8))
+  it('returns 8 for 0 HP (legacy)', () => expect(getEnemyRadius(0, 100)).toBe(8))
+  it('returns 8 when maxHp is 0 (guard, legacy)', () => expect(getEnemyRadius(0, 0)).toBe(8))
 })

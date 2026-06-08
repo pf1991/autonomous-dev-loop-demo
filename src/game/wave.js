@@ -26,6 +26,42 @@ export function getWaveEnemyCount(waveNumber) {
 }
 
 /**
+ * getWaveComposition returns the mix of enemy types for the given wave.
+ *
+ * Wave composition rules:
+ *   Waves 1–3:  Grunts only
+ *   Waves 4–6:  70% Grunts, 30% Tanks
+ *   Waves 7–10: 40% Grunts, 60% Tanks
+ *
+ * @param {number} waveNumber - 1-based wave number
+ * @returns {Array<{ type: 'grunt'|'tank', count: number }>}
+ */
+export function getWaveComposition(waveNumber) {
+  const total = getWaveEnemyCount(waveNumber)
+
+  if (waveNumber <= 3) {
+    return [{ type: 'grunt', count: total }]
+  }
+
+  let gruntFraction, tankFraction
+  if (waveNumber <= 6) {
+    gruntFraction = 0.7
+    tankFraction  = 0.3
+  } else {
+    gruntFraction = 0.4
+    tankFraction  = 0.6
+  }
+
+  const tankCount  = Math.round(total * tankFraction)
+  const gruntCount = total - tankCount
+
+  const result = []
+  if (gruntCount > 0) result.push({ type: 'grunt', count: gruntCount })
+  if (tankCount  > 0) result.push({ type: 'tank',  count: tankCount  })
+  return result
+}
+
+/**
  * createWave creates a wave descriptor for the given wave number.
  * @param {number} waveNumber - 1-based wave number
  * @returns {{ enemies: Array, spawnInterval: number, totalEnemies: number, enemyHp: number }}

@@ -198,7 +198,7 @@ body {
 }
 
 /* ===== Enemy element (positioned via left/top/width/height inline styles from enemy-layer) ===== */
-/* width and height are set dynamically based on HP ratio — see GameBoard.jsx getEnemyRadius() */
+/* width and height are set dynamically based on enemy type — see GameBoard.jsx getEnemyRadius() */
 .enemy {
   position: absolute;
   background: #e94560;
@@ -208,6 +208,16 @@ body {
   align-items: flex-end;
   justify-content: center;
   padding-bottom: 2px;
+}
+
+/* Grunt: fast/weak — small orange circle (radius 10 px) */
+.enemy-grunt {
+  background: #f5a623;
+}
+
+/* Tank: slow/tough — large red circle (radius 16 px) */
+.enemy-tank {
+  background: #e94560;
 }
 
 .enemy-hp-bar {
