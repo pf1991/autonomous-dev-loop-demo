@@ -243,6 +243,98 @@ describe('SniperTower', () => {
   })
 })
 
+describe('RapidTower', () => {
+  it('has higher fireRate than BasicTower', () => {
+    expect(TOWER_TYPES.RapidTower.fireRate).toBeGreaterThan(TOWER_TYPES.BasicTower.fireRate)
+  })
+
+  it('has lower cost than SniperTower', () => {
+    expect(TOWER_TYPES.RapidTower.cost).toBeLessThan(TOWER_TYPES.SniperTower.cost)
+  })
+
+  it('createTower creates a RapidTower with correct stats', () => {
+    const t = createTower('RapidTower', 2, 3)
+    expect(t.type).toBe('RapidTower')
+    expect(t.fireRate).toBe(TOWER_TYPES.RapidTower.fireRate)
+    expect(t.damage).toBe(TOWER_TYPES.RapidTower.damage)
+    expect(t.upgradeLevel).toBe(0)
+  })
+
+  it('has no splashRadius or slowFactor', () => {
+    const t = createTower('RapidTower', 0, 0)
+    expect(t.splashRadius).toBeUndefined()
+    expect(t.slowFactor).toBeUndefined()
+  })
+})
+
+describe('CannonTower', () => {
+  it('has splashRadius defined in TOWER_TYPES', () => {
+    expect(TOWER_TYPES.CannonTower.splashRadius).toBeGreaterThan(0)
+  })
+
+  it('createTower includes splashRadius on the tower object', () => {
+    const t = createTower('CannonTower', 0, 0)
+    expect(t.splashRadius).toBe(TOWER_TYPES.CannonTower.splashRadius)
+  })
+
+  it('has higher cost than BasicTower', () => {
+    expect(TOWER_TYPES.CannonTower.cost).toBeGreaterThan(TOWER_TYPES.BasicTower.cost)
+  })
+
+  it('upgradeTower preserves splashRadius at each upgrade level', () => {
+    let t = createTower('CannonTower', 0, 0)
+    t = upgradeTower(t)
+    expect(t.splashRadius).toBe(TOWER_TYPES.CannonTower.upgrades[0].splashRadius)
+    t = upgradeTower(t)
+    expect(t.splashRadius).toBe(TOWER_TYPES.CannonTower.upgrades[1].splashRadius)
+  })
+
+  it('each upgrade level increases splashRadius', () => {
+    const base = TOWER_TYPES.CannonTower.splashRadius
+    const lvl1 = TOWER_TYPES.CannonTower.upgrades[0].splashRadius
+    const lvl2 = TOWER_TYPES.CannonTower.upgrades[1].splashRadius
+    expect(lvl1).toBeGreaterThan(base)
+    expect(lvl2).toBeGreaterThan(lvl1)
+  })
+})
+
+describe('SlowTower', () => {
+  it('has slowFactor and slowDuration defined in TOWER_TYPES', () => {
+    expect(TOWER_TYPES.SlowTower.slowFactor).toBeDefined()
+    expect(TOWER_TYPES.SlowTower.slowDuration).toBeDefined()
+  })
+
+  it('slowFactor is between 0 and 1 (exclusive)', () => {
+    expect(TOWER_TYPES.SlowTower.slowFactor).toBeGreaterThan(0)
+    expect(TOWER_TYPES.SlowTower.slowFactor).toBeLessThan(1)
+  })
+
+  it('createTower includes slowFactor and slowDuration', () => {
+    const t = createTower('SlowTower', 1, 2)
+    expect(t.slowFactor).toBe(TOWER_TYPES.SlowTower.slowFactor)
+    expect(t.slowDuration).toBe(TOWER_TYPES.SlowTower.slowDuration)
+  })
+
+  it('upgradeTower carries slowFactor improvements forward', () => {
+    let t = createTower('SlowTower', 0, 0)
+    const baseSlowFactor = t.slowFactor
+    t = upgradeTower(t)
+    // Upgrade level 1 should have a lower (stronger) slowFactor than base
+    expect(t.slowFactor).toBeLessThan(baseSlowFactor)
+  })
+
+  it('has no splashRadius', () => {
+    const t = createTower('SlowTower', 0, 0)
+    expect(t.splashRadius).toBeUndefined()
+  })
+
+  it('sellTower returns 70% of base cost rounded down', () => {
+    const t = createTower('SlowTower', 0, 0)
+    const expected = Math.floor(TOWER_TYPES.SlowTower.cost * 0.7)
+    expect(sellTower(t)).toEqual({ refund: expected })
+  })
+})
+
 describe('sellTower', () => {
   it('returns 70% of BasicTower base cost (50), rounded down = 35', () => {
     const tower = createTower('BasicTower', 0, 0)

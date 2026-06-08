@@ -20,6 +20,14 @@ function TowerPicker({ selectedType, gold, onSelect }) {
           .filter(Boolean)
           .join(' ')
 
+        // Determine a one-line special-ability label for towers with unique mechanics
+        let specialLabel = null
+        if (config.splashRadius != null) {
+          specialLabel = `Splash: ${config.splashRadius}t`
+        } else if (config.slowFactor != null) {
+          specialLabel = `Slow: ${Math.round((1 - config.slowFactor) * 100)}%`
+        }
+
         return (
           <button
             key={type}
@@ -31,6 +39,9 @@ function TowerPicker({ selectedType, gold, onSelect }) {
             <span className="tower-picker-stat">Cost: {config.cost}</span>
             <span className="tower-picker-stat">Range: {config.range}</span>
             <span className="tower-picker-stat">Dmg: {config.damage}</span>
+            {specialLabel && (
+              <span className="tower-picker-stat tower-picker-special">{specialLabel}</span>
+            )}
           </button>
         )
       })}

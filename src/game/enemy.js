@@ -75,8 +75,12 @@ export function moveEnemy(enemy, deltaMs, pathWaypoints) {
     return null
   }
 
-  // Distance to travel this tick (speed is tiles-per-second, deltaMs in ms)
-  let distRemaining = (enemy.speed * deltaMs) / 1000
+  // Distance to travel this tick (speed is tiles-per-second, deltaMs in ms).
+  // If a slow debuff is active (slowUntil > nowMs equivalent), apply speedMult.
+  // moveEnemy does not receive nowMs — the caller is responsible for clearing
+  // expired slow state before passing enemies in.  We honour speedMult if set.
+  const effectiveSpeed = enemy.speed * (enemy.speedMult ?? 1)
+  let distRemaining = (effectiveSpeed * deltaMs) / 1000
   let { row, col } = enemy.pos
   let waypointIndex = enemy.waypointIndex
 

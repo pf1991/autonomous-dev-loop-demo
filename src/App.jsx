@@ -150,8 +150,16 @@ function App() {
     const nowMs = gameClockRef.current
 
     // Read current enemies from ref — avoids functional updater side effects that break
-    // under React 18 StrictMode (which double-invokes updater functions to detect impurity)
-    const all = newEnemy ? [...enemiesRef.current, newEnemy] : [...enemiesRef.current]
+    // under React 18 StrictMode (which double-invokes updater functions to detect impurity).
+    // Expire any slow debuffs whose duration has elapsed before movement/combat.
+    const rawAll = newEnemy ? [...enemiesRef.current, newEnemy] : [...enemiesRef.current]
+    const all = rawAll.map(e => {
+      if (e.slowUntil != null && nowMs >= e.slowUntil) {
+        const { slowUntil, speedMult, ...rest } = e
+        return rest
+      }
+      return e
+    })
     const surviving = []
     let livesLost = 0
     let killedNow = 0
