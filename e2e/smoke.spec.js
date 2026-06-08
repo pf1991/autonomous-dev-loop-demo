@@ -394,6 +394,52 @@ test.describe('Tower Defense - smoke tests', () => {
     }
   });
 
+  // --- Click outside tower deselects it (issue #55) ---
+
+  test('clicking a non-tower tile deselects the tower and closes the upgrade panel', async ({ page }) => {
+    // Dismiss NextWave overlay
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Place a BasicTower on the first slot — auto-select opens the upgrade panel
+    const slots = page.locator('.tower-slot');
+    const firstSlot = slots.first();
+    await firstSlot.click();
+    await expect(page.locator('.tower-icon').first()).toBeVisible();
+    await expect(page.locator('.upgrade-panel')).toBeVisible();
+    await expect(page.locator('.fire-radius-ring')).toBeAttached({ timeout: 2000 });
+
+    // Now click a path tile (non-tower tile) to deselect — path tiles have class .path
+    const pathTile = page.locator('.tile.path').first();
+    await expect(pathTile).toBeAttached();
+    await pathTile.click();
+
+    // Upgrade panel must be gone and fire-radius-ring must disappear
+    await expect(page.locator('.upgrade-panel')).not.toBeVisible();
+    await expect(page.locator('.fire-radius-ring')).not.toBeAttached();
+  });
+
+  test('fire-radius-ring disappears after clicking outside selected tower', async ({ page }) => {
+    // Dismiss NextWave overlay
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Place a tower to get the fire-radius-ring
+    const slot = page.locator('.tower-slot').first();
+    await slot.click();
+    await expect(page.locator('.tower-icon').first()).toBeVisible();
+    await expect(page.locator('.fire-radius-ring')).toBeAttached({ timeout: 2000 });
+
+    // Click a path tile to deselect
+    const pathTile = page.locator('.tile.path').first();
+    await pathTile.click();
+
+    // Ring must be gone (no tower selected)
+    await expect(page.locator('.fire-radius-ring')).not.toBeAttached({ timeout: 2000 });
+  });
+
   // --- Geometric SVG shapes for towers and enemies (issue #32) ---
 
   test('BasicTower renders an SVG with a teal diamond (rect.tower-basic)', async ({ page }) => {
