@@ -406,6 +406,23 @@ body {
   font-size: 0.7rem;
 }
 
+.upgrade-panel-sell-btn {
+  background: #e05a5a;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+  margin-top: 3px;
+}
+
+.upgrade-panel-sell-btn:hover {
+  background: #c03a3a;
+}
+
 /* ===== Wave Countdown Banner (non-blocking, inside game-board-wrapper) ===== */
 .wave-countdown-banner {
   position: absolute;

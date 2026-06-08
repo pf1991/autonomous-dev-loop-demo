@@ -69,9 +69,11 @@ function GameBoard({
   selectedTowerType = 'BasicTower',
   gold = 0,
   onUpgrade,
+  onSell,
   getUpgradeCost,
   canUpgrade,
   getNextUpgradeStats,
+  sellTower,
   showCountdownBanner = false,
   countdownWave = 2,
   countdownEnemyCount = 5,
@@ -136,9 +138,11 @@ function GameBoard({
                     tower={tower}
                     gold={gold}
                     onUpgrade={onUpgrade}
+                    onSell={onSell}
                     getUpgradeCost={getUpgradeCost}
                     canUpgrade={canUpgrade}
                     getNextUpgradeStats={getNextUpgradeStats}
+                    sellTower={sellTower}
                   />
                 )}
               </div>

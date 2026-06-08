@@ -661,6 +661,66 @@ test.describe('Tower Defense - smoke tests', () => {
 
   // --- HUD restart button (issue #33) ---
 
+  // --- Sell Tower feature (issue #37) ---
+
+  test('upgrade panel shows a Sell button with gold refund amount', async ({ page }) => {
+    // Dismiss NextWave overlay
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Place a BasicTower on the first slot
+    const slot = page.locator('.tower-slot').first();
+    await slot.click();
+    await expect(page.locator('.tower-icon').first()).toBeVisible();
+    // Open the upgrade panel by clicking the occupied slot
+    await slot.click();
+    const panel = page.locator('.upgrade-panel');
+    await expect(panel).toBeVisible();
+    // Sell button must be visible and show the refund amount (35g for BasicTower)
+    const sellBtn = panel.locator('.upgrade-panel-sell-btn');
+    await expect(sellBtn).toBeVisible();
+    await expect(sellBtn).toContainText('Sell');
+    await expect(sellBtn).toContainText('35g');
+  });
+
+  test('clicking Sell removes the tower and refunds gold', async ({ page }) => {
+    // Dismiss NextWave overlay
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Note starting gold (100)
+    const goldBefore = await page.locator('.hud-gold').textContent();
+    const goldNum = parseInt(goldBefore.replace(/\D/g, ''), 10);
+
+    // Place a BasicTower (costs 50g → gold becomes 50)
+    const slot = page.locator('.tower-slot').first();
+    await slot.click();
+    await expect(page.locator('.tower-icon').first()).toBeVisible();
+
+    // Open upgrade panel
+    await slot.click();
+    await expect(page.locator('.upgrade-panel')).toBeVisible();
+
+    // Sell the tower
+    await page.locator('.upgrade-panel-sell-btn').click();
+
+    // Tower should be gone — no .tower-icon on the board
+    await expect(page.locator('.tower-icon')).toHaveCount(0);
+
+    // Upgrade panel should be closed
+    await expect(page.locator('.upgrade-panel')).not.toBeVisible();
+
+    // Gold should be goldNum - 50 (buy) + 35 (sell refund) = goldNum - 15
+    const goldAfterText = await page.locator('.hud-gold').textContent();
+    const goldAfterNum = parseInt(goldAfterText.replace(/\D/g, ''), 10);
+    expect(goldAfterNum).toBe(goldNum - 50 + 35);
+
+    // The tile should now be a clickable .tower-slot again
+    await expect(page.locator('.tower-slot').first()).toBeVisible();
+  });
+
   test('HUD restart button resets game to initial state', async ({ page }) => {
     // Dismiss the NextWave overlay so the board is interactive
     const startBtn = page.locator('.next-wave-start');
