@@ -287,12 +287,11 @@ test.describe('Tower Defense - smoke tests', () => {
     if (await startBtn.isVisible()) {
       await startBtn.click();
     }
-    // Place a BasicTower on the first slot
+    // Place a BasicTower on the first slot — auto-select opens the upgrade panel immediately
     const slot = page.locator('.tower-slot').first();
     await slot.click();
     await expect(page.locator('.tower-icon').first()).toBeVisible();
-    // Click the same slot again — it now has a tower so the upgrade panel should open
-    await slot.click();
+    // Panel opens automatically on placement (auto-select behavior from issue #42)
     await expect(page.locator('.upgrade-panel')).toBeVisible();
   });
 
@@ -304,7 +303,7 @@ test.describe('Tower Defense - smoke tests', () => {
     const slot = page.locator('.tower-slot').first();
     await slot.click();
     await expect(page.locator('.tower-icon').first()).toBeVisible();
-    await slot.click();
+    // Panel opens automatically on placement (auto-select behavior from issue #42)
     const panel = page.locator('.upgrade-panel');
     await expect(panel).toBeVisible();
     await expect(panel.locator('.upgrade-panel-btn')).toBeVisible();
@@ -356,13 +355,12 @@ test.describe('Tower Defense - smoke tests', () => {
     if (await startBtn.isVisible()) {
       await startBtn.click();
     }
-    // Place tower on first slot and open panel
+    // Place tower on first slot — auto-select opens panel immediately (issue #42)
     const occupiedSlot = page.locator('.tower-slot').first();
     await occupiedSlot.click();
     await expect(page.locator('.tower-icon').first()).toBeVisible();
-    await occupiedSlot.click();
     await expect(page.locator('.upgrade-panel')).toBeVisible();
-    // Click a different empty tower slot to deselect
+    // Click a different empty tower slot to place a second tower and switch selection
     const emptySlots = page.locator('.tower-slot');
     const count = await emptySlots.count();
     if (count >= 2) {
@@ -693,6 +691,63 @@ test.describe('Tower Defense - smoke tests', () => {
     await expect(page.locator('.range-preview-ring')).not.toBeAttached({ timeout: 2000 });
   });
 
+  // --- Fire radius ring on placed tower selection (issue #42) ---
+
+  test('fire-radius-ring appears immediately after placing a tower', async ({ page }) => {
+    // Dismiss the NextWave overlay so the board is interactive
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Place a tower — the auto-select on placement should show the fire-radius-ring
+    const slot = page.locator('.tower-slot').first();
+    await slot.click();
+    await expect(page.locator('.tower-icon').first()).toBeVisible();
+    // Fire radius ring must be present in the SVG layer right after placement
+    await expect(page.locator('.fire-radius-ring')).toBeAttached({ timeout: 2000 });
+  });
+
+  test('fire-radius-ring appears when clicking an already-placed tower', async ({ page }) => {
+    // Dismiss the NextWave overlay
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Place a tower on the first slot
+    const slot = page.locator('.tower-slot').first();
+    await slot.click();
+    await expect(page.locator('.tower-icon').first()).toBeVisible();
+
+    // Click elsewhere to deselect — clicking another empty slot
+    const slots = page.locator('.tower-slot');
+    if (await slots.count() >= 2) {
+      await slots.nth(1).click();
+      // The fire-radius-ring should now point at the second tower (just placed)
+      await expect(page.locator('.fire-radius-ring')).toBeAttached({ timeout: 2000 });
+    }
+  });
+
+  test('fire-radius-ring is absent when no tower is selected', async ({ page }) => {
+    // On initial load, before placing anything, no tower is selected
+    // .fire-radius-ring should not be in the DOM at all
+    await expect(page.locator('.fire-radius-ring')).not.toBeAttached();
+  });
+
+  test('hover preview ring (.range-preview-ring) still shows on empty tower-slot hover', async ({ page }) => {
+    // Dismiss the NextWave overlay
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Hover over the first empty tower-slot
+    const slot = page.locator('.tower-slot').first();
+    await slot.hover();
+    // The hover ring must still be present
+    await expect(page.locator('.range-preview-ring')).toBeAttached({ timeout: 2000 });
+    // The fire-radius-ring must NOT appear just from hovering (no tower placed yet)
+    await expect(page.locator('.fire-radius-ring')).not.toBeAttached();
+  });
+
   // --- HUD restart button (issue #33) ---
 
   // --- Sell Tower feature (issue #37) ---
@@ -703,12 +758,10 @@ test.describe('Tower Defense - smoke tests', () => {
     if (await startBtn.isVisible()) {
       await startBtn.click();
     }
-    // Place a BasicTower on the first slot
+    // Place a BasicTower on the first slot — auto-select opens the panel immediately (issue #42)
     const slot = page.locator('.tower-slot').first();
     await slot.click();
     await expect(page.locator('.tower-icon').first()).toBeVisible();
-    // Open the upgrade panel by clicking the occupied slot
-    await slot.click();
     const panel = page.locator('.upgrade-panel');
     await expect(panel).toBeVisible();
     // Sell button must be visible and show the refund amount (35g for BasicTower)
@@ -729,12 +782,10 @@ test.describe('Tower Defense - smoke tests', () => {
     const goldNum = parseInt(goldBefore.replace(/\D/g, ''), 10);
 
     // Place a BasicTower (costs 50g → gold becomes 50)
+    // Auto-select opens upgrade panel immediately (issue #42)
     const slot = page.locator('.tower-slot').first();
     await slot.click();
     await expect(page.locator('.tower-icon').first()).toBeVisible();
-
-    // Open upgrade panel
-    await slot.click();
     await expect(page.locator('.upgrade-panel')).toBeVisible();
 
     // Sell the tower
@@ -886,12 +937,10 @@ test.describe('Tower Defense - smoke tests', () => {
       await startBtn.click();
     }
     // Place a BasicTower — costs 50g, leaves 50g (enough for level-1 upgrade at 40g)
+    // Auto-select opens upgrade panel immediately (issue #42)
     const slot = page.locator('.tower-slot').first();
     await slot.click();
     await expect(page.locator('.tower-icon').first()).toBeVisible();
-
-    // Open upgrade panel
-    await slot.click();
     await expect(page.locator('.upgrade-panel')).toBeVisible();
 
     // Click the Upgrade button
