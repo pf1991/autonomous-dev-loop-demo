@@ -8,7 +8,7 @@ import { createDefaultMap, getPathWaypoints } from './game/map'
 import { TOWER_TYPES, createTower, canAfford, canUpgrade, upgradeTower, getUpgradeCost, getNextUpgradeStats, sellTower } from './game/tower'
 import { createEnemy, moveEnemy } from './game/enemy'
 import { processCombat } from './game/combat'
-import { getWaveEnemyHp, getWaveEnemyCount, getWaveComposition } from './game/wave'
+import { getWaveEnemyHp, getWaveEnemyCount, getWaveComposition, getEarlyWaveBonus } from './game/wave'
 import { useGameLoop } from './hooks/useGameLoop'
 import { computeScore } from './game/score'
 import { saveLeaderboardEntry } from './utils/leaderboard'
@@ -60,6 +60,19 @@ function App() {
   const wavesCompletedRef = useRef(0)
   // Ordered list of enemy types to spawn this wave (shuffled at wave start)
   const spawnQueueRef = useRef([])
+  // Early-wave call: when player presses "Next Wave Early" during a wave,
+  // we append the next wave's enemies to spawnQueue and apply a bonus multiplier.
+  // earlyWaveCountRef: how many extra waves have been called early this wave (≥ 0)
+  // earlyWaveBonusRef: current gold-per-kill multiplier (≥ 1.0)
+  // earlyWaveCalledRef: true once player used the early-call button this wave
+  // totalEnemiesToSpawnRef: total enemy count to spawn this wave (includes early-called extras)
+  const earlyWaveCountRef = useRef(0)
+  const earlyWaveBonusRef = useRef(1)
+  const earlyWaveCalledRef = useRef(false)
+  const totalEnemiesToSpawnRef = useRef(0)
+  const [earlyWaveCalled, setEarlyWaveCalled] = useState(false)
+  // How many extra waves were called early last round (used to advance wave counter correctly)
+  const [pendingWaveAdvance, setPendingWaveAdvance] = useState(0)
   const livesRef = useRef(INITIAL_STATE.lives)
   const waveRef = useRef(INITIAL_STATE.wave)
   const gamePhaseRef = useRef('between-waves')
@@ -117,7 +130,8 @@ function App() {
     spawnTimerRef.current += deltaMs
 
     const currentWaveNum = waveRef.current
-    const enemiesThisWave = getWaveEnemyCount(currentWaveNum)
+    // Total enemies to spawn this wave — set at wave start and extended when early wave is called.
+    const enemiesThisWave = totalEnemiesToSpawnRef.current
 
     let newEnemy = null
     if (
@@ -161,8 +175,9 @@ function App() {
     killedNow += surviving.length - afterCombat.length
 
     if (combatResult.goldEarned > 0) {
-      setGold(g => g + combatResult.goldEarned)
-      totalGoldEarnedRef.current += combatResult.goldEarned
+      const bonusGold = Math.round(combatResult.goldEarned * earlyWaveBonusRef.current)
+      setGold(g => g + bonusGold)
+      totalGoldEarnedRef.current += bonusGold
     }
 
     // Keep projectiles alive for PROJECTILE_LIFETIME_MS so they are visible to the player
@@ -198,7 +213,10 @@ function App() {
       gamePhaseRef.current === 'playing' &&
       livesRef.current > 0
     ) {
-      wavesCompletedRef.current += 1
+      // When early wave was called we effectively completed an extra wave
+      const wavesJustCompleted = 1 + earlyWaveCountRef.current
+      wavesCompletedRef.current += wavesJustCompleted
+
       if (currentWaveNum >= TOTAL_WAVES) {
         const score = computeScore({
           kills: totalKillsRef.current,
@@ -288,6 +306,12 @@ function App() {
     totalKillsRef.current = 0
     totalGoldEarnedRef.current = 0
     wavesCompletedRef.current = 0
+    totalEnemiesToSpawnRef.current = 0
+    earlyWaveCountRef.current = 0
+    earlyWaveBonusRef.current = 1
+    earlyWaveCalledRef.current = false
+    setEarlyWaveCalled(false)
+    setPendingWaveAdvance(0)
     setFinalScore(null)
     syncPhase('between-waves')
   }
@@ -311,13 +335,43 @@ function App() {
     spawnTimerRef.current = 0
     spawnedInWaveRef.current = 0
     killedInWaveRef.current = 0
-    spawnQueueRef.current = buildSpawnQueue(waveRef.current)
+    earlyWaveCountRef.current = 0
+    earlyWaveBonusRef.current = 1
+    earlyWaveCalledRef.current = false
+    setEarlyWaveCalled(false)
+    setPendingWaveAdvance(0)
+    const queue = buildSpawnQueue(waveRef.current)
+    spawnQueueRef.current = queue
+    totalEnemiesToSpawnRef.current = queue.length
     syncPhase('playing')
   }
 
   function handleNextWaveStart() {
-    syncWave(waveRef.current + 1)
+    // Advance by 1 for the normal next wave, plus any extra waves called early last round.
+    const advance = 1 + earlyWaveCountRef.current
+    syncWave(waveRef.current + advance)
     handleStartWave()
+  }
+
+  function handleCallNextWaveEarly() {
+    // Guard: only one early call per wave, and not on the final wave
+    if (earlyWaveCalledRef.current) return
+    if (waveRef.current >= TOTAL_WAVES) return
+
+    earlyWaveCalledRef.current = true
+    earlyWaveCountRef.current = 1
+
+    // Compute and store the bonus multiplier for this wave's kills
+    earlyWaveBonusRef.current = getEarlyWaveBonus(1, waveRef.current)
+
+    // Append the next wave's enemies to the spawn queue
+    const nextWaveNum = waveRef.current + 1
+    const extraQueue = buildSpawnQueue(nextWaveNum)
+    spawnQueueRef.current = [...spawnQueueRef.current, ...extraQueue]
+    totalEnemiesToSpawnRef.current = spawnQueueRef.current.length
+
+    setEarlyWaveCalled(true)
+    setPendingWaveAdvance(1)
   }
 
   return (
@@ -329,6 +383,9 @@ function App() {
         speed={speed}
         onSpeedToggle={handleSpeedToggle}
         onRestart={handleRestart}
+        showNextWave={gamePhase === 'playing' && wave < TOTAL_WAVES}
+        earlyWaveDisabled={earlyWaveCalled}
+        onNextWaveEarly={handleCallNextWaveEarly}
       />
       <TowerPicker
         selectedType={selectedTowerType}
@@ -354,9 +411,9 @@ function App() {
         getNextUpgradeStats={getNextUpgradeStats}
         sellTower={sellTower}
         showCountdownBanner={gamePhase === 'between-waves' && wave > 1}
-        countdownWave={wave + 1}
-        countdownEnemyCount={getWaveEnemyCount(wave + 1)}
-        countdownEnemyHp={getWaveEnemyHp(wave + 1)}
+        countdownWave={wave + 1 + pendingWaveAdvance}
+        countdownEnemyCount={getWaveEnemyCount(wave + 1 + pendingWaveAdvance)}
+        countdownEnemyHp={getWaveEnemyHp(wave + 1 + pendingWaveAdvance)}
         onCountdownStart={handleNextWaveStart}
       />
       {gamePhase === 'lose' && (

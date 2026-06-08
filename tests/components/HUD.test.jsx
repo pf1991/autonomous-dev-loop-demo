@@ -103,4 +103,60 @@ describe('HUD', () => {
     act(() => { btn.click() })
     expect(onRestart).toHaveBeenCalledTimes(1)
   })
+
+  it('does not render Next Wave Early button when showNextWave is false', () => {
+    act(() => {
+      root.render(
+        createElement(HUD, {
+          lives: 20, gold: 100, wave: 3, speed: 1,
+          onSpeedToggle: vi.fn(), onRestart: vi.fn(),
+          showNextWave: false,
+        })
+      )
+    })
+    expect(container.querySelector('.hud-next-wave')).toBeNull()
+  })
+
+  it('renders Next Wave Early button when showNextWave is true', () => {
+    act(() => {
+      root.render(
+        createElement(HUD, {
+          lives: 20, gold: 100, wave: 3, speed: 1,
+          onSpeedToggle: vi.fn(), onRestart: vi.fn(),
+          showNextWave: true, earlyWaveDisabled: false, onNextWaveEarly: vi.fn(),
+        })
+      )
+    })
+    const btn = container.querySelector('.hud-next-wave')
+    expect(btn).not.toBeNull()
+    expect(btn.disabled).toBe(false)
+  })
+
+  it('Next Wave Early button is disabled when earlyWaveDisabled is true', () => {
+    act(() => {
+      root.render(
+        createElement(HUD, {
+          lives: 20, gold: 100, wave: 3, speed: 1,
+          onSpeedToggle: vi.fn(), onRestart: vi.fn(),
+          showNextWave: true, earlyWaveDisabled: true, onNextWaveEarly: vi.fn(),
+        })
+      )
+    })
+    expect(container.querySelector('.hud-next-wave').disabled).toBe(true)
+  })
+
+  it('Next Wave Early button calls onNextWaveEarly when clicked', () => {
+    const onNextWaveEarly = vi.fn()
+    act(() => {
+      root.render(
+        createElement(HUD, {
+          lives: 20, gold: 100, wave: 3, speed: 1,
+          onSpeedToggle: vi.fn(), onRestart: vi.fn(),
+          showNextWave: true, earlyWaveDisabled: false, onNextWaveEarly,
+        })
+      )
+    })
+    act(() => { container.querySelector('.hud-next-wave').click() })
+    expect(onNextWaveEarly).toHaveBeenCalledTimes(1)
+  })
 })

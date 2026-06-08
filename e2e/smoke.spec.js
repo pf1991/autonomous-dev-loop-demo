@@ -930,6 +930,57 @@ test.describe('Tower Defense - smoke tests', () => {
     await expect(page.locator('.tower-level-badge')).toHaveCount(0);
   });
 
+  // --- Next Wave Early button (issue #44) ---
+
+  test('"Next Wave Early" button is not visible before a wave starts', async ({ page }) => {
+    // On initial load the game is between-waves, so the button must not appear
+    await expect(page.locator('.hud-next-wave')).not.toBeVisible();
+  });
+
+  test('"Next Wave Early" button appears in the HUD once a wave is playing', async ({ page }) => {
+    // Start wave 1
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // The button must become visible during a wave (not final wave)
+    await expect(page.locator('.hud-next-wave')).toBeVisible({ timeout: 3000 });
+  });
+
+  test('"Next Wave Early" button becomes disabled after being clicked once', async ({ page }) => {
+    // Start wave 1
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    const earlyBtn = page.locator('.hud-next-wave');
+    await expect(earlyBtn).toBeVisible({ timeout: 3000 });
+    // Initially enabled
+    await expect(earlyBtn).not.toBeDisabled();
+    // Click it
+    await earlyBtn.click();
+    // Must be disabled immediately after use (one early call per wave)
+    await expect(earlyBtn).toBeDisabled();
+  });
+
+  test('clicking "Next Wave Early" adds enemies to the board (wave overlap)', async ({ page }) => {
+    // Start wave 1
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    const earlyBtn = page.locator('.hud-next-wave');
+    await expect(earlyBtn).toBeVisible({ timeout: 3000 });
+    // Wait for some enemies to spawn so there is already a wave in flight
+    await expect(page.locator('.enemy').first()).toBeVisible({ timeout: 5000 });
+    // Trigger the early wave
+    await earlyBtn.click();
+    // The board should still have enemies (not reset) — at least one enemy must be present
+    await expect(page.locator('.enemy').first()).toBeAttached({ timeout: 2000 });
+    // The button must now be disabled
+    await expect(earlyBtn).toBeDisabled();
+  });
+
   test('tower shows .tower-level-badge with roman numeral I after one upgrade', async ({ page }) => {
     // Dismiss NextWave overlay
     const startBtn = page.locator('.next-wave-start');
