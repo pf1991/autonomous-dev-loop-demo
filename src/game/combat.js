@@ -80,7 +80,7 @@ export function processCombat(towers, enemies, nowMs) {
 
   for (const enemy of enemyMap.values()) {
     if (enemy.hp <= 0) {
-      goldEarned += 10
+      goldEarned += enemy.goldReward ?? 10
     } else {
       updatedEnemies.push(enemy)
     }

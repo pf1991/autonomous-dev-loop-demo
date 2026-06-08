@@ -8,7 +8,7 @@ import { createDefaultMap, getPathWaypoints } from './game/map'
 import { TOWER_TYPES, createTower, canAfford, canUpgrade, upgradeTower, getUpgradeCost, getNextUpgradeStats, sellTower } from './game/tower'
 import { createEnemy, moveEnemy } from './game/enemy'
 import { processCombat } from './game/combat'
-import { getWaveEnemyHp, getWaveEnemyCount } from './game/wave'
+import { getWaveEnemyHp, getWaveEnemyCount, getWaveComposition } from './game/wave'
 import { useGameLoop } from './hooks/useGameLoop'
 
 const INITIAL_MAP = createDefaultMap()
@@ -48,6 +48,8 @@ function App() {
   const spawnTimerRef = useRef(0)
   const spawnedInWaveRef = useRef(0)
   const killedInWaveRef = useRef(0)
+  // Ordered list of enemy types to spawn this wave (shuffled at wave start)
+  const spawnQueueRef = useRef([])
   const livesRef = useRef(INITIAL_STATE.lives)
   const waveRef = useRef(INITIAL_STATE.wave)
   const gamePhaseRef = useRef('between-waves')
@@ -97,7 +99,6 @@ function App() {
 
     const currentWaveNum = waveRef.current
     const enemiesThisWave = getWaveEnemyCount(currentWaveNum)
-    const enemyHp = getWaveEnemyHp(currentWaveNum)
 
     let newEnemy = null
     if (
@@ -105,7 +106,8 @@ function App() {
       spawnedInWaveRef.current < enemiesThisWave
     ) {
       spawnTimerRef.current = 0
-      newEnemy = createEnemy(nextEnemyIdRef.current++, PATH_WAYPOINTS, enemyHp)
+      const enemyType = spawnQueueRef.current[spawnedInWaveRef.current] ?? 'grunt'
+      newEnemy = createEnemy(nextEnemyIdRef.current++, PATH_WAYPOINTS, enemyType)
       spawnedInWaveRef.current += 1
     }
 
@@ -250,14 +252,31 @@ function App() {
     spawnTimerRef.current = 0
     spawnedInWaveRef.current = 0
     killedInWaveRef.current = 0
+    spawnQueueRef.current = []
     gameClockRef.current = 0
     syncPhase('between-waves')
+  }
+
+  function buildSpawnQueue(waveNumber) {
+    const composition = getWaveComposition(waveNumber)
+    // Flatten into an ordered array of type strings
+    const types = []
+    for (const { type, count } of composition) {
+      for (let i = 0; i < count; i++) types.push(type)
+    }
+    // Fisher-Yates shuffle for randomised spawn order
+    for (let i = types.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[types[i], types[j]] = [types[j], types[i]]
+    }
+    return types
   }
 
   function handleStartWave() {
     spawnTimerRef.current = 0
     spawnedInWaveRef.current = 0
     killedInWaveRef.current = 0
+    spawnQueueRef.current = buildSpawnQueue(waveRef.current)
     syncPhase('playing')
   }
 

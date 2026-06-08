@@ -209,14 +209,15 @@ function GameBoard({
       {enemies.length > 0 && (
         <div className="enemy-layer" aria-hidden="true">
           {enemies.map(enemy => {
-            const radius = getEnemyRadius(enemy.hp, enemy.maxHp)
+            const radius = getEnemyRadius(enemy.hp, enemy.maxHp, enemy.type)
             const left = (enemy.pos.col + 0.5) * TILE_PX - radius
             const top = (enemy.pos.row + 0.5) * TILE_PX - radius
             const diameter = radius * 2
+            const typeClass = enemy.type === 'tank' ? 'enemy-tank' : 'enemy-grunt'
             return (
               <div
                 key={enemy.id}
-                className="enemy"
+                className={`enemy ${typeClass}`}
                 style={{ left, top, width: diameter, height: diameter }}
               >
                 <div

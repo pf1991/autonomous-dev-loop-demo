@@ -4,37 +4,54 @@
  */
 
 /**
+ * Enemy type definitions.
+ * Each entry specifies the base stats for a given enemy type.
+ */
+export const ENEMY_TYPES = {
+  grunt: { hp: 80,  speed: 3.0, goldReward: 8  },
+  tank:  { hp: 300, speed: 1.0, goldReward: 25 },
+}
+
+/**
  * createEnemy creates a new enemy object.
  * @param {string|number} id - Unique enemy identifier
  * @param {Array<{row: number, col: number}>} pathWaypoints - Array of waypoints defining the path
- * @param {number} [hp=100] - Starting HP (scaled by wave difficulty)
- * @returns {{ id, hp: number, maxHp: number, pos: {row, col}, waypointIndex: number, speed: number }}
+ * @param {'grunt'|'tank'} [type='grunt'] - Enemy type; defaults to 'grunt' for backwards compatibility
+ * @returns {{ id, hp: number, maxHp: number, pos: {row, col}, waypointIndex: number, speed: number, type: string, goldReward: number }}
  */
-export function createEnemy(id, pathWaypoints, hp = 100) {
+export function createEnemy(id, pathWaypoints, type = 'grunt') {
   const startPos = pathWaypoints && pathWaypoints.length > 0
     ? { row: pathWaypoints[0].row, col: pathWaypoints[0].col }
     : { row: 0, col: 0 }
 
+  const stats = ENEMY_TYPES[type] ?? ENEMY_TYPES.grunt
+
   return {
     id,
-    hp,
-    maxHp: hp,
+    hp: stats.hp,
+    maxHp: stats.hp,
     pos: { ...startPos },
     waypointIndex: 0,
-    speed: 2,
+    speed: stats.speed,
+    type,
+    goldReward: stats.goldReward,
   }
 }
 
 /**
- * Compute enemy display radius in px based on HP ratio:
- *   full HP (>= 0.5)    → 14 px (large)
- *   half HP (>= 0.25)   → 11 px (medium)
- *   near death (< 0.25) → 8 px (small)
+ * Compute enemy display radius in px based on enemy type.
+ * Grunt (fast/weak): 10 px fixed radius.
+ * Tank  (slow/tough): 16 px fixed radius.
+ * Unknown/legacy type: falls back to HP-ratio sizing for backwards compatibility.
  * @param {number} hp - Current HP
  * @param {number} maxHp - Maximum HP
+ * @param {string} [type] - Enemy type ('grunt' | 'tank')
  * @returns {number} Radius in pixels
  */
-export function getEnemyRadius(hp, maxHp) {
+export function getEnemyRadius(hp, maxHp, type) {
+  if (type === 'grunt') return 10
+  if (type === 'tank') return 16
+  // Legacy fallback — hp-ratio sizing
   const ratio = maxHp > 0 ? hp / maxHp : 0
   if (ratio >= 0.5) return 14
   if (ratio >= 0.25) return 11
