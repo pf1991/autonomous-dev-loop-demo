@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { loadLeaderboard, clearLeaderboard } from '../game/score'
+import { loadLeaderboard, clearLeaderboard } from '../utils/leaderboard'
 
 function GameOver({ result, score, onRestart }) {
   const message = result === 'win' ? 'You Win! 🎉' : 'Game Over 💀'

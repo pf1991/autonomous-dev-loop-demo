@@ -10,7 +10,8 @@ import { createEnemy, moveEnemy } from './game/enemy'
 import { processCombat } from './game/combat'
 import { getWaveEnemyHp, getWaveEnemyCount, getWaveComposition } from './game/wave'
 import { useGameLoop } from './hooks/useGameLoop'
-import { computeScore, saveLeaderboardEntry } from './game/score'
+import { computeScore } from './game/score'
+import { saveLeaderboardEntry } from './utils/leaderboard'
 
 const INITIAL_MAP = createDefaultMap()
 const PATH_WAYPOINTS = getPathWaypoints()
