@@ -74,3 +74,19 @@ export function createWave(waveNumber) {
     enemyHp: getWaveEnemyHp(waveNumber),
   }
 }
+
+/**
+ * getEarlyWaveBonus returns the gold-per-kill multiplier granted when the player
+ * calls the next wave early.
+ *
+ * Formula: 1 + (earlierWaveNumber / (currentWaveNumber + earlierWaveNumber))
+ *   where earlierWaveNumber = how many waves early the player called it (≥ 1)
+ *         currentWaveNumber = the wave number currently being played (≥ 1)
+ *
+ * @param {number} earlierWaveNumber - Waves called ahead of schedule (≥ 1)
+ * @param {number} currentWaveNumber - The wave number that was active when early was called (≥ 1)
+ * @returns {number} Multiplier ≥ 1.0
+ */
+export function getEarlyWaveBonus(earlierWaveNumber, currentWaveNumber) {
+  return 1 + earlierWaveNumber / (currentWaveNumber + earlierWaveNumber)
+}

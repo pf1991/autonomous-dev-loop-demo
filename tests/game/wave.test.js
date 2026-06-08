@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { createWave, getWaveEnemyHp, getWaveEnemyCount, getWaveComposition } from '../../src/game/wave.js'
+import { createWave, getWaveEnemyHp, getWaveEnemyCount, getWaveComposition, getEarlyWaveBonus } from '../../src/game/wave.js'
 
 describe('getWaveEnemyHp', () => {
   it('wave 1 returns 100 HP', () => {
@@ -82,6 +82,35 @@ describe('createWave', () => {
     const w = createWave(10)
     expect(w.totalEnemies).toBe(9)
     expect(w.enemyHp).toBe(325)
+  })
+})
+
+describe('getEarlyWaveBonus', () => {
+  it('returns > 1 for any valid early call', () => {
+    expect(getEarlyWaveBonus(1, 1)).toBeGreaterThan(1)
+    expect(getEarlyWaveBonus(1, 5)).toBeGreaterThan(1)
+  })
+
+  it('calling 1 wave early on wave 1: bonus = 1 + 1/(1+1) = 1.5', () => {
+    expect(getEarlyWaveBonus(1, 1)).toBe(1.5)
+  })
+
+  it('calling 1 wave early on wave 3: bonus = 1 + 1/(3+1) = 1.25', () => {
+    expect(getEarlyWaveBonus(1, 3)).toBe(1.25)
+  })
+
+  it('calling 1 wave early on wave 9: bonus = 1 + 1/(9+1) = 1.1', () => {
+    expect(getEarlyWaveBonus(1, 9)).toBeCloseTo(1.1, 5)
+  })
+
+  it('larger earlierWaveNumber gives higher bonus', () => {
+    expect(getEarlyWaveBonus(2, 3)).toBeGreaterThan(getEarlyWaveBonus(1, 3))
+  })
+
+  it('formula: 1 + E / (C + E)', () => {
+    for (const [e, c] of [[1, 1], [1, 5], [2, 4], [3, 7]]) {
+      expect(getEarlyWaveBonus(e, c)).toBeCloseTo(1 + e / (c + e), 10)
+    }
   })
 })
 

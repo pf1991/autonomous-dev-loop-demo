@@ -53,6 +53,28 @@ body {
   color: #4ecca3;
 }
 
+.hud-next-wave {
+  background: #1a4a2a;
+  color: #4ecca3;
+  border: 1px solid #4ecca3;
+  border-radius: 4px;
+  padding: 4px 12px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.hud-next-wave:hover:not(:disabled) {
+  background: #4ecca3;
+  color: #16213e;
+}
+
+.hud-next-wave:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .hud-restart {
   margin-left: auto;
   background: #3a0e1e;
