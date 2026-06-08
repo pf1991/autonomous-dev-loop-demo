@@ -486,6 +486,7 @@ body {
   flex-direction: column;
   gap: 4px;
   font-size: 0.7rem;
+  line-height: normal;
   white-space: nowrap;
   pointer-events: all;
   cursor: default;
