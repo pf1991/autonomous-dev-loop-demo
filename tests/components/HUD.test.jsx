@@ -40,18 +40,15 @@ describe('HUD', () => {
     expect(container.querySelector('.hud-wave').textContent).toBe('Wave: 3')
   })
 
-  it('speed button label updates after each click (1× → 2× → 1×)', () => {
+  it('speed button label updates after each click (1× → 2× → 5× → 1×)', () => {
     const onSpeedToggle = vi.fn()
-    let speed = 1
 
     act(() => {
       root.render(
-        createElement(HUD, { lives: 20, gold: 100, wave: 1, speed, onSpeedToggle })
+        createElement(HUD, { lives: 20, gold: 100, wave: 1, speed: 1, onSpeedToggle })
       )
     })
-
-    const button = container.querySelector('.hud-speed')
-    expect(button.textContent).toBe('1×')
+    expect(container.querySelector('.hud-speed').textContent).toBe('1×')
 
     // Simulate speed changing to 2 after first click
     act(() => {
@@ -60,6 +57,14 @@ describe('HUD', () => {
       )
     })
     expect(container.querySelector('.hud-speed').textContent).toBe('2×')
+
+    // Simulate speed changing to 5 after second click
+    act(() => {
+      root.render(
+        createElement(HUD, { lives: 20, gold: 100, wave: 1, speed: 5, onSpeedToggle })
+      )
+    })
+    expect(container.querySelector('.hud-speed').textContent).toBe('5×')
 
     // Simulate speed cycling back to 1
     act(() => {
