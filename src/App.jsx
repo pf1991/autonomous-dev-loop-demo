@@ -10,6 +10,7 @@ import { createEnemy, moveEnemy } from './game/enemy'
 import { processCombat } from './game/combat'
 import { getWaveEnemyHp, getWaveEnemyCount, getWaveComposition } from './game/wave'
 import { useGameLoop } from './hooks/useGameLoop'
+import { computeScore, saveLeaderboardEntry } from './game/score'
 
 const INITIAL_MAP = createDefaultMap()
 const PATH_WAYPOINTS = getPathWaypoints()
@@ -19,9 +20,11 @@ const SPAWN_INTERVAL_MS = 3000
 // Total waves in game
 const TOTAL_WAVES = 10
 
+const INITIAL_GOLD = 100
+
 const INITIAL_STATE = {
   lives: 20,
-  gold: 100,
+  gold: INITIAL_GOLD,
   wave: 1,
   towers: [],
   enemies: [],
@@ -43,11 +46,17 @@ function App() {
   const [hoveredSlot, setHoveredSlot] = useState(null)
   // 'playing' | 'between-waves' | 'win' | 'lose'
   const [gamePhase, setGamePhase] = useState('between-waves')
+  // Score tracking
+  const [finalScore, setFinalScore] = useState(null)
 
   const nextEnemyIdRef = useRef(0)
   const spawnTimerRef = useRef(0)
   const spawnedInWaveRef = useRef(0)
   const killedInWaveRef = useRef(0)
+  // Cumulative run-level score tracking
+  const totalKillsRef = useRef(0)
+  const totalGoldEarnedRef = useRef(0)
+  const wavesCompletedRef = useRef(0)
   // Ordered list of enemy types to spawn this wave (shuffled at wave start)
   const spawnQueueRef = useRef([])
   const livesRef = useRef(INITIAL_STATE.lives)
@@ -86,6 +95,15 @@ function App() {
   // Transition to 'lose' when lives hit 0 — scheduled outside setEnemies callback
   useEffect(() => {
     if (lives <= 0 && gamePhase === 'playing') {
+      const score = computeScore({
+        kills: totalKillsRef.current,
+        goldEarned: totalGoldEarnedRef.current,
+        livesRemaining: 0,
+        wavesCompleted: wavesCompletedRef.current,
+      })
+      const entry = { score, date: new Date().toLocaleDateString(), result: 'lose' }
+      saveLeaderboardEntry(entry)
+      setFinalScore(score)
       syncPhase('lose')
     }
   }, [lives, gamePhase])
@@ -143,6 +161,7 @@ function App() {
 
     if (combatResult.goldEarned > 0) {
       setGold(g => g + combatResult.goldEarned)
+      totalGoldEarnedRef.current += combatResult.goldEarned
     }
 
     // Keep projectiles alive for PROJECTILE_LIFETIME_MS so they are visible to the player
@@ -166,6 +185,7 @@ function App() {
     }
 
     killedInWaveRef.current += killedNow
+    totalKillsRef.current += killedNow
 
     enemiesRef.current = afterCombat
     setEnemies(afterCombat)
@@ -177,7 +197,17 @@ function App() {
       gamePhaseRef.current === 'playing' &&
       livesRef.current > 0
     ) {
+      wavesCompletedRef.current += 1
       if (currentWaveNum >= TOTAL_WAVES) {
+        const score = computeScore({
+          kills: totalKillsRef.current,
+          goldEarned: totalGoldEarnedRef.current,
+          livesRemaining: livesRef.current,
+          wavesCompleted: wavesCompletedRef.current,
+        })
+        const entry = { score, date: new Date().toLocaleDateString(), result: 'win' }
+        saveLeaderboardEntry(entry)
+        setFinalScore(score)
         syncPhase('win')
       } else {
         syncPhase('between-waves')
@@ -254,6 +284,10 @@ function App() {
     killedInWaveRef.current = 0
     spawnQueueRef.current = []
     gameClockRef.current = 0
+    totalKillsRef.current = 0
+    totalGoldEarnedRef.current = 0
+    wavesCompletedRef.current = 0
+    setFinalScore(null)
     syncPhase('between-waves')
   }
 
@@ -325,10 +359,10 @@ function App() {
         onCountdownStart={handleNextWaveStart}
       />
       {gamePhase === 'lose' && (
-        <GameOver result="lose" onRestart={handleRestart} />
+        <GameOver result="lose" score={finalScore} onRestart={handleRestart} />
       )}
       {gamePhase === 'win' && (
-        <GameOver result="win" onRestart={handleRestart} />
+        <GameOver result="win" score={finalScore} onRestart={handleRestart} />
       )}
       {gamePhase === 'between-waves' && wave === 1 && (
         <NextWave
