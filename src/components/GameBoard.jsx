@@ -133,6 +133,11 @@ function GameBoard({
                 onMouseLeave={handleMouseLeave}
               >
                 {hasTower && <TowerSVG type={tower.type} upgradeLevel={tower.upgradeLevel} />}
+                {hasTower && tower.upgradeLevel > 0 && (
+                  <span className="tower-level-badge">
+                    {tower.upgradeLevel === 1 ? 'I' : 'II'}
+                  </span>
+                )}
                 {showPanel && (
                   <UpgradePanel
                     tower={tower}
