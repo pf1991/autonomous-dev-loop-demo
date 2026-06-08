@@ -76,6 +76,55 @@ export function createWave(waveNumber) {
 }
 
 /**
+ * getEndlessWaveEnemyHp returns the HP for enemies in an endless-mode wave.
+ *
+ * Waves 1–10 use the standard formula.
+ * Wave 11+: starts at wave-10 HP (325) and scales by ×1.15 per wave beyond 10.
+ *
+ * @param {number} waveNumber - 1-based wave number
+ * @returns {number} HP value (integer)
+ */
+export function getEndlessWaveEnemyHp(waveNumber) {
+  if (waveNumber <= 10) return getWaveEnemyHp(waveNumber)
+  const base = getWaveEnemyHp(10) // 325
+  return Math.round(base * Math.pow(1.15, waveNumber - 10))
+}
+
+/**
+ * getEndlessWaveEnemyCount returns the number of enemies in an endless-mode wave.
+ *
+ * Waves 1–10 use the standard formula.
+ * Wave 11+: starts at wave-10 count (9) and adds 1 per 2 extra waves.
+ *
+ * @param {number} waveNumber - 1-based wave number
+ * @returns {number} Enemy count
+ */
+export function getEndlessWaveEnemyCount(waveNumber) {
+  if (waveNumber <= 10) return getWaveEnemyCount(waveNumber)
+  const base = getWaveEnemyCount(10) // 9
+  return base + Math.floor((waveNumber - 10) / 2)
+}
+
+/**
+ * getEndlessWaveComposition returns the enemy mix for an endless-mode wave.
+ *
+ * Wave 11+: always 30% Grunts / 70% Tanks (heavier tank-weighted).
+ *
+ * @param {number} waveNumber - 1-based wave number
+ * @returns {Array<{ type: 'grunt'|'tank', count: number }>}
+ */
+export function getEndlessWaveComposition(waveNumber) {
+  if (waveNumber <= 10) return getWaveComposition(waveNumber)
+  const total = getEndlessWaveEnemyCount(waveNumber)
+  const tankCount = Math.round(total * 0.7)
+  const gruntCount = total - tankCount
+  const result = []
+  if (gruntCount > 0) result.push({ type: 'grunt', count: gruntCount })
+  if (tankCount > 0) result.push({ type: 'tank', count: tankCount })
+  return result
+}
+
+/**
  * getEarlyWaveBonus returns the gold-per-kill multiplier granted when the player
  * calls the next wave early.
  *

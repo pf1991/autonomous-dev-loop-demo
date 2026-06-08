@@ -8,7 +8,7 @@ import { createDefaultMap, getPathWaypoints } from './game/map'
 import { TOWER_TYPES, createTower, canAfford, canUpgrade, upgradeTower, getUpgradeCost, getNextUpgradeStats, sellTower } from './game/tower'
 import { createEnemy, moveEnemy } from './game/enemy'
 import { processCombat } from './game/combat'
-import { getWaveEnemyHp, getWaveEnemyCount, getWaveComposition, getEarlyWaveBonus } from './game/wave'
+import { getWaveEnemyHp, getWaveEnemyCount, getWaveComposition, getEarlyWaveBonus, getEndlessWaveEnemyHp, getEndlessWaveEnemyCount, getEndlessWaveComposition } from './game/wave'
 import { useGameLoop } from './hooks/useGameLoop'
 import { computeScore } from './game/score'
 import { saveLeaderboardEntry } from './utils/leaderboard'
@@ -47,6 +47,9 @@ function App() {
   const [hoveredSlot, setHoveredSlot] = useState(null)
   // 'playing' | 'between-waves' | 'win' | 'lose'
   const [gamePhase, setGamePhase] = useState('between-waves')
+  // Endless mode — when true the game never ends at wave 10; difficulty scales infinitely
+  const [endlessMode, setEndlessMode] = useState(false)
+  const endlessModeRef = useRef(false)
   // Score tracking
   const [finalScore, setFinalScore] = useState(null)
 
@@ -217,7 +220,8 @@ function App() {
       const wavesJustCompleted = 1 + earlyWaveCountRef.current
       wavesCompletedRef.current += wavesJustCompleted
 
-      if (currentWaveNum >= TOTAL_WAVES) {
+      // In endless mode the game never ends on wave 10 — keep going
+      if (currentWaveNum >= TOTAL_WAVES && !endlessModeRef.current) {
         const score = computeScore({
           kills: totalKillsRef.current,
           goldEarned: totalGoldEarnedRef.current,
@@ -285,6 +289,13 @@ function App() {
     setSelectedTower(null)
   }
 
+  function handleToggleEndless() {
+    // Only toggleable on the pre-wave-1 screen (wave hasn't started yet)
+    const next = !endlessModeRef.current
+    endlessModeRef.current = next
+    setEndlessMode(next)
+  }
+
   function handleRestart() {
     setGold(INITIAL_STATE.gold)
     syncLives(INITIAL_STATE.lives)
@@ -313,11 +324,24 @@ function App() {
     setEarlyWaveCalled(false)
     setPendingWaveAdvance(0)
     setFinalScore(null)
+    endlessModeRef.current = false
+    setEndlessMode(false)
     syncPhase('between-waves')
   }
 
+  // Endless-aware helpers — route to the appropriate scaling functions
+  function waveEnemyHp(waveNumber) {
+    return endlessModeRef.current ? getEndlessWaveEnemyHp(waveNumber) : getWaveEnemyHp(waveNumber)
+  }
+  function waveEnemyCount(waveNumber) {
+    return endlessModeRef.current ? getEndlessWaveEnemyCount(waveNumber) : getWaveEnemyCount(waveNumber)
+  }
+  function waveComposition(waveNumber) {
+    return endlessModeRef.current ? getEndlessWaveComposition(waveNumber) : getWaveComposition(waveNumber)
+  }
+
   function buildSpawnQueue(waveNumber) {
-    const composition = getWaveComposition(waveNumber)
+    const composition = waveComposition(waveNumber)
     // Flatten into an ordered array of type strings
     const types = []
     for (const { type, count } of composition) {
@@ -354,9 +378,9 @@ function App() {
   }
 
   function handleCallNextWaveEarly() {
-    // Guard: only one early call per wave, and not on the final wave
+    // Guard: only one early call per wave, and not on the final wave (unless endless mode)
     if (earlyWaveCalledRef.current) return
-    if (waveRef.current >= TOTAL_WAVES) return
+    if (!endlessModeRef.current && waveRef.current >= TOTAL_WAVES) return
 
     earlyWaveCalledRef.current = true
     earlyWaveCountRef.current = 1
@@ -383,7 +407,8 @@ function App() {
         speed={speed}
         onSpeedToggle={handleSpeedToggle}
         onRestart={handleRestart}
-        showNextWave={gamePhase === 'playing' && wave < TOTAL_WAVES}
+        showNextWave={gamePhase === 'playing' && (endlessMode || wave < TOTAL_WAVES)}
+        endlessMode={endlessMode}
         earlyWaveDisabled={earlyWaveCalled}
         onNextWaveEarly={handleCallNextWaveEarly}
       />
@@ -413,8 +438,8 @@ function App() {
         sellTower={sellTower}
         showCountdownBanner={gamePhase === 'between-waves' && wave > 1}
         countdownWave={wave + 1 + pendingWaveAdvance}
-        countdownEnemyCount={getWaveEnemyCount(wave + 1 + pendingWaveAdvance)}
-        countdownEnemyHp={getWaveEnemyHp(wave + 1 + pendingWaveAdvance)}
+        countdownEnemyCount={waveEnemyCount(wave + 1 + pendingWaveAdvance)}
+        countdownEnemyHp={waveEnemyHp(wave + 1 + pendingWaveAdvance)}
         onCountdownStart={handleNextWaveStart}
       />
       {gamePhase === 'lose' && (
@@ -426,9 +451,11 @@ function App() {
       {gamePhase === 'between-waves' && wave === 1 && (
         <NextWave
           wave={wave}
-          enemyCount={getWaveEnemyCount(wave)}
-          enemyHp={getWaveEnemyHp(wave)}
+          enemyCount={waveEnemyCount(wave)}
+          enemyHp={waveEnemyHp(wave)}
           onStart={handleNextWaveStart}
+          endlessMode={endlessMode}
+          onToggleEndless={handleToggleEndless}
         />
       )}
     </div>

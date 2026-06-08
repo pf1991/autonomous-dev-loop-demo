@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { createWave, getWaveEnemyHp, getWaveEnemyCount, getWaveComposition, getEarlyWaveBonus } from '../../src/game/wave.js'
+import { createWave, getWaveEnemyHp, getWaveEnemyCount, getWaveComposition, getEarlyWaveBonus, getEndlessWaveEnemyHp, getEndlessWaveEnemyCount, getEndlessWaveComposition } from '../../src/game/wave.js'
 
 describe('getWaveEnemyHp', () => {
   it('wave 1 returns 100 HP', () => {
@@ -161,5 +161,80 @@ describe('getWaveComposition', () => {
       const sum = comp.reduce((acc, c) => acc + c.count, 0)
       expect(sum).toBe(getWaveEnemyCount(wave))
     }
+  })
+})
+
+describe('getEndlessWaveEnemyHp', () => {
+  it('waves 1-10 match the standard formula', () => {
+    for (const wave of [1, 5, 10]) {
+      expect(getEndlessWaveEnemyHp(wave)).toBe(getWaveEnemyHp(wave))
+    }
+  })
+
+  it('wave 11 is greater than wave 10', () => {
+    expect(getEndlessWaveEnemyHp(11)).toBeGreaterThan(getEndlessWaveEnemyHp(10))
+  })
+
+  it('wave 11: 325 × 1.15 rounded = 374', () => {
+    expect(getEndlessWaveEnemyHp(11)).toBe(Math.round(325 * 1.15))
+  })
+
+  it('wave 20 is significantly higher than wave 11', () => {
+    expect(getEndlessWaveEnemyHp(20)).toBeGreaterThan(getEndlessWaveEnemyHp(11))
+  })
+
+  it('HP grows each wave beyond 10', () => {
+    for (let w = 11; w <= 15; w++) {
+      expect(getEndlessWaveEnemyHp(w + 1)).toBeGreaterThan(getEndlessWaveEnemyHp(w))
+    }
+  })
+})
+
+describe('getEndlessWaveEnemyCount', () => {
+  it('waves 1-10 match the standard formula', () => {
+    for (const wave of [1, 5, 10]) {
+      expect(getEndlessWaveEnemyCount(wave)).toBe(getWaveEnemyCount(wave))
+    }
+  })
+
+  it('wave 11 equals 9 (base)', () => {
+    expect(getEndlessWaveEnemyCount(11)).toBe(9)
+  })
+
+  it('wave 13 equals 10 (+1 per 2 extra waves)', () => {
+    expect(getEndlessWaveEnemyCount(13)).toBe(10)
+  })
+
+  it('wave 15 equals 11', () => {
+    expect(getEndlessWaveEnemyCount(15)).toBe(11)
+  })
+
+  it('count is non-decreasing beyond wave 10', () => {
+    for (let w = 11; w <= 20; w++) {
+      expect(getEndlessWaveEnemyCount(w + 1)).toBeGreaterThanOrEqual(getEndlessWaveEnemyCount(w))
+    }
+  })
+})
+
+describe('getEndlessWaveComposition', () => {
+  it('waves 1-10 match the standard composition', () => {
+    for (const wave of [1, 5, 10]) {
+      expect(getEndlessWaveComposition(wave)).toEqual(getWaveComposition(wave))
+    }
+  })
+
+  it('wave 11: heavy tank bias (70% tanks)', () => {
+    const comp = getEndlessWaveComposition(11)
+    const total = getEndlessWaveEnemyCount(11)
+    const tank = comp.find(c => c.type === 'tank')
+    expect(tank).toBeDefined()
+    expect(tank.count).toBe(Math.round(total * 0.7))
+  })
+
+  it('wave 11: counts sum to total enemy count', () => {
+    const comp = getEndlessWaveComposition(11)
+    const total = getEndlessWaveEnemyCount(11)
+    const sum = comp.reduce((acc, c) => acc + c.count, 0)
+    expect(sum).toBe(total)
   })
 })
