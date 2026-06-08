@@ -17,14 +17,21 @@ function tileDistance(tower, pos) {
 
 /**
  * A projectile represents a single shot fired from a tower toward an enemy position.
- * @typedef {{ id: string, fromRow: number, fromCol: number, toRow: number, toCol: number }} Projectile
+ * @typedef {{ id: string, fromRow: number, fromCol: number, toRow: number, toCol: number, createdAt: number }} Projectile
  */
 
 /**
  * processCombat applies one combat tick: each tower fires at the nearest enemy in range.
  *
- * @param {Array<{ row: number, col: number, range: number, damage: number, fireRate: number, lastFiredAt: number }>} towers
- * @param {Array<{ id: string|number, hp: number, pos: { row: number, col: number } }>} enemies
+ * Special tower mechanics:
+ *   - CannonTower (splashRadius > 0): deals damage to ALL enemies within splashRadius tiles
+ *     of the primary target, in addition to the target itself.
+ *   - SlowTower (slowFactor, slowDuration): applies a slow debuff to the primary target.
+ *     The enemy's `slowUntil` and `speedMult` fields are set accordingly; the caller
+ *     must honour `speedMult` in movement logic when `nowMs < slowUntil`.
+ *
+ * @param {Array<{ row: number, col: number, range: number, damage: number, fireRate: number, lastFiredAt: number, splashRadius?: number, slowFactor?: number, slowDuration?: number }>} towers
+ * @param {Array<{ id: string|number, hp: number, pos: { row: number, col: number }, slowUntil?: number, speedMult?: number }>} enemies
  * @param {number} nowMs - current timestamp in milliseconds
  * @returns {{ enemies: Array, towers: Array, goldEarned: number, projectiles: Projectile[] }}
  */
@@ -57,9 +64,36 @@ export function processCombat(towers, enemies, nowMs) {
       return { ...tower }
     }
 
-    // Fire: deal damage to target
+    // Fire: deal damage to primary target
     const target = enemyMap.get(nearestId)
     enemyMap.set(nearestId, { ...target, hp: target.hp - tower.damage })
+
+    // Splash damage — CannonTower damages all enemies within splashRadius of the primary target
+    const splashRadius = tower.splashRadius ?? 0
+    if (splashRadius > 0) {
+      for (const [id, enemy] of enemyMap) {
+        if (id === nearestId) continue // already hit above
+        const dist = tileDistance({ row: target.pos.row, col: target.pos.col }, enemy.pos)
+        if (dist <= splashRadius) {
+          enemyMap.set(id, { ...enemy, hp: enemy.hp - tower.damage })
+        }
+      }
+    }
+
+    // Slow debuff — SlowTower applies reduced speed to the primary target
+    if (tower.slowFactor != null && tower.slowDuration != null) {
+      const current = enemyMap.get(nearestId)
+      // Only apply if this slow is stronger (lower speedMult) or longer than existing slow
+      const existingUntil = current.slowUntil ?? 0
+      const newUntil = nowMs + tower.slowDuration
+      if (tower.slowFactor < (current.speedMult ?? 1) || newUntil > existingUntil) {
+        enemyMap.set(nearestId, {
+          ...current,
+          speedMult: tower.slowFactor,
+          slowUntil: newUntil,
+        })
+      }
+    }
 
     // Record the projectile for visual feedback
     projectiles.push({

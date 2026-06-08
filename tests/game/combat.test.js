@@ -165,3 +165,125 @@ describe('processCombat', () => {
     expect(projectiles).toHaveLength(2)
   })
 })
+
+// ── CannonTower splash mechanics ──────────────────────────────────────────────
+describe('processCombat — CannonTower splash', () => {
+  function makeCannonTower({ row = 0, col = 0, splashRadius = 1.5 } = {}) {
+    return { row, col, range: 5, damage: 120, fireRate: 1, lastFiredAt: 0, splashRadius }
+  }
+
+  it('splash tower damages the primary target', () => {
+    const cannon = makeCannonTower({ row: 0, col: 0 })
+    const primary = makeEnemy({ id: 1, hp: 200, row: 1, col: 0 }) // dist 1 — nearest
+
+    const { enemies } = processCombat([cannon], [primary], 1000)
+
+    expect(enemies.find(e => e.id === 1).hp).toBe(80)
+  })
+
+  it('splash tower also damages enemies within splashRadius of the primary target', () => {
+    const cannon = makeCannonTower({ row: 0, col: 0, splashRadius: 2 })
+    const primary  = makeEnemy({ id: 1, hp: 200, row: 3, col: 0 }) // dist 3 — nearest
+    const splash   = makeEnemy({ id: 2, hp: 200, row: 4, col: 0 }) // dist 1 from primary — in splash
+
+    const { enemies } = processCombat([cannon], [primary, splash], 1000)
+
+    expect(enemies.find(e => e.id === 1).hp).toBe(80)  // primary hit
+    expect(enemies.find(e => e.id === 2).hp).toBe(80)  // splash hit
+  })
+
+  it('splash tower does NOT damage enemies outside splashRadius', () => {
+    const cannon = makeCannonTower({ row: 0, col: 0, splashRadius: 1 })
+    const primary  = makeEnemy({ id: 1, hp: 200, row: 2, col: 0 }) // nearest
+    const outsider = makeEnemy({ id: 2, hp: 200, row: 5, col: 0 }) // dist 3 from primary — outside splash
+
+    const { enemies } = processCombat([cannon], [primary, outsider], 1000)
+
+    expect(enemies.find(e => e.id === 1).hp).toBe(80)   // primary hit
+    expect(enemies.find(e => e.id === 2).hp).toBe(200)  // not hit by splash
+  })
+
+  it('splash kill earns gold for each killed enemy', () => {
+    const cannon = makeCannonTower({ row: 0, col: 0, splashRadius: 3 })
+    // Both enemies well within splash — both should die to 120 damage
+    const e1 = { ...makeEnemy({ id: 1, hp: 100, row: 2, col: 0 }), goldReward: 10 }
+    const e2 = { ...makeEnemy({ id: 2, hp: 100, row: 3, col: 0 }), goldReward: 10 }
+
+    const { goldEarned } = processCombat([cannon], [e1, e2], 1000)
+
+    expect(goldEarned).toBe(20)
+  })
+
+  it('tower with no splashRadius does not affect non-targeted enemy', () => {
+    const basic = makeTower({ row: 0, col: 0, range: 5, damage: 50, fireRate: 1, lastFiredAt: 0 })
+    const primary  = makeEnemy({ id: 1, hp: 100, row: 1, col: 0 })
+    const nearby   = makeEnemy({ id: 2, hp: 100, row: 1, col: 1 }) // close to primary
+
+    const { enemies } = processCombat([basic], [primary, nearby], 1000)
+
+    // Only primary is hit — no splash
+    expect(enemies.find(e => e.id === 2).hp).toBe(100)
+  })
+})
+
+// ── SlowTower mechanics ───────────────────────────────────────────────────────
+describe('processCombat — SlowTower slow debuff', () => {
+  function makeSlowTower({ row = 0, col = 0, slowFactor = 0.4, slowDuration = 2000 } = {}) {
+    return { row, col, range: 5, damage: 8, fireRate: 1, lastFiredAt: 0, slowFactor, slowDuration }
+  }
+
+  it('SlowTower sets speedMult on the hit enemy', () => {
+    const slow = makeSlowTower({ slowFactor: 0.4, slowDuration: 2000 })
+    const enemy = makeEnemy({ id: 1, hp: 200, row: 1, col: 0 })
+
+    const { enemies } = processCombat([slow], [enemy], 1000)
+
+    const updated = enemies.find(e => e.id === 1)
+    expect(updated.speedMult).toBe(0.4)
+  })
+
+  it('SlowTower sets slowUntil to nowMs + slowDuration', () => {
+    const slow = makeSlowTower({ slowFactor: 0.4, slowDuration: 2000 })
+    const enemy = makeEnemy({ id: 1, hp: 200, row: 1, col: 0 })
+
+    const { enemies } = processCombat([slow], [enemy], 1000)
+
+    const updated = enemies.find(e => e.id === 1)
+    expect(updated.slowUntil).toBe(3000) // 1000 + 2000
+  })
+
+  it('a stronger slow (lower speedMult) overwrites a weaker existing slow', () => {
+    const slow = makeSlowTower({ slowFactor: 0.2, slowDuration: 2000 })
+    // Enemy already has a weaker slow
+    const enemy = { ...makeEnemy({ id: 1, hp: 200, row: 1, col: 0 }), speedMult: 0.6, slowUntil: 999 }
+
+    const { enemies } = processCombat([slow], [enemy], 1000)
+
+    const updated = enemies.find(e => e.id === 1)
+    expect(updated.speedMult).toBe(0.2) // stronger slow applied
+  })
+
+  it('a weaker slow does NOT overwrite a stronger existing slow that is still active', () => {
+    // Existing strong slow (speedMult 0.2, active until 5000)
+    const slow = makeSlowTower({ slowFactor: 0.5, slowDuration: 500 })
+    const enemy = { ...makeEnemy({ id: 1, hp: 200, row: 1, col: 0 }), speedMult: 0.2, slowUntil: 5000 }
+
+    const { enemies } = processCombat([slow], [enemy], 1000)
+
+    const updated = enemies.find(e => e.id === 1)
+    // The existing slower speedMult should remain — but the new slowUntil (1500) is shorter than 5000
+    // so neither condition triggers an overwrite
+    expect(updated.speedMult).toBe(0.2)
+  })
+
+  it('tower without slowFactor does NOT set speedMult on enemies', () => {
+    const basic = makeTower({ row: 0, col: 0, range: 5, damage: 10, fireRate: 1, lastFiredAt: 0 })
+    const enemy = makeEnemy({ id: 1, hp: 200, row: 1, col: 0 })
+
+    const { enemies } = processCombat([basic], [enemy], 1000)
+
+    const updated = enemies.find(e => e.id === 1)
+    expect(updated.speedMult).toBeUndefined()
+    expect(updated.slowUntil).toBeUndefined()
+  })
+})

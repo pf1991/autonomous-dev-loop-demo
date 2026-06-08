@@ -8,9 +8,13 @@ const TILE_PX = 40
 
 /**
  * Render an SVG tower icon based on tower type and upgrade level.
- * BasicTower: filled teal square (28×28) rotated 45° (diamond).
- *   level 1 adds an inner ring, level 2 adds a second ring.
- * SniperTower: filled red upward-pointing triangle (SVG polygon, 30 px tall).
+ *
+ * BasicTower:  teal diamond; rings added at upgrade levels 1 and 2.
+ * SniperTower: red upward-pointing triangle.
+ * RapidTower:  orange star/burst — four small diamonds arranged in a cross.
+ * CannonTower: dark-grey filled circle with a lighter outer ring at upgrade levels.
+ * SlowTower:   blue/cyan hexagon (six-sided polygon).
+ *
  * The container keeps .tower-icon for E2E selector compatibility.
  */
 function TowerSVG({ type, upgradeLevel }) {
@@ -23,6 +27,53 @@ function TowerSVG({ type, upgradeLevel }) {
       </span>
     )
   }
+
+  if (type === 'RapidTower') {
+    // Four small rotated squares in a cross pattern — conveying rapid-fire speed
+    return (
+      <span className="tower-icon">
+        <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
+          <rect className="tower-rapid" x="12" y="2"  width="6" height="6"  transform="rotate(45 15 5)"  />
+          <rect className="tower-rapid" x="12" y="22" width="6" height="6"  transform="rotate(45 15 25)" />
+          <rect className="tower-rapid" x="2"  y="12" width="6" height="6"  transform="rotate(45 5  15)" />
+          <rect className="tower-rapid" x="22" y="12" width="6" height="6"  transform="rotate(45 25 15)" />
+          <rect className="tower-rapid" x="11" y="11" width="8" height="8"  transform="rotate(45 15 15)" />
+        </svg>
+      </span>
+    )
+  }
+
+  if (type === 'CannonTower') {
+    // Filled dark circle with optional upgrade rings
+    return (
+      <span className="tower-icon">
+        <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
+          <circle className="tower-cannon" cx="15" cy="15" r="9" />
+          {upgradeLevel >= 1 && (
+            <circle className="tower-cannon-ring" cx="15" cy="15" r="12" />
+          )}
+          {upgradeLevel >= 2 && (
+            <circle className="tower-cannon-ring" cx="15" cy="15" r="14" />
+          )}
+        </svg>
+      </span>
+    )
+  }
+
+  if (type === 'SlowTower') {
+    // Hexagon shape — conveys an area/aura effect
+    return (
+      <span className="tower-icon">
+        <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
+          <polygon className="tower-slow" points="15,2 26,8 26,22 15,28 4,22 4,8" />
+          {upgradeLevel >= 1 && (
+            <polygon className="tower-slow-ring" points="15,0 28,7 28,23 15,30 2,23 2,7" />
+          )}
+        </svg>
+      </span>
+    )
+  }
+
   // BasicTower — teal diamond with optional inner rings for upgrade levels
   return (
     <span className="tower-icon">

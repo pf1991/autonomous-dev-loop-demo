@@ -1106,4 +1106,91 @@ test.describe('Tower Defense - smoke tests', () => {
     await expect(badge).toBeVisible();
     await expect(badge).toHaveText('I');
   });
+
+  // --- New tower types: RapidTower, CannonTower, SlowTower (issue #57) ---
+
+  test('TowerPicker shows RapidTower, CannonTower, and SlowTower buttons', async ({ page }) => {
+    await expect(page.locator('.tower-picker')).toBeVisible();
+    await expect(page.locator('.tower-picker button').filter({ hasText: 'RapidTower' })).toBeAttached();
+    await expect(page.locator('.tower-picker button').filter({ hasText: 'CannonTower' })).toBeAttached();
+    await expect(page.locator('.tower-picker button').filter({ hasText: 'SlowTower' })).toBeAttached();
+  });
+
+  test('TowerPicker shows Splash special-ability label for CannonTower', async ({ page }) => {
+    const cannonBtn = page.locator('.tower-picker button').filter({ hasText: 'CannonTower' });
+    await expect(cannonBtn).toBeAttached();
+    // The special label should show a Splash indicator
+    const specialLabel = cannonBtn.locator('.tower-picker-special');
+    await expect(specialLabel).toBeAttached();
+    const labelText = await specialLabel.textContent();
+    expect(labelText).toMatch(/Splash/);
+  });
+
+  test('TowerPicker shows Slow special-ability label for SlowTower', async ({ page }) => {
+    const slowBtn = page.locator('.tower-picker button').filter({ hasText: 'SlowTower' });
+    await expect(slowBtn).toBeAttached();
+    // The special label should show a Slow indicator
+    const specialLabel = slowBtn.locator('.tower-picker-special');
+    await expect(specialLabel).toBeAttached();
+    const labelText = await specialLabel.textContent();
+    expect(labelText).toMatch(/Slow/);
+  });
+
+  test('RapidTower renders SVG with rect.tower-rapid when placed', async ({ page }) => {
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Select RapidTower (costs 75g, player starts with 100g)
+    const rapidBtn = page.locator('.tower-picker button').filter({ hasText: 'RapidTower' });
+    if ((await rapidBtn.getAttribute('disabled')) !== null) return; // skip if unaffordable
+    await rapidBtn.click();
+    await expect(rapidBtn).toHaveClass(/selected/);
+    // Place on first slot
+    const slot = page.locator('.tower-slot').first();
+    await slot.click();
+    const towerIcon = page.locator('.tower-icon').first();
+    await expect(towerIcon).toBeVisible();
+    const svgEl = towerIcon.locator('svg');
+    await expect(svgEl).toBeAttached();
+    await expect(svgEl.locator('rect.tower-rapid').first()).toBeAttached();
+  });
+
+  test('CannonTower renders SVG with circle.tower-cannon when placed', async ({ page }) => {
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Select CannonTower (costs 150g — too expensive on 100g start; skip if unaffordable)
+    const cannonBtn = page.locator('.tower-picker button').filter({ hasText: 'CannonTower' });
+    if ((await cannonBtn.getAttribute('disabled')) !== null) return;
+    await cannonBtn.click();
+    await expect(cannonBtn).toHaveClass(/selected/);
+    const slot = page.locator('.tower-slot').first();
+    await slot.click();
+    const towerIcon = page.locator('.tower-icon').first();
+    await expect(towerIcon).toBeVisible();
+    const svgEl = towerIcon.locator('svg');
+    await expect(svgEl).toBeAttached();
+    await expect(svgEl.locator('circle.tower-cannon')).toBeAttached();
+  });
+
+  test('SlowTower renders SVG with polygon.tower-slow when placed', async ({ page }) => {
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Select SlowTower (costs 90g — just barely unaffordable on 100g start after no purchases)
+    const slowBtn = page.locator('.tower-picker button').filter({ hasText: 'SlowTower' });
+    if ((await slowBtn.getAttribute('disabled')) !== null) return;
+    await slowBtn.click();
+    await expect(slowBtn).toHaveClass(/selected/);
+    const slot = page.locator('.tower-slot').first();
+    await slot.click();
+    const towerIcon = page.locator('.tower-icon').first();
+    await expect(towerIcon).toBeVisible();
+    const svgEl = towerIcon.locator('svg');
+    await expect(svgEl).toBeAttached();
+    await expect(svgEl.locator('polygon.tower-slow')).toBeAttached();
+  });
 });

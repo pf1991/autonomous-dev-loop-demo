@@ -29,6 +29,53 @@ export const TOWER_TYPES = {
       { cost: 100, range: 10, damage: 160, fireRate: 1.0 },
     ],
   },
+  /**
+   * RapidTower — high fire rate, low damage, short range.
+   * Best against swarms of fast enemies (grunts).
+   */
+  RapidTower: {
+    cost: 75,
+    range: 2,
+    damage: 12,
+    fireRate: 4,
+    upgrades: [
+      { cost: 50, range: 2.5, damage: 18, fireRate: 5 },
+      { cost: 80, range: 3, damage: 25, fireRate: 6 },
+    ],
+  },
+  /**
+   * CannonTower — slow fire rate, very high damage, splash AoE (splashRadius = 1.5 tiles).
+   * Damages all enemies within splashRadius of the primary target.
+   * Best against packed groups and tanks.
+   */
+  CannonTower: {
+    cost: 150,
+    range: 4,
+    damage: 120,
+    fireRate: 0.4,
+    splashRadius: 1.5,
+    upgrades: [
+      { cost: 100, range: 4.5, damage: 180, fireRate: 0.5, splashRadius: 1.75 },
+      { cost: 150, range: 5, damage: 260, fireRate: 0.6, splashRadius: 2.0 },
+    ],
+  },
+  /**
+   * SlowTower — low damage, medium range, applies a slow debuff on hit.
+   * Each hit slows the enemy to slowFactor (0–1) of its normal speed for slowDuration ms.
+   * Synergises with all other towers by keeping enemies in range longer.
+   */
+  SlowTower: {
+    cost: 90,
+    range: 3.5,
+    damage: 8,
+    fireRate: 1.5,
+    slowFactor: 0.4,
+    slowDuration: 2000,
+    upgrades: [
+      { cost: 60, range: 4, damage: 12, fireRate: 1.8, slowFactor: 0.3, slowDuration: 2500 },
+      { cost: 90, range: 4.5, damage: 18, fireRate: 2, slowFactor: 0.2, slowDuration: 3000 },
+    ],
+  },
 }
 
 /**
@@ -36,8 +83,14 @@ export const TOWER_TYPES = {
  * Initialises upgradeLevel: 0 on all new towers.
  */
 export function createTower(type, row, col) {
-  const { range, damage, fireRate } = TOWER_TYPES[type]
-  return { type, row, col, range, damage, fireRate, lastFiredAt: 0, upgradeLevel: 0 }
+  const typeDef = TOWER_TYPES[type]
+  const { range, damage, fireRate } = typeDef
+  const tower = { type, row, col, range, damage, fireRate, lastFiredAt: 0, upgradeLevel: 0 }
+  // Include special properties for towers that have unique mechanics
+  if (typeDef.splashRadius != null) tower.splashRadius = typeDef.splashRadius
+  if (typeDef.slowFactor   != null) tower.slowFactor   = typeDef.slowFactor
+  if (typeDef.slowDuration != null) tower.slowDuration = typeDef.slowDuration
+  return tower
 }
 
 /**
@@ -67,13 +120,18 @@ export function upgradeTower(tower) {
   const typeDef = TOWER_TYPES[tower.type]
   const nextLevel = tower.upgradeLevel + 1
   const upgrade = typeDef.upgrades[tower.upgradeLevel]
-  return {
+  const updated = {
     ...tower,
     upgradeLevel: nextLevel,
     range: upgrade.range,
     damage: upgrade.damage,
     fireRate: upgrade.fireRate,
   }
+  // Carry over special properties from the upgrade level definition when present
+  if (upgrade.splashRadius != null) updated.splashRadius = upgrade.splashRadius
+  if (upgrade.slowFactor   != null) updated.slowFactor   = upgrade.slowFactor
+  if (upgrade.slowDuration != null) updated.slowDuration = upgrade.slowDuration
+  return updated
 }
 
 /**

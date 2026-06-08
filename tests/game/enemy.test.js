@@ -92,6 +92,32 @@ describe('moveEnemy', () => {
   })
 })
 
+describe('moveEnemy — slow debuff (speedMult)', () => {
+  it('enemy with speedMult 0.5 moves half as far in the same time', () => {
+    const normal = createEnemy('a', WAYPOINTS, 'grunt')
+    const slowed = { ...createEnemy('b', WAYPOINTS, 'grunt'), speedMult: 0.5 }
+
+    const movedNormal = moveEnemy(normal, 500, WAYPOINTS)
+    const movedSlowed = moveEnemy(slowed, 500, WAYPOINTS)
+
+    // slowed enemy should travel half the column distance
+    expect(movedSlowed.pos.col).toBeCloseTo(movedNormal.pos.col / 2)
+  })
+
+  it('enemy without speedMult moves at full speed', () => {
+    const enemy = createEnemy('c', WAYPOINTS, 'grunt')
+    const result = moveEnemy(enemy, 1000, WAYPOINTS)
+    // grunt speed=3 tiles/s → 3 tiles in 1s
+    expect(result.pos.col).toBeCloseTo(3)
+  })
+
+  it('enemy with speedMult 1 (no slow) moves at full speed', () => {
+    const enemy = { ...createEnemy('d', WAYPOINTS, 'grunt'), speedMult: 1 }
+    const result = moveEnemy(enemy, 1000, WAYPOINTS)
+    expect(result.pos.col).toBeCloseTo(3)
+  })
+})
+
 describe('getEnemyRadius', () => {
   it('returns 10 for grunt type', () => expect(getEnemyRadius(80, 80, 'grunt')).toBe(10))
   it('returns 16 for tank type', () => expect(getEnemyRadius(300, 300, 'tank')).toBe(16))

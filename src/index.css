@@ -219,6 +219,38 @@ body {
   stroke: none;
 }
 
+/* RapidTower — orange burst (five small diamonds in a cross) */
+.tower-rapid {
+  fill: #f5a623;
+  stroke: none;
+}
+
+/* CannonTower — dark grey filled circle */
+.tower-cannon {
+  fill: #5a5a7a;
+  stroke: none;
+}
+
+/* Outer rings for upgraded CannonTower */
+.tower-cannon-ring {
+  fill: none;
+  stroke: #9a9abb;
+  stroke-width: 1.5;
+}
+
+/* SlowTower — icy blue hexagon */
+.tower-slow {
+  fill: #44a8d8;
+  stroke: none;
+}
+
+/* Outer ring for upgraded SlowTower */
+.tower-slow-ring {
+  fill: none;
+  stroke: #88d4f5;
+  stroke-width: 1.5;
+}
+
 /* ===== Tower level badge — bottom-right corner of a placed tower tile ===== */
 .tower-level-badge {
   position: absolute;
@@ -468,6 +500,11 @@ body {
 .tower-picker-stat {
   font-size: 0.75rem;
   color: #aaa;
+}
+
+.tower-picker-special {
+  color: #4ecca3;
+  font-weight: 700;
 }
 
 /* ===== Upgrade Panel ===== */
