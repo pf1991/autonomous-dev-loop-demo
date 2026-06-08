@@ -158,29 +158,34 @@ function GameBoard({
       {(() => {
         // Determine range ring parameters:
         // 1. Hover ring — empty tower-slot hovered: use selected tower type's range
-        // 2. Selected tower ring — a placed tower is selected: use tower.range
-        let ringCx = null
-        let ringCy = null
-        let ringR = null
+        // 2. Fire-radius ring — a placed tower is selected: use tower.range (orange-red "fire" colour)
+        let hoverCx = null
+        let hoverCy = null
+        let hoverR = null
+        let fireCx = null
+        let fireCy = null
+        let fireR = null
 
         if (hoveredSlot !== null) {
           const typeDef = TOWER_TYPES[selectedTowerType]
           if (typeDef) {
-            ringCx = (hoveredSlot.col + 0.5) * TILE_PX
-            ringCy = (hoveredSlot.row + 0.5) * TILE_PX
-            ringR = typeDef.range * TILE_PX
-          }
-        } else if (selectedTower !== null) {
-          const key = `${selectedTower.row}-${selectedTower.col}`
-          const t = towerMap[key]
-          if (t) {
-            ringCx = (t.col + 0.5) * TILE_PX
-            ringCy = (t.row + 0.5) * TILE_PX
-            ringR = t.range * TILE_PX
+            hoverCx = (hoveredSlot.col + 0.5) * TILE_PX
+            hoverCy = (hoveredSlot.row + 0.5) * TILE_PX
+            hoverR = typeDef.range * TILE_PX
           }
         }
 
-        const showSvg = projectiles.length > 0 || ringR !== null
+        if (selectedTower !== null) {
+          const key = `${selectedTower.row}-${selectedTower.col}`
+          const t = towerMap[key]
+          if (t) {
+            fireCx = (t.col + 0.5) * TILE_PX
+            fireCy = (t.row + 0.5) * TILE_PX
+            fireR = t.range * TILE_PX
+          }
+        }
+
+        const showSvg = projectiles.length > 0 || hoverR !== null || fireR !== null
         if (!showSvg) return null
 
         return (
@@ -190,12 +195,20 @@ function GameBoard({
             height={ROWS * TILE_PX}
             aria-hidden="true"
           >
-            {ringR !== null && (
+            {hoverR !== null && (
               <circle
                 className="range-preview-ring"
-                cx={ringCx}
-                cy={ringCy}
-                r={ringR}
+                cx={hoverCx}
+                cy={hoverCy}
+                r={hoverR}
+              />
+            )}
+            {fireR !== null && (
+              <circle
+                className="fire-radius-ring"
+                cx={fireCx}
+                cy={fireCy}
+                r={fireR}
               />
             )}
             {projectiles.map(p => (

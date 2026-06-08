@@ -205,6 +205,48 @@ describe('GameBoard', () => {
     expect(lines.length).toBe(0)
   })
 
+  it('renders .fire-radius-ring SVG circle when a placed tower is selected', () => {
+    const tiles = createDefaultMap()
+    const onTileClick = vi.fn()
+    const tower = createTower('BasicTower', 3, 7)
+    const towers = [tower]
+    const selectedTower = { row: 3, col: 7 }
+
+    act(() => {
+      createRoot(container).render(
+        createElement(GameBoard, {
+          tiles,
+          onTileClick,
+          towers,
+          selectedTower,
+          gold: 200,
+          onUpgrade: vi.fn(),
+          getUpgradeCost,
+          canUpgrade,
+        })
+      )
+    })
+
+    const ring = container.querySelector('.fire-radius-ring')
+    expect(ring).not.toBeNull()
+  })
+
+  it('does not render .fire-radius-ring when no tower is selected', () => {
+    const tiles = createDefaultMap()
+    const onTileClick = vi.fn()
+    const tower = createTower('BasicTower', 3, 7)
+    const towers = [tower]
+
+    act(() => {
+      createRoot(container).render(
+        createElement(GameBoard, { tiles, onTileClick, towers, selectedTower: null })
+      )
+    })
+
+    const ring = container.querySelector('.fire-radius-ring')
+    expect(ring).toBeNull()
+  })
+
   it('upgrade button is disabled when player cannot afford upgrade', () => {
     const tiles = createDefaultMap()
     const onTileClick = vi.fn()

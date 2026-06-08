@@ -119,11 +119,20 @@ body {
   opacity: 0.85;
 }
 
-/* ===== Range preview ring (hover/selected tower) ===== */
+/* ===== Range preview ring (hover over empty tower-slot) ===== */
 .range-preview-ring {
   stroke: rgba(255, 255, 255, 0.35);
   stroke-width: 2;
   fill: rgba(255, 255, 255, 0.07);
+  pointer-events: none;
+}
+
+/* ===== Fire radius ring (placed tower selected — shows attack radius in orange-red) ===== */
+.fire-radius-ring {
+  stroke: rgba(249, 115, 22, 0.75);
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+  fill: rgba(249, 115, 22, 0.08);
   pointer-events: none;
 }
 
