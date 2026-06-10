@@ -154,6 +154,25 @@ describe('processCombat', () => {
     expect(projectiles).toHaveLength(0)
   })
 
+  it('killedEnemies contains correct entry when an enemy dies', () => {
+    const tower = makeTower({ row: 0, col: 0, range: 5, damage: 100, fireRate: 1, lastFiredAt: 0 })
+    const enemy = { ...makeEnemy({ id: 42, hp: 100, row: 3, col: 2 }), goldReward: 15 }
+
+    const { killedEnemies } = processCombat([tower], [enemy], 1000)
+
+    expect(killedEnemies).toHaveLength(1)
+    expect(killedEnemies[0]).toMatchObject({ id: 42, row: 3, col: 2, gold: 15 })
+  })
+
+  it('killedEnemies is empty when no enemies die', () => {
+    const tower = makeTower({ row: 0, col: 0, range: 5, damage: 10, fireRate: 1, lastFiredAt: 0 })
+    const enemy = makeEnemy({ id: 1, hp: 100, row: 1, col: 0 }) // survives (10 damage < 100 hp)
+
+    const { killedEnemies } = processCombat([tower], [enemy], 1000)
+
+    expect(killedEnemies).toHaveLength(0)
+  })
+
   it('two towers each produce one projectile when both fire', () => {
     const tower1 = makeTower({ row: 0, col: 0, range: 5, damage: 10, fireRate: 1, lastFiredAt: 0 })
     const tower2 = makeTower({ row: 10, col: 0, range: 5, damage: 10, fireRate: 1, lastFiredAt: 0 })
