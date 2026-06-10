@@ -5,7 +5,7 @@
  *   lives             — current player lives (number)
  *   gold              — current gold (number)
  *   wave              — current wave number (number)
- *   speed             — current speed multiplier (1 or 2)
+ *   speed             — current speed multiplier (1, 2, or 5)
  *   onSpeedToggle     — callback invoked when the speed button is clicked
  *   onRestart         — callback invoked when the Restart button is clicked
  *   showNextWave      — whether to show the "Next Wave" early-call button (bool)
@@ -33,7 +33,7 @@ function HUD({ lives, gold, wave, speed, onSpeedToggle, onRestart, showNextWave,
         Restart
       </button>
       <button className="hud-speed" onClick={onSpeedToggle}>
-        {speed === 1 ? '1×' : '2×'}
+        {speed === 5 ? '5×' : speed === 2 ? '2×' : '1×'}
       </button>
     </div>
   )

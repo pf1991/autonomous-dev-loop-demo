@@ -249,7 +249,7 @@ function App() {
   useGameLoop(onTick, speed)
 
   function handleSpeedToggle() {
-    setSpeed(s => (s === 1 ? 2 : 1))
+    setSpeed(s => (s === 1 ? 2 : s === 2 ? 5 : 1))
   }
 
   function placeTower(row, col) {

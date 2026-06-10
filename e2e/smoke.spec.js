@@ -1047,6 +1047,33 @@ test.describe('Tower Defense - smoke tests', () => {
     await expect(earlyBtn).toBeDisabled();
   });
 
+  // --- 5x speed option (issue #63) ---
+
+  test('speed button cycles through 1×, 2×, 5× and back to 1×', async ({ page }) => {
+    // Dismiss the NextWave overlay so the board is interactive
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    const speedBtn = page.locator('.hud-speed');
+    await expect(speedBtn).toBeVisible();
+
+    // Initial state: 1×
+    await expect(speedBtn).toContainText('1×');
+
+    // First click: 1× → 2×
+    await speedBtn.click();
+    await expect(speedBtn).toContainText('2×');
+
+    // Second click: 2× → 5×
+    await speedBtn.click();
+    await expect(speedBtn).toContainText('5×');
+
+    // Third click: 5× → 1×
+    await speedBtn.click();
+    await expect(speedBtn).toContainText('1×');
+  });
+
   // --- Endless mode (issue #56) ---
 
   test('endless mode toggle is visible on the pre-wave-1 start screen', async ({ page }) => {
