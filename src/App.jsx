@@ -40,6 +40,9 @@ function App() {
   const [towers, setTowers] = useState(INITIAL_STATE.towers)
   const [enemies, setEnemies] = useState(INITIAL_STATE.enemies)
   const [projectiles, setProjectiles] = useState([])
+  // Death animations: list of { id, row, col, gold, createdAt } for floating "+N gold" labels
+  const [deathAnimations, setDeathAnimations] = useState([])
+  const deathAnimationsRef = useRef([])
   const [selectedTowerType, setSelectedTowerType] = useState('BasicTower')
   // { row, col } | null — the tower tile currently selected for upgrade
   const [selectedTower, setSelectedTower] = useState(null)
@@ -186,9 +189,40 @@ function App() {
     killedNow += surviving.length - afterCombat.length
 
     if (combatResult.goldEarned > 0) {
-      const bonusGold = Math.round(combatResult.goldEarned * earlyWaveBonusRef.current)
+      const bonusMultiplier = earlyWaveBonusRef.current
+      const bonusGold = Math.round(combatResult.goldEarned * bonusMultiplier)
       setGold(g => g + bonusGold)
       totalGoldEarnedRef.current += bonusGold
+
+      // Spawn floating "+N gold" death animations for each killed enemy
+      if (combatResult.killedEnemies && combatResult.killedEnemies.length > 0) {
+        const newAnims = combatResult.killedEnemies.map(k => ({
+          id: `da-${k.id}-${nowMs}`,
+          row: k.row,
+          col: k.col,
+          gold: Math.round(k.gold * bonusMultiplier),
+          createdAt: nowMs,
+        }))
+        const DEATH_ANIM_LIFETIME_MS = 1200
+        const aliveAnims = deathAnimationsRef.current.filter(
+          a => nowMs - a.createdAt < DEATH_ANIM_LIFETIME_MS
+        )
+        const nextAnims = [...aliveAnims, ...newAnims]
+        deathAnimationsRef.current = nextAnims
+        setDeathAnimations(nextAnims)
+      }
+    } else {
+      // Still expire old death animations even when no gold earned this tick
+      const DEATH_ANIM_LIFETIME_MS = 1200
+      if (deathAnimationsRef.current.length > 0) {
+        const aliveAnims = deathAnimationsRef.current.filter(
+          a => nowMs - a.createdAt < DEATH_ANIM_LIFETIME_MS
+        )
+        if (aliveAnims.length !== deathAnimationsRef.current.length) {
+          deathAnimationsRef.current = aliveAnims
+          setDeathAnimations(aliveAnims)
+        }
+      }
     }
 
     // Keep projectiles alive for PROJECTILE_LIFETIME_MS so they are visible to the player
@@ -315,6 +349,8 @@ function App() {
     setEnemies(INITIAL_STATE.enemies)
     projectilesRef.current = []
     setProjectiles([])
+    deathAnimationsRef.current = []
+    setDeathAnimations([])
     setSelectedTower(null)
     nextEnemyIdRef.current = 0
     spawnTimerRef.current = 0
@@ -433,6 +469,7 @@ function App() {
         towers={towers}
         enemies={enemies}
         projectiles={projectiles}
+        deathAnimations={deathAnimations}
         selectedTower={selectedTower}
         hoveredSlot={hoveredSlot}
         onHoverSlot={setHoveredSlot}

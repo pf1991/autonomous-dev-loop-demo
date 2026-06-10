@@ -115,6 +115,7 @@ function GameBoard({
   towers = [],
   enemies = [],
   projectiles = [],
+  deathAnimations = [],
   selectedTower = null,
   hoveredSlot = null,
   onHoverSlot,
@@ -305,6 +306,22 @@ function GameBoard({
               </div>
             )
           })}
+        </div>
+      )}
+      {deathAnimations.length > 0 && (
+        <div className="death-animation-layer" aria-hidden="true">
+          {deathAnimations.map(anim => (
+            <div
+              key={anim.id}
+              className="death-gold-label"
+              style={{
+                left: (anim.col + 0.5) * TILE_PX,
+                top: (anim.row + 0.5) * TILE_PX,
+              }}
+            >
+              +{anim.gold}
+            </div>
+          ))}
         </div>
       )}
       {showCountdownBanner && (

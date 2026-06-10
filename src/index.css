@@ -751,3 +751,40 @@ body {
   border-radius: 4px;
   text-transform: uppercase;
 }
+
+/* ===== Death gold animation (floating "+N gold" label on enemy kill) ===== */
+@keyframes death-gold-rise {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  70% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -36px);
+  }
+}
+
+.death-animation-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 25;
+}
+
+.death-gold-label {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #f5d742;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+  white-space: nowrap;
+  animation: death-gold-rise 1.2s ease-out forwards;
+  pointer-events: none;
+  user-select: none;
+  line-height: 1;
+}
