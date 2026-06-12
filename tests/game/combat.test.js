@@ -306,3 +306,53 @@ describe('processCombat — SlowTower slow debuff', () => {
     expect(updated.slowUntil).toBeUndefined()
   })
 })
+
+// ── Fire animation: projectile carries towerType and upgradeLevel ─────────────
+describe('processCombat — fire animation metadata', () => {
+  it('projectile carries the firing tower type', () => {
+    const tower = { row: 0, col: 0, range: 5, damage: 10, fireRate: 1, lastFiredAt: 0, type: 'SniperTower', upgradeLevel: 0 }
+    const enemy = makeEnemy({ id: 1, hp: 200, row: 1, col: 0 })
+
+    const { projectiles } = processCombat([tower], [enemy], 1000)
+
+    expect(projectiles).toHaveLength(1)
+    expect(projectiles[0].towerType).toBe('SniperTower')
+  })
+
+  it('projectile carries upgradeLevel 0 for a base-level tower', () => {
+    const tower = { row: 0, col: 0, range: 5, damage: 10, fireRate: 1, lastFiredAt: 0, type: 'BasicTower', upgradeLevel: 0 }
+    const enemy = makeEnemy({ id: 1, hp: 200, row: 1, col: 0 })
+
+    const { projectiles } = processCombat([tower], [enemy], 1000)
+
+    expect(projectiles[0].upgradeLevel).toBe(0)
+  })
+
+  it('projectile carries upgradeLevel 1 for a level-1 tower', () => {
+    const tower = { row: 0, col: 0, range: 5, damage: 35, fireRate: 1.2, lastFiredAt: 0, type: 'BasicTower', upgradeLevel: 1 }
+    const enemy = makeEnemy({ id: 1, hp: 200, row: 1, col: 0 })
+
+    const { projectiles } = processCombat([tower], [enemy], 1000)
+
+    expect(projectiles[0].upgradeLevel).toBe(1)
+  })
+
+  it('projectile carries upgradeLevel 2 for a level-2 tower', () => {
+    const tower = { row: 0, col: 0, range: 5, damage: 50, fireRate: 1.5, lastFiredAt: 0, type: 'RapidTower', upgradeLevel: 2 }
+    const enemy = makeEnemy({ id: 1, hp: 200, row: 1, col: 0 })
+
+    const { projectiles } = processCombat([tower], [enemy], 1000)
+
+    expect(projectiles[0].upgradeLevel).toBe(2)
+  })
+
+  it('each tower type produces a projectile with the correct towerType', () => {
+    const types = ['BasicTower', 'SniperTower', 'RapidTower', 'CannonTower', 'SlowTower']
+    for (const type of types) {
+      const tower = { row: 0, col: 0, range: 5, damage: 10, fireRate: 1, lastFiredAt: 0, type, upgradeLevel: 0 }
+      const enemy = makeEnemy({ id: 1, hp: 999, row: 1, col: 0 })
+      const { projectiles } = processCombat([tower], [enemy], 1000)
+      expect(projectiles[0].towerType).toBe(type)
+    }
+  })
+})

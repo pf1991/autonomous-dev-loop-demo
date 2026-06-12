@@ -205,6 +205,61 @@ describe('GameBoard', () => {
     expect(lines.length).toBe(0)
   })
 
+  it('projectile line gets a type-specific class for a SniperTower base-level projectile', () => {
+    const tiles = createDefaultMap()
+    const onTileClick = vi.fn()
+    const projectiles = [
+      { id: 'p1', fromRow: 1, fromCol: 1, toRow: 2, toCol: 3, towerType: 'SniperTower', upgradeLevel: 0 },
+    ]
+
+    act(() => {
+      createRoot(container).render(
+        createElement(GameBoard, { tiles, onTileClick, projectiles })
+      )
+    })
+
+    const line = container.querySelector('.projectile')
+    expect(line).not.toBeNull()
+    expect(line.classList.contains('projectile-sniper')).toBe(true)
+    expect(line.classList.contains('projectile-sniper-lv1')).toBe(false)
+  })
+
+  it('projectile line gets a level-1 class for a level-1 tower projectile', () => {
+    const tiles = createDefaultMap()
+    const onTileClick = vi.fn()
+    const projectiles = [
+      { id: 'p1', fromRow: 1, fromCol: 1, toRow: 2, toCol: 3, towerType: 'BasicTower', upgradeLevel: 1 },
+    ]
+
+    act(() => {
+      createRoot(container).render(
+        createElement(GameBoard, { tiles, onTileClick, projectiles })
+      )
+    })
+
+    const line = container.querySelector('.projectile')
+    expect(line).not.toBeNull()
+    expect(line.classList.contains('projectile-basic-lv1')).toBe(true)
+  })
+
+  it('projectile line gets a level-2 class for a level-2 tower projectile', () => {
+    const tiles = createDefaultMap()
+    const onTileClick = vi.fn()
+    const projectiles = [
+      { id: 'p1', fromRow: 1, fromCol: 1, toRow: 2, toCol: 3, towerType: 'CannonTower', upgradeLevel: 2 },
+    ]
+
+    act(() => {
+      createRoot(container).render(
+        createElement(GameBoard, { tiles, onTileClick, projectiles })
+      )
+    })
+
+    const line = container.querySelector('.projectile')
+    expect(line).not.toBeNull()
+    expect(line.classList.contains('projectile-cannon-lv2')).toBe(true)
+  })
+
   it('renders .fire-radius-ring SVG circle when a placed tower is selected', () => {
     const tiles = createDefaultMap()
     const onTileClick = vi.fn()

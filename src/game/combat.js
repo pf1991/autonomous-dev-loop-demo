@@ -118,6 +118,8 @@ export function processCombat(towers, enemies, nowMs) {
       toRow: target.pos.row,
       toCol: target.pos.col,
       createdAt: nowMs,
+      towerType: tower.type,
+      upgradeLevel: tower.upgradeLevel ?? 0,
     })
 
     return { ...tower, lastFiredAt: nowMs }

@@ -265,16 +265,24 @@ function GameBoard({
                 r={fireR}
               />
             )}
-            {projectiles.map(p => (
-              <line
-                key={p.id}
-                className="projectile"
-                x1={(p.fromCol + 0.5) * TILE_PX}
-                y1={(p.fromRow + 0.5) * TILE_PX}
-                x2={(p.toCol + 0.5) * TILE_PX}
-                y2={(p.toRow + 0.5) * TILE_PX}
-              />
-            ))}
+            {projectiles.map(p => {
+              const typeSlug = p.towerType
+                ? p.towerType.replace('Tower', '').toLowerCase()
+                : 'basic'
+              const lvl = p.upgradeLevel ?? 0
+              const levelSuffix = lvl >= 2 ? '-lv2' : lvl >= 1 ? '-lv1' : ''
+              const className = `projectile projectile-${typeSlug}${levelSuffix}`
+              return (
+                <line
+                  key={p.id}
+                  className={className}
+                  x1={(p.fromCol + 0.5) * TILE_PX}
+                  y1={(p.fromRow + 0.5) * TILE_PX}
+                  x2={(p.toCol + 0.5) * TILE_PX}
+                  y2={(p.toRow + 0.5) * TILE_PX}
+                />
+              )
+            })}
           </svg>
         )
       })()}

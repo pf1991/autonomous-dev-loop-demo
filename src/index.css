@@ -141,6 +141,129 @@ body {
   opacity: 0.85;
 }
 
+/* ===== Per-tower-type projectile colours ===== */
+
+/* BasicTower — teal, base level */
+.projectile-basic {
+  stroke: #4ecca3;
+  stroke-width: 3;
+  stroke-linecap: round;
+  opacity: 0.85;
+}
+/* BasicTower level 1 — brighter teal, slightly thicker */
+.projectile-basic-lv1 {
+  stroke: #5fffcc;
+  stroke-width: 4;
+  stroke-linecap: round;
+  opacity: 0.9;
+}
+/* BasicTower level 2 — vivid teal, thick */
+.projectile-basic-lv2 {
+  stroke: #80ffdd;
+  stroke-width: 5;
+  stroke-linecap: round;
+  opacity: 0.95;
+  filter: drop-shadow(0 0 2px #4ecca3);
+}
+
+/* SniperTower — red, base level */
+.projectile-sniper {
+  stroke: #e94560;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 6 3;
+  opacity: 0.85;
+}
+/* SniperTower level 1 — deeper red, longer dash */
+.projectile-sniper-lv1 {
+  stroke: #ff2244;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 8 3;
+  opacity: 0.9;
+}
+/* SniperTower level 2 — intense red, glow effect */
+.projectile-sniper-lv2 {
+  stroke: #ff4466;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-dasharray: 10 2;
+  opacity: 0.95;
+  filter: drop-shadow(0 0 3px #e94560);
+}
+
+/* RapidTower — orange, base level */
+.projectile-rapid {
+  stroke: #f5a623;
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0.8;
+}
+/* RapidTower level 1 — brighter orange */
+.projectile-rapid-lv1 {
+  stroke: #ffbe44;
+  stroke-width: 3;
+  stroke-linecap: round;
+  opacity: 0.85;
+}
+/* RapidTower level 2 — golden orange, glow */
+.projectile-rapid-lv2 {
+  stroke: #ffd060;
+  stroke-width: 4;
+  stroke-linecap: round;
+  opacity: 0.9;
+  filter: drop-shadow(0 0 2px #f5a623);
+}
+
+/* CannonTower — dark grey, base level (thick, slow shot) */
+.projectile-cannon {
+  stroke: #9a9abb;
+  stroke-width: 5;
+  stroke-linecap: round;
+  opacity: 0.9;
+}
+/* CannonTower level 1 — grey-white, thicker */
+.projectile-cannon-lv1 {
+  stroke: #bbbbd8;
+  stroke-width: 6;
+  stroke-linecap: round;
+  opacity: 0.92;
+}
+/* CannonTower level 2 — bright white-grey, glow */
+.projectile-cannon-lv2 {
+  stroke: #ddddee;
+  stroke-width: 7;
+  stroke-linecap: round;
+  opacity: 0.95;
+  filter: drop-shadow(0 0 4px #9a9abb);
+}
+
+/* SlowTower — icy blue, base level (dotted to convey slow pulse) */
+.projectile-slow {
+  stroke: #44a8d8;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 4 4;
+  opacity: 0.85;
+}
+/* SlowTower level 1 — bright cyan */
+.projectile-slow-lv1 {
+  stroke: #60ccee;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-dasharray: 5 3;
+  opacity: 0.9;
+}
+/* SlowTower level 2 — vivid cyan, glow */
+.projectile-slow-lv2 {
+  stroke: #88eeff;
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-dasharray: 6 2;
+  opacity: 0.95;
+  filter: drop-shadow(0 0 3px #44a8d8);
+}
+
 /* ===== Range preview ring (hover over empty tower-slot) ===== */
 .range-preview-ring {
   stroke: rgba(255, 255, 255, 0.35);
