@@ -1229,6 +1229,92 @@ test.describe('Tower Defense - smoke tests', () => {
     await expect(svgEl.locator('polygon.tower-slow')).toBeAttached();
   });
 
+  // --- Per-tower-type projectile fire animations (issue #65) ---
+
+  test('projectile line has a type-specific CSS class (projectile-basic) when BasicTower fires', async ({ page }) => {
+    // Start wave 1, place a BasicTower on the first slot which is adjacent to the enemy path
+    await page.locator('.next-wave-start').click();
+    // Ensure BasicTower is selected (default)
+    const basicBtn = page.locator('.tower-picker button').filter({ hasText: 'BasicTower' });
+    if (await basicBtn.isVisible() && (await basicBtn.getAttribute('disabled')) === null) {
+      await basicBtn.click();
+    }
+    await page.locator('.tower-slot').first().click();
+    await expect(page.locator('.tower-icon').first()).toBeVisible();
+
+    // Wait for the first enemy to appear, then wait for a projectile to be fired
+    await expect(page.locator('.enemy').first()).toBeVisible({ timeout: 4000 });
+    // Wait for the projectile layer to appear (projectiles is non-empty → SVG renders)
+    await page.waitForFunction(
+      () => document.querySelector('.projectile-layer') !== null,
+      { timeout: 5000 }
+    );
+    // The projectile <line> must carry the type-specific class projectile-basic
+    await page.waitForFunction(
+      () => {
+        const line = document.querySelector('.projectile-layer .projectile');
+        return line && line.classList.contains('projectile-basic');
+      },
+      { timeout: 5000 }
+    );
+    const line = page.locator('.projectile-layer .projectile').first();
+    await expect(line).toBeAttached();
+    const cls = await line.getAttribute('class');
+    expect(cls).toContain('projectile-basic');
+    // Must NOT carry a level suffix on a fresh (level-0) tower
+    expect(cls).not.toContain('projectile-basic-lv1');
+    expect(cls).not.toContain('projectile-basic-lv2');
+  });
+
+  test('projectile-basic CSS class has a non-default stroke colour (not black)', async ({ page }) => {
+    // This test verifies that the per-type CSS rules in index.css are actually loaded and applied.
+    // Build a minimal SVG, attach it to the document body with the class, and read computed style.
+    const strokeColor = await page.evaluate(() => {
+      const ns = 'http://www.w3.org/2000/svg';
+      const svg = document.createElementNS(ns, 'svg');
+      svg.style.position = 'absolute';
+      svg.style.top = '-9999px';
+      document.body.appendChild(svg);
+      const line = document.createElementNS(ns, 'line');
+      line.setAttribute('class', 'projectile projectile-basic');
+      svg.appendChild(line);
+      const computed = getComputedStyle(line).stroke;
+      document.body.removeChild(svg);
+      return computed;
+    });
+    // The CSS rule sets stroke: #4ecca3 — any non-black, non-empty value confirms the rule was applied
+    expect(strokeColor).not.toBe('');
+    expect(strokeColor).not.toBe('rgb(0, 0, 0)');
+    expect(strokeColor).not.toBe('none');
+  });
+
+  test('projectile-sniper CSS class has a different stroke colour than projectile-basic', async ({ page }) => {
+    const { basicStroke, sniperStroke } = await page.evaluate(() => {
+      const ns = 'http://www.w3.org/2000/svg';
+      const svg = document.createElementNS(ns, 'svg');
+      svg.style.position = 'absolute';
+      svg.style.top = '-9999px';
+      document.body.appendChild(svg);
+
+      const lineBasic = document.createElementNS(ns, 'line');
+      lineBasic.setAttribute('class', 'projectile projectile-basic');
+      svg.appendChild(lineBasic);
+
+      const lineSniper = document.createElementNS(ns, 'line');
+      lineSniper.setAttribute('class', 'projectile projectile-sniper');
+      svg.appendChild(lineSniper);
+
+      const basicStroke = getComputedStyle(lineBasic).stroke;
+      const sniperStroke = getComputedStyle(lineSniper).stroke;
+      document.body.removeChild(svg);
+      return { basicStroke, sniperStroke };
+    });
+    // The two tower types must have visually distinct projectile colours
+    expect(basicStroke).not.toBe('');
+    expect(sniperStroke).not.toBe('');
+    expect(basicStroke).not.toBe(sniperStroke);
+  });
+
   // --- Money animation: floating "+N gold" labels on enemy kill (issue #64) ---
   // These tests inject deathAnimations state directly via React fiber to avoid
   // relying on natural gameplay kills (BasicTower does only 25 damage/shot on
