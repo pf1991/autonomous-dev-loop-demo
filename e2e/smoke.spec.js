@@ -15,11 +15,13 @@ async function triggerGamePhase(page, phase) {
     while (fiber) {
       if (fiber.memoizedState && typeof fiber.type === 'function') {
         // Walk the hooks linked list to find the gamePhase hook dispatcher
-        // App.jsx order: gold(0), lives(1), wave(2), speed(3), towers(4), enemies(5),
-        //   projectiles(6), selectedTowerType(7), selectedTower(8), hoveredSlot(9), gamePhase(10)
+        // App.jsx order (all hooks including useRef):
+        //   gold(0), lives(1), wave(2), speed(3), towers(4), enemies(5),
+        //   projectiles(6), deathAnimations(7), deathAnimationsRef(8),
+        //   selectedTowerType(9), selectedTower(10), hoveredSlot(11), gamePhase(12)
         let hookNode = fiber.memoizedState;
         let i = 0;
-        while (hookNode && i < 10) {
+        while (hookNode && i < 12) {
           hookNode = hookNode.next;
           i++;
         }
@@ -36,8 +38,10 @@ async function triggerGamePhase(page, phase) {
 
 /**
  * Helper: force lives to a given value via React fiber injection and set gamePhase to 'playing'.
- * App.jsx hook order: gold(0), lives(1), wave(2), speed(3), towers(4), enemies(5),
- *   projectiles(6), selectedTowerType(7), selectedTower(8), hoveredSlot(9), gamePhase(10)
+ * App.jsx hook order (all hooks including useRef):
+ *   gold(0), lives(1), wave(2), speed(3), towers(4), enemies(5),
+ *   projectiles(6), deathAnimations(7), deathAnimationsRef(8),
+ *   selectedTowerType(9), selectedTower(10), hoveredSlot(11), gamePhase(12)
  */
 async function setLivesAndPhase(page, livesValue, phase) {
   await page.evaluate(({ livesValue, phase }) => {
@@ -47,15 +51,17 @@ async function setLivesAndPhase(page, livesValue, phase) {
     let fiber = gameEl[fiberKey];
     while (fiber) {
       if (fiber.memoizedState && typeof fiber.type === 'function') {
-        // App.jsx hook order: gold(0), lives(1), wave(2), speed(3), towers(4), enemies(5),
-        //   projectiles(6), selectedTowerType(7), selectedTower(8), hoveredSlot(9), gamePhase(10)
+        // App.jsx hook order (all hooks including useRef):
+        //   gold(0), lives(1), wave(2), speed(3), towers(4), enemies(5),
+        //   projectiles(6), deathAnimations(7), deathAnimationsRef(8),
+        //   selectedTowerType(9), selectedTower(10), hoveredSlot(11), gamePhase(12)
         let hookNode = fiber.memoizedState;
         let livesHook = null;
         let phaseHook = null;
         let i = 0;
         while (hookNode) {
           if (i === 1) livesHook = hookNode;
-          if (i === 10) phaseHook = hookNode;
+          if (i === 12) phaseHook = hookNode;
           hookNode = hookNode.next;
           i++;
         }
@@ -549,8 +555,10 @@ test.describe('Tower Defense - smoke tests', () => {
   /**
    * Helper injected into tests below: set wave and gamePhase via React fiber to trigger
    * the countdown banner (shown when gamePhase === 'between-waves' && wave > 1).
-   * App.jsx hook order: gold(0), lives(1), wave(2), speed(3), towers(4), enemies(5),
-   *   projectiles(6), selectedTowerType(7), selectedTower(8), hoveredSlot(9), gamePhase(10)
+   * App.jsx hook order (all hooks including useRef):
+   *   gold(0), lives(1), wave(2), speed(3), towers(4), enemies(5),
+   *   projectiles(6), deathAnimations(7), deathAnimationsRef(8),
+   *   selectedTowerType(9), selectedTower(10), hoveredSlot(11), gamePhase(12)
    */
 
   test('countdown banner is visible when between-waves with wave > 1', async ({ page }) => {
@@ -568,7 +576,7 @@ test.describe('Tower Defense - smoke tests', () => {
           let i = 0;
           while (hookNode) {
             if (i === 2) waveHook = hookNode;
-            if (i === 10) phaseHook = hookNode;
+            if (i === 12) phaseHook = hookNode;
             hookNode = hookNode.next;
             i++;
           }
@@ -607,7 +615,7 @@ test.describe('Tower Defense - smoke tests', () => {
           let i = 0;
           while (hookNode) {
             if (i === 2) waveHook = hookNode;
-            if (i === 10) phaseHook = hookNode;
+            if (i === 12) phaseHook = hookNode;
             hookNode = hookNode.next;
             i++;
           }
@@ -646,7 +654,7 @@ test.describe('Tower Defense - smoke tests', () => {
           let i = 0;
           while (hookNode) {
             if (i === 2) waveHook = hookNode;
-            if (i === 10) phaseHook = hookNode;
+            if (i === 12) phaseHook = hookNode;
             hookNode = hookNode.next;
             i++;
           }
@@ -699,7 +707,7 @@ test.describe('Tower Defense - smoke tests', () => {
           let i = 0;
           while (hookNode) {
             if (i === 2) waveHook = hookNode;
-            if (i === 10) phaseHook = hookNode;
+            if (i === 12) phaseHook = hookNode;
             hookNode = hookNode.next;
             i++;
           }
@@ -912,8 +920,8 @@ test.describe('Tower Defense - smoke tests', () => {
     // We detect useState hooks by queue.dispatch (useRef hooks have no dispatch).
     // App.jsx useState declaration order (by line number):
     //   0=gold,1=lives,2=wave,3=speed,4=towers,5=enemies,
-    //   6=projectiles,7=selectedTowerType,8=selectedTower,9=hoveredSlot,
-    //   10=gamePhase,11=endlessMode,12=finalScore,13=earlyWaveCalled,14=pendingWaveAdvance
+    //   6=projectiles,7=deathAnimations,8=selectedTowerType,9=selectedTower,
+    //   10=hoveredSlot,11=gamePhase,12=endlessMode,13=finalScore,14=earlyWaveCalled,15=pendingWaveAdvance
     await page.evaluate(() => {
       const gameEl = document.querySelector('#game');
       const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
@@ -930,8 +938,8 @@ test.describe('Tower Defense - smoke tests', () => {
             hookNode = hookNode.next;
           }
           // Dispatch both in same React batch so score is non-null when overlay renders
-          if (stateHooks[12]) stateHooks[12].queue.dispatch(1234);  // finalScore
-          if (stateHooks[10]) stateHooks[10].queue.dispatch('lose'); // gamePhase
+          if (stateHooks[13]) stateHooks[13].queue.dispatch(1234);  // finalScore
+          if (stateHooks[11]) stateHooks[11].queue.dispatch('lose'); // gamePhase
           return;
         }
         fiber = fiber.return;
@@ -1219,5 +1227,77 @@ test.describe('Tower Defense - smoke tests', () => {
     const svgEl = towerIcon.locator('svg');
     await expect(svgEl).toBeAttached();
     await expect(svgEl.locator('polygon.tower-slow')).toBeAttached();
+  });
+
+  // --- Money animation: floating "+N gold" labels on enemy kill (issue #64) ---
+  // These tests inject deathAnimations state directly via React fiber to avoid
+  // relying on natural gameplay kills (BasicTower does only 25 damage/shot on
+  // 80 HP grunts, requiring multiple passes which is unreliable in headless tests).
+
+  test('death-gold-label appears when deathAnimations state is populated', async ({ page }) => {
+    // Inject a deathAnimation entry directly via React fiber
+    // App.jsx hook order (all hooks including useRef):
+    //   gold(0), lives(1), wave(2), speed(3), towers(4), enemies(5),
+    //   projectiles(6), deathAnimations(7), deathAnimationsRef(8), ...
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          // Walk to hook index 7: deathAnimations (useState)
+          let hookNode = fiber.memoizedState;
+          let i = 0;
+          while (hookNode && i < 7) {
+            hookNode = hookNode.next;
+            i++;
+          }
+          if (hookNode && hookNode.queue && hookNode.queue.dispatch) {
+            hookNode.queue.dispatch([
+              { id: 'test-da-1', row: 2, col: 3, gold: 8, createdAt: Date.now() }
+            ]);
+            return;
+          }
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find deathAnimations hook dispatcher');
+    });
+    // The .death-gold-label must now be in the DOM
+    await expect(page.locator('.death-gold-label').first()).toBeAttached({ timeout: 2000 });
+    // Label text must start with '+'
+    const labelText = await page.locator('.death-gold-label').first().textContent();
+    expect(labelText).toMatch(/^\+\d+/);
+  });
+
+  test('death-animation-layer is present in the game-board-wrapper when deathAnimations has entries', async ({ page }) => {
+    // Inject a deathAnimation entry directly via React fiber (hook index 7)
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          let hookNode = fiber.memoizedState;
+          let i = 0;
+          while (hookNode && i < 7) {
+            hookNode = hookNode.next;
+            i++;
+          }
+          if (hookNode && hookNode.queue && hookNode.queue.dispatch) {
+            hookNode.queue.dispatch([
+              { id: 'test-da-2', row: 3, col: 5, gold: 25, createdAt: Date.now() }
+            ]);
+            return;
+          }
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find deathAnimations hook dispatcher');
+    });
+    // Layer must be inside the game board wrapper
+    await expect(page.locator('.game-board-wrapper .death-animation-layer')).toBeAttached({ timeout: 2000 });
   });
 });

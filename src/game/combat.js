@@ -126,14 +126,18 @@ export function processCombat(towers, enemies, nowMs) {
   // Collect results: filter out dead enemies, count gold earned
   let goldEarned = 0
   const updatedEnemies = []
+  /** @type {Array<{ id: string|number, row: number, col: number, gold: number }>} */
+  const killedEnemies = []
 
   for (const enemy of enemyMap.values()) {
     if (enemy.hp <= 0) {
-      goldEarned += enemy.goldReward ?? 10
+      const reward = enemy.goldReward ?? 10
+      goldEarned += reward
+      killedEnemies.push({ id: enemy.id, row: enemy.pos.row, col: enemy.pos.col, gold: reward })
     } else {
       updatedEnemies.push(enemy)
     }
   }
 
-  return { enemies: updatedEnemies, towers: updatedTowers, goldEarned, projectiles }
+  return { enemies: updatedEnemies, towers: updatedTowers, goldEarned, projectiles, killedEnemies }
 }
