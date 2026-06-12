@@ -6,7 +6,7 @@
 import { describe, it, expect } from 'vitest'
 import { createEnemy, getEnemyRadius, ENEMY_TYPES } from '../../src/game/enemy.js'
 import { processCombat } from '../../src/game/combat.js'
-import { getWaveComposition, getWaveEnemyCount, getEndlessWaveComposition } from '../../src/game/wave.js'
+import { getWaveComposition, getWaveEnemyCount, getEndlessWaveComposition, isBossWave } from '../../src/game/wave.js'
 
 const WAYPOINTS = [{ row: 0, col: 0 }, { row: 0, col: 10 }]
 
@@ -271,11 +271,12 @@ describe('getWaveComposition — new enemy types introduced at correct waves', (
     expect(comp.some(e => e.type === 'phantom')).toBe(true)
   })
 
-  it('total count matches getWaveEnemyCount for all waves 1–10', () => {
+  it('total count matches getWaveEnemyCount (+ 1 on boss waves) for all waves 1–10', () => {
     for (const w of [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) {
       const comp = getWaveComposition(w)
       const total = comp.reduce((s, e) => s + e.count, 0)
-      expect(total).toBe(getWaveEnemyCount(w))
+      const expected = getWaveEnemyCount(w) + (isBossWave(w) ? 1 : 0)
+      expect(total).toBe(expected)
     }
   })
 })

@@ -135,7 +135,7 @@ export function processCombat(towers, enemies, nowMs) {
     if (enemy.hp <= 0) {
       const reward = enemy.goldReward ?? 10
       goldEarned += reward
-      killedEnemies.push({ id: enemy.id, row: enemy.pos.row, col: enemy.pos.col, gold: reward })
+      killedEnemies.push({ id: enemy.id, row: enemy.pos.row, col: enemy.pos.col, gold: reward, type: enemy.type })
     } else {
       updatedEnemies.push(enemy)
     }

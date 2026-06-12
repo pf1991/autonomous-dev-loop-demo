@@ -4,6 +4,15 @@
  */
 
 /**
+ * isBossWave returns true when the given wave number is a boss wave (multiple of 5).
+ * @param {number} waveNumber - 1-based wave number
+ * @returns {boolean}
+ */
+export function isBossWave(waveNumber) {
+  return waveNumber % 5 === 0
+}
+
+/**
  * getWaveEnemyHp returns the HP for enemies in the given wave.
  * Formula: 100 + (wave - 1) * 25
  * wave 1: 100, wave 5: 200, wave 10: 325
@@ -58,30 +67,33 @@ export function getWaveComposition(waveNumber) {
     return result
   }
 
+  // For boss waves, build regular enemies then append the single colossus
+  const bossEntry = isBossWave(waveNumber) ? [{ type: 'colossus', count: 1 }] : []
+
   if (waveNumber <= 2) {
-    return [{ type: 'grunt', count: total }]
+    return [{ type: 'grunt', count: total }, ...bossEntry]
   }
 
   if (waveNumber === 3) {
-    return distribute([['grunt', 0.7], ['speeder', 0.3]])
+    return [...distribute([['grunt', 0.7], ['speeder', 0.3]]), ...bossEntry]
   }
 
   if (waveNumber <= 5) {
-    return distribute([['grunt', 0.5], ['speeder', 0.3], ['tank', 0.2]])
+    return [...distribute([['grunt', 0.5], ['speeder', 0.3], ['tank', 0.2]]), ...bossEntry]
   }
 
   if (waveNumber === 6) {
-    return distribute([['grunt', 0.3], ['speeder', 0.3], ['tank', 0.2], ['armored', 0.2]])
+    return [...distribute([['grunt', 0.3], ['speeder', 0.3], ['tank', 0.2], ['armored', 0.2]]), ...bossEntry]
   }
 
   if (waveNumber === 7) {
     // Five equal parts — use explicit proportions that round cleanly to guarantee each type appears.
     // Wave 7 total = 8; 2 grunts, 2 speeders, 2 tanks, 1 armored, 1 phantom.
-    return distribute([['grunt', 0.25], ['speeder', 0.25], ['tank', 0.25], ['armored', 0.125], ['phantom', 0.125]])
+    return [...distribute([['grunt', 0.25], ['speeder', 0.25], ['tank', 0.25], ['armored', 0.125], ['phantom', 0.125]]), ...bossEntry]
   }
 
   // Waves 8–10
-  return distribute([['grunt', 0.1], ['speeder', 0.2], ['tank', 0.2], ['armored', 0.25], ['phantom', 0.25]])
+  return [...distribute([['grunt', 0.1], ['speeder', 0.2], ['tank', 0.2], ['armored', 0.25], ['phantom', 0.25]]), ...bossEntry]
 }
 
 /**
@@ -158,11 +170,13 @@ export function getEndlessWaveComposition(waveNumber) {
     return result
   }
 
+  const bossEntry = isBossWave(waveNumber) ? [{ type: 'colossus', count: 1 }] : []
+
   if (waveNumber <= 15) {
-    return distribute([['grunt', 0.1], ['speeder', 0.15], ['tank', 0.15], ['armored', 0.3], ['phantom', 0.3]])
+    return [...distribute([['grunt', 0.1], ['speeder', 0.15], ['tank', 0.15], ['armored', 0.3], ['phantom', 0.3]]), ...bossEntry]
   }
 
-  return distribute([['grunt', 0.05], ['speeder', 0.15], ['tank', 0.1], ['armored', 0.35], ['phantom', 0.35]])
+  return [...distribute([['grunt', 0.05], ['speeder', 0.15], ['tank', 0.1], ['armored', 0.35], ['phantom', 0.35]]), ...bossEntry]
 }
 
 /**
