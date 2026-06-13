@@ -34,20 +34,46 @@ function tileDistance(tower, pos) {
  *   - PoisonTower (poisonTickDamage, poisonTicks, poisonTickInterval): applies a DoT poison
  *     effect to the primary target. The effect is stored in enemy.effects[]. DoT continues
  *     even if the tower is sold. Processed by processEffectTick().
+ *   - Adjacency synergies: when adjacencySynergies map is provided, synergy buffs are applied
+ *     as multipliers to fire rate and damage, and special effects (poisonOnHit, freezeOnHit)
+ *     are activated. Base stats in TOWER_TYPES are never mutated.
  *
  * @param {Array<{ row: number, col: number, range: number, damage: number, fireRate: number, lastFiredAt: number, splashRadius?: number, slowFactor?: number, slowDuration?: number, poisonTickDamage?: number, poisonTicks?: number, poisonTickInterval?: number, aoeSlowRadius?: number }>} towers
  * @param {Array<{ id: string|number, hp: number, pos: { row: number, col: number }, slowUntil?: number, speedMult?: number, effects?: Array }>} enemies
  * @param {number} nowMs - current timestamp in milliseconds
+ * @param {Map<string, Array<object>>} [adjacencySynergies] - optional map from towerKey to synergy effects
  * @returns {{ enemies: Array, towers: Array, goldEarned: number, projectiles: Projectile[] }}
  */
-export function processCombat(towers, enemies, nowMs) {
+export function processCombat(towers, enemies, nowMs, adjacencySynergies) {
   // Work with mutable copies so multiple towers can hit different enemies in the same tick
   const enemyMap = new Map(enemies.map(e => [e.id, { ...e, pos: { ...e.pos } }]))
 
   const projectiles = []
 
   const updatedTowers = towers.map(tower => {
-    const fireInterval = 1000 / tower.fireRate
+    // Compute synergy-boosted stats for this tick (base stats are never mutated)
+    const synergyEffects = adjacencySynergies ? (adjacencySynergies.get(`${tower.row}-${tower.col}`) ?? []) : []
+    let effectiveFireRate = tower.fireRate
+    let effectiveDamageMultiplier = 1
+    let synergyPoisonOnHit = false
+    let synergyFreezeOnHit = false
+    let effectiveRangePlus = 0
+    for (const effect of synergyEffects) {
+      if (effect.fireRateMult != null && effect.fireRateMult !== 1) {
+        effectiveFireRate *= effect.fireRateMult
+      }
+      if (effect.damageMult != null && effect.damageMult !== 1) {
+        effectiveDamageMultiplier *= effect.damageMult
+      }
+      if (effect.rangePlus) {
+        effectiveRangePlus += effect.rangePlus
+      }
+      if (effect.poisonOnHit) synergyPoisonOnHit = true
+      if (effect.freezeOnHit) synergyFreezeOnHit = true
+    }
+    const effectiveRange = tower.range + effectiveRangePlus
+
+    const fireInterval = 1000 / effectiveFireRate
     if (nowMs - tower.lastFiredAt < fireInterval) {
       return { ...tower }
     }
@@ -58,7 +84,7 @@ export function processCombat(towers, enemies, nowMs) {
 
     for (const [id, enemy] of enemyMap) {
       const dist = tileDistance(tower, enemy.pos)
-      if (dist <= tower.range && dist < nearestDist) {
+      if (dist <= effectiveRange && dist < nearestDist) {
         nearestDist = dist
         nearestId = id
       }
@@ -72,7 +98,7 @@ export function processCombat(towers, enemies, nowMs) {
     // Fire: deal damage to primary target (respect enemy's damageResist for this tower type)
     const target = enemyMap.get(nearestId)
     const resistMultiplier = target.damageResist?.[tower.type] ?? 1
-    const effectiveDamage = tower.damage * resistMultiplier
+    const effectiveDamage = tower.damage * effectiveDamageMultiplier * resistMultiplier
     enemyMap.set(nearestId, { ...target, hp: target.hp - effectiveDamage })
 
     // Splash damage — CannonTower damages all enemies within splashRadius of the primary target
@@ -149,6 +175,37 @@ export function processCombat(towers, enemies, nowMs) {
         ...current,
         effects: [...existingEffects, newEffect],
       })
+    }
+
+    // Synergy: poisonOnHit — SniperTower+PoisonTower pair: apply 1 poison tick on hit
+    if (synergyPoisonOnHit) {
+      const current = enemyMap.get(nearestId)
+      const newEffect = {
+        type: 'poison',
+        tickDamage: 15,
+        tickInterval: 1000,
+        ticksRemaining: 1,
+        nextTickAt: nowMs + 1000,
+      }
+      const existingEffects = current.effects ?? []
+      enemyMap.set(nearestId, {
+        ...current,
+        effects: [...existingEffects, newEffect],
+      })
+    }
+
+    // Synergy: freezeOnHit — SniperTower+SlowTower pair: freeze target for 0.5s
+    if (synergyFreezeOnHit) {
+      const current = enemyMap.get(nearestId)
+      const freezeUntil = nowMs + 500
+      const existingUntil = current.slowUntil ?? 0
+      if (freezeUntil > existingUntil || (current.speedMult ?? 1) > 0) {
+        enemyMap.set(nearestId, {
+          ...current,
+          speedMult: 0,
+          slowUntil: freezeUntil,
+        })
+      }
     }
 
     // Record the projectile for visual feedback

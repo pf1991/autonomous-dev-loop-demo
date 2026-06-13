@@ -1694,6 +1694,126 @@ test.describe('Tower Defense - smoke tests', () => {
     await expect(page.locator('.combo-banner')).not.toBeAttached({ timeout: 2000 });
   });
 
+  // --- Tower adjacency synergy (issue #69) ---
+
+  test('tower-synergy-badge (⚡) appears on a tower with an active synergy', async ({ page }) => {
+    // Dismiss NextWave overlay
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Ensure BasicTower is selected (default)
+    const basicBtn = page.locator('.tower-picker button').filter({ hasText: 'BasicTower' });
+    if (await basicBtn.isVisible() && (await basicBtn.getAttribute('disabled')) === null) {
+      await basicBtn.click();
+    }
+    // Place two adjacent BasicTowers so they trigger BasicTower+BasicTower synergy (+10% damage)
+    const slots = page.locator('.tower-slot');
+    const count = await slots.count();
+    expect(count).toBeGreaterThanOrEqual(2);
+    await slots.nth(0).click();
+    await expect(page.locator('.tower-icon').first()).toBeVisible();
+    // Dismiss the upgrade panel by clicking a path tile (deselects tower, closes panel)
+    const pathTile = page.locator('.tile.path').first();
+    await expect(pathTile).toBeAttached();
+    await pathTile.click();
+    await expect(page.locator('.upgrade-panel')).not.toBeVisible({ timeout: 2000 });
+    // Re-select BasicTower for the second placement
+    if (await basicBtn.isVisible() && (await basicBtn.getAttribute('disabled')) === null) {
+      await basicBtn.click();
+    }
+    await slots.nth(1).click();
+    await expect(page.locator('.tower-icon')).toHaveCount(2);
+    // Both BasicTowers should now show .tower-synergy-badge (⚡) indicating active synergy
+    await expect(page.locator('.tower-synergy-badge').first()).toBeAttached({ timeout: 2000 });
+  });
+
+  test('tower-synergy-badge is absent when tower has no adjacent synergy partner', async ({ page }) => {
+    // Dismiss NextWave overlay
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Place a single isolated BasicTower — no adjacent partner → no synergy
+    const basicBtn = page.locator('.tower-picker button').filter({ hasText: 'BasicTower' });
+    if (await basicBtn.isVisible() && (await basicBtn.getAttribute('disabled')) === null) {
+      await basicBtn.click();
+    }
+    const slot = page.locator('.tower-slot').first();
+    await slot.click();
+    await expect(page.locator('.tower-icon').first()).toBeVisible();
+    // No synergy badge expected
+    await expect(page.locator('.tower-synergy-badge')).toHaveCount(0);
+  });
+
+  test('UpgradePanel shows .upgrade-panel-synergies section when tower has active synergy', async ({ page }) => {
+    // Dismiss NextWave overlay
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Place two adjacent BasicTowers to trigger synergy
+    const basicBtn = page.locator('.tower-picker button').filter({ hasText: 'BasicTower' });
+    if (await basicBtn.isVisible() && (await basicBtn.getAttribute('disabled')) === null) {
+      await basicBtn.click();
+    }
+    const slots = page.locator('.tower-slot');
+    // Place first BasicTower (auto-select opens panel)
+    await slots.nth(0).click();
+    await expect(page.locator('.tower-icon').first()).toBeVisible();
+    // Dismiss the panel by clicking a path tile before re-selecting tower type
+    const pathTile = page.locator('.tile.path').first();
+    await expect(pathTile).toBeAttached();
+    await pathTile.click();
+    await expect(page.locator('.upgrade-panel')).not.toBeVisible({ timeout: 2000 });
+    // Re-select BasicTower for second placement
+    if (await basicBtn.isVisible() && (await basicBtn.getAttribute('disabled')) === null) {
+      await basicBtn.click();
+    }
+    // Place second adjacent BasicTower (auto-select opens panel for second tower)
+    await slots.nth(1).click();
+    await expect(page.locator('.tower-icon')).toHaveCount(2);
+    // The upgrade panel for the most recently placed tower should show synergies
+    const panel = page.locator('.upgrade-panel');
+    await expect(panel).toBeVisible();
+    // .upgrade-panel-synergies must be present with synergy description text
+    await expect(panel.locator('.upgrade-panel-synergies')).toBeAttached({ timeout: 2000 });
+    const synText = await panel.locator('.upgrade-panel-synergies').textContent();
+    expect(synText).toContain('Synergies');
+  });
+
+  test('UpgradePanel synergy section shows synergy description text for adjacent BasicTowers', async ({ page }) => {
+    // Dismiss NextWave overlay
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    const basicBtn = page.locator('.tower-picker button').filter({ hasText: 'BasicTower' });
+    if (await basicBtn.isVisible() && (await basicBtn.getAttribute('disabled')) === null) {
+      await basicBtn.click();
+    }
+    const slots = page.locator('.tower-slot');
+    await slots.nth(0).click();
+    await expect(page.locator('.tower-icon').first()).toBeVisible();
+    // Dismiss the panel before re-selecting tower type
+    const pathTile = page.locator('.tile.path').first();
+    await expect(pathTile).toBeAttached();
+    await pathTile.click();
+    await expect(page.locator('.upgrade-panel')).not.toBeVisible({ timeout: 2000 });
+    if (await basicBtn.isVisible() && (await basicBtn.getAttribute('disabled')) === null) {
+      await basicBtn.click();
+    }
+    await slots.nth(1).click();
+    await expect(page.locator('.tower-icon')).toHaveCount(2);
+    const panel = page.locator('.upgrade-panel');
+    await expect(panel).toBeVisible();
+    // The synergy item must contain the description from SYNERGY_RULES for BasicTower+BasicTower
+    const synItem = panel.locator('.upgrade-panel-synergy-item').first();
+    await expect(synItem).toBeAttached({ timeout: 2000 });
+    const itemText = await synItem.textContent();
+    expect(itemText).toContain('+10% damage');
+  });
+
   test('power crate renders .power-crate element when injected into state', async ({ page }) => {
     // Inject a power crate directly via React fiber (powerCrates = dispatch index 14).
     // No need to start the wave — crate rendering is independent of gamePhase.

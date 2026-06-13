@@ -5,7 +5,7 @@ import GameOver from './components/GameOver'
 import NextWave from './components/NextWave'
 import TowerPicker from './components/TowerPicker'
 import { createDefaultMap, getPathWaypoints } from './game/map'
-import { TOWER_TYPES, createTower, canAfford, canUpgrade, upgradeTower, getUpgradeCost, getNextUpgradeStats, sellTower } from './game/tower'
+import { TOWER_TYPES, createTower, canAfford, canUpgrade, upgradeTower, getUpgradeCost, getNextUpgradeStats, sellTower, getAdjacentSynergies } from './game/tower'
 import { createEnemy, moveEnemy, getBossHp } from './game/enemy'
 import { processCombat, processEffectTick } from './game/combat'
 import { getWaveEnemyHp, getWaveEnemyCount, getWaveComposition, getEarlyWaveBonus, getEndlessWaveEnemyHp, getEndlessWaveEnemyCount, getEndlessWaveComposition, isBossWave } from './game/wave'
@@ -75,6 +75,10 @@ function App() {
   const comboBannerUntilRef = useRef(0)
   const [comboDisplay, setComboDisplay] = useState({ count: 0, label: '', bonus: 0, visible: false })
 
+  // Adjacency synergies — recomputed whenever towers change
+  const [adjacencySynergies, setAdjacencySynergies] = useState(() => new Map())
+  const adjacencySynergiesRef = useRef(new Map())
+
   const nextEnemyIdRef = useRef(0)
   const spawnTimerRef = useRef(0)
   const spawnedInWaveRef = useRef(0)
@@ -126,9 +130,13 @@ function App() {
     setGamePhase(val)
   }
 
-  // Keep towersRef in sync with towers state so onTick always sees the latest tower list
+  // Keep towersRef in sync with towers state so onTick always sees the latest tower list.
+  // Also recompute adjacency synergies whenever the tower list changes.
   useEffect(() => {
     towersRef.current = towers
+    const synergies = getAdjacentSynergies(towers)
+    adjacencySynergiesRef.current = synergies
+    setAdjacencySynergies(synergies)
   }, [towers])
 
   // Transition to 'lose' when lives hit 0 — scheduled outside setEnemies callback
@@ -208,7 +216,7 @@ function App() {
     const combatTowers = overchargeActiveRef.current
       ? towersRef.current.map(t => ({ ...t, fireRate: t.fireRate * 1.5 }))
       : towersRef.current
-    const combatResult = processCombat(combatTowers, surviving, nowMs)
+    const combatResult = processCombat(combatTowers, surviving, nowMs, adjacencySynergiesRef.current)
     // Process DoT effect ticks (poison) — pure function, runs after combat each tick
     const effectResult = processEffectTick(combatResult.enemies, nowMs)
     const afterCombat = effectResult.enemies
@@ -456,6 +464,8 @@ function App() {
     setSpeed(INITIAL_STATE.speed)
     towersRef.current = INITIAL_STATE.towers
     setTowers(INITIAL_STATE.towers)
+    adjacencySynergiesRef.current = new Map()
+    setAdjacencySynergies(new Map())
     enemiesRef.current = INITIAL_STATE.enemies
     setEnemies(INITIAL_STATE.enemies)
     projectilesRef.current = []
@@ -610,6 +620,7 @@ function App() {
         canUpgrade={canUpgrade}
         getNextUpgradeStats={getNextUpgradeStats}
         sellTower={sellTower}
+        adjacencySynergies={adjacencySynergies}
         powerCrates={powerCrates}
         onCrateClick={handleCrateClick}
         overchargeActive={overchargeActive}

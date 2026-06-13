@@ -193,3 +193,167 @@ export function sellTower(tower) {
   if (!typeDef) return { refund: 0 }
   return { refund: Math.floor(typeDef.cost * 0.7) }
 }
+
+/**
+ * SYNERGY_RULES defines all tower-pair adjacency synergy combinations.
+ * Each entry describes a pair and the effect applied to each tower in the pair.
+ *
+ * Fields per effect entry:
+ *   targetType  — which tower type in the pair receives this buff
+ *   fireRateMult — multiplicative bonus to fire rate (default 1 = no change)
+ *   rangePlus    — additive bonus to range (default 0)
+ *   description  — human-readable synergy description shown in UpgradePanel
+ *   poisonOnHit  — boolean: SniperTower shots apply 1 poison tick on hit
+ *   freezeOnHit  — boolean: SniperTower shots freeze target for 0.5s on hit
+ */
+export const SYNERGY_RULES = [
+  {
+    pairKey: 'BasicTower+SlowTower',
+    typeA: 'BasicTower',
+    typeB: 'SlowTower',
+    effects: [
+      {
+        targetType: 'BasicTower',
+        fireRateMult: 1.2,
+        rangePlus: 0,
+        description: 'Adjacent SlowTower: +20% fire rate',
+      },
+      {
+        targetType: 'SlowTower',
+        fireRateMult: 1,
+        rangePlus: 1,
+        description: 'Adjacent BasicTower: +1 range',
+      },
+    ],
+  },
+  {
+    pairKey: 'SniperTower+PoisonTower',
+    typeA: 'SniperTower',
+    typeB: 'PoisonTower',
+    effects: [
+      {
+        targetType: 'SniperTower',
+        fireRateMult: 1,
+        rangePlus: 0,
+        poisonOnHit: true,
+        description: 'Adjacent PoisonTower: shots apply 1 poison tick on hit',
+      },
+    ],
+  },
+  {
+    pairKey: 'BasicTower+BasicTower',
+    typeA: 'BasicTower',
+    typeB: 'BasicTower',
+    effects: [
+      {
+        targetType: 'BasicTower',
+        fireRateMult: 1,
+        rangePlus: 0,
+        damageMult: 1.1,
+        description: 'Adjacent BasicTower: +10% damage',
+      },
+    ],
+  },
+  {
+    pairKey: 'SniperTower+SlowTower',
+    typeA: 'SniperTower',
+    typeB: 'SlowTower',
+    effects: [
+      {
+        targetType: 'SniperTower',
+        fireRateMult: 1,
+        rangePlus: 0,
+        freezeOnHit: true,
+        description: 'Adjacent SlowTower: shots freeze target for 0.5s',
+      },
+    ],
+  },
+]
+
+/**
+ * towerKey(tower) — returns a string key for a tower based on its position.
+ * @param {{ row: number, col: number }} tower
+ * @returns {string}
+ */
+export function towerKey(tower) {
+  return `${tower.row}-${tower.col}`
+}
+
+/**
+ * areAdjacent(a, b) — returns true if towers a and b are in adjacent tiles
+ * (horizontal, vertical, or diagonal; Chebyshev distance = 1).
+ * @param {{ row: number, col: number }} a
+ * @param {{ row: number, col: number }} b
+ * @returns {boolean}
+ */
+function areAdjacent(a, b) {
+  const dr = Math.abs(a.row - b.row)
+  const dc = Math.abs(a.col - b.col)
+  return dr <= 1 && dc <= 1 && !(dr === 0 && dc === 0)
+}
+
+/**
+ * getAdjacentSynergies(towers) — pure function; returns a Map from towerKey to
+ * an array of active synergy effect objects for that tower.
+ *
+ * Each synergy effect object has the shape:
+ *   { pairKey, targetType, fireRateMult?, rangePlus?, damageMult?, poisonOnHit?, freezeOnHit?, description }
+ *
+ * @param {Array<{ row: number, col: number, type: string }>} towers
+ * @returns {Map<string, Array<object>>}
+ */
+export function getAdjacentSynergies(towers) {
+  const result = new Map()
+
+  for (const tower of towers) {
+    result.set(towerKey(tower), [])
+  }
+
+  // Check every pair of towers (i < j to avoid double-counting the pair lookup)
+  for (let i = 0; i < towers.length; i++) {
+    for (let j = i + 1; j < towers.length; j++) {
+      const a = towers[i]
+      const b = towers[j]
+      if (!areAdjacent(a, b)) continue
+
+      for (const rule of SYNERGY_RULES) {
+        const matchAB = a.type === rule.typeA && b.type === rule.typeB
+        const matchBA = b.type === rule.typeA && a.type === rule.typeB
+        // For same-type pairs (e.g. BasicTower+BasicTower), matchAB and matchBA are both true
+        // when typeA === typeB — avoid applying twice for each tower
+        const isSameType = rule.typeA === rule.typeB
+
+        if (matchAB || matchBA) {
+          for (const effect of rule.effects) {
+            // Determine which actual tower(s) should receive this effect
+            if (isSameType) {
+              // Both towers are the same type and both receive the same effect
+              const keyA = towerKey(a)
+              const keyB = towerKey(b)
+              result.get(keyA).push({ ...effect, pairKey: rule.pairKey })
+              result.get(keyB).push({ ...effect, pairKey: rule.pairKey })
+            } else if (matchAB) {
+              // a matches typeA, b matches typeB
+              if (effect.targetType === rule.typeA) {
+                result.get(towerKey(a)).push({ ...effect, pairKey: rule.pairKey })
+              }
+              if (effect.targetType === rule.typeB) {
+                result.get(towerKey(b)).push({ ...effect, pairKey: rule.pairKey })
+              }
+            } else {
+              // matchBA: b matches typeA, a matches typeB
+              if (effect.targetType === rule.typeA) {
+                result.get(towerKey(b)).push({ ...effect, pairKey: rule.pairKey })
+              }
+              if (effect.targetType === rule.typeB) {
+                result.get(towerKey(a)).push({ ...effect, pairKey: rule.pairKey })
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return result
+}

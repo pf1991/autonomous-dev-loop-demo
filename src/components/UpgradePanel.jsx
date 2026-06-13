@@ -1,9 +1,9 @@
 /**
  * UpgradePanel — shown inside a tile when a tower is selected.
  * Displays current stats, next-level stats (when upgradable), an "Upgrade (N gold)" button,
- * and a "Sell (Ng)" button that refunds 70% of the base cost.
+ * a "Sell (Ng)" button that refunds 70% of the base cost, and any active synergy descriptions.
  */
-function UpgradePanel({ tower, gold, onUpgrade, onSell, getUpgradeCost, canUpgrade, getNextUpgradeStats, sellTower }) {
+function UpgradePanel({ tower, gold, onUpgrade, onSell, getUpgradeCost, canUpgrade, getNextUpgradeStats, sellTower, synergies = [] }) {
   const upgradable = canUpgrade ? canUpgrade(tower) : false
   const cost = getUpgradeCost ? getUpgradeCost(tower) : null
   const canAffordUpgrade = upgradable && cost !== null && gold >= cost
@@ -27,6 +27,14 @@ function UpgradePanel({ tower, gold, onUpgrade, onSell, getUpgradeCost, canUpgra
           <span>Dmg: {nextStats.damage}</span>
           <span>Range: {nextStats.range}</span>
           <span>Rate: {nextStats.fireRate}</span>
+        </div>
+      )}
+      {synergies.length > 0 && (
+        <div className="upgrade-panel-synergies">
+          <span className="upgrade-panel-synergy-label">&#x26A1; Synergies:</span>
+          {synergies.map((s, i) => (
+            <span key={i} className="upgrade-panel-synergy-item">{s.description}</span>
+          ))}
         </div>
       )}
       {upgradable && cost !== null && (
