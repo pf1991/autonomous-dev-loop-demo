@@ -1713,7 +1713,12 @@ test.describe('Tower Defense - smoke tests', () => {
     expect(count).toBeGreaterThanOrEqual(2);
     await slots.nth(0).click();
     await expect(page.locator('.tower-icon').first()).toBeVisible();
-    // Re-select BasicTower for the second placement (upgrade panel may have opened)
+    // Dismiss the upgrade panel by clicking a path tile (deselects tower, closes panel)
+    const pathTile = page.locator('.tile.path').first();
+    await expect(pathTile).toBeAttached();
+    await pathTile.click();
+    await expect(page.locator('.upgrade-panel')).not.toBeVisible({ timeout: 2000 });
+    // Re-select BasicTower for the second placement
     if (await basicBtn.isVisible() && (await basicBtn.getAttribute('disabled')) === null) {
       await basicBtn.click();
     }
@@ -1756,6 +1761,11 @@ test.describe('Tower Defense - smoke tests', () => {
     // Place first BasicTower (auto-select opens panel)
     await slots.nth(0).click();
     await expect(page.locator('.tower-icon').first()).toBeVisible();
+    // Dismiss the panel by clicking a path tile before re-selecting tower type
+    const pathTile = page.locator('.tile.path').first();
+    await expect(pathTile).toBeAttached();
+    await pathTile.click();
+    await expect(page.locator('.upgrade-panel')).not.toBeVisible({ timeout: 2000 });
     // Re-select BasicTower for second placement
     if (await basicBtn.isVisible() && (await basicBtn.getAttribute('disabled')) === null) {
       await basicBtn.click();
@@ -1785,6 +1795,11 @@ test.describe('Tower Defense - smoke tests', () => {
     const slots = page.locator('.tower-slot');
     await slots.nth(0).click();
     await expect(page.locator('.tower-icon').first()).toBeVisible();
+    // Dismiss the panel before re-selecting tower type
+    const pathTile = page.locator('.tile.path').first();
+    await expect(pathTile).toBeAttached();
+    await pathTile.click();
+    await expect(page.locator('.upgrade-panel')).not.toBeVisible({ timeout: 2000 });
     if (await basicBtn.isVisible() && (await basicBtn.getAttribute('disabled')) === null) {
       await basicBtn.click();
     }
