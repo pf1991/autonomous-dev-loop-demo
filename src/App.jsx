@@ -83,9 +83,7 @@ function App() {
   const totalTowersPlacedRef = useRef(0)
   const maxComboReachedRef = useRef(0)
   const sniperDamageDealtRef = useRef(0)
-  const waveCompletedCleanRef = useRef(false)
   const livesAtWaveStartRef = useRef(20)
-  const speedDroppedToOneRef = useRef(true) // true = not eligible for speed_demon
   const activeSynergyPairsRef = useRef(0)
   // Track whether speed was ever lowered to 1x after being set higher
   // speed_demon: never drop to 1× during the entire run
@@ -696,7 +694,6 @@ function App() {
     totalTowersPlacedRef.current = 0
     maxComboReachedRef.current = 0
     sniperDamageDealtRef.current = 0
-    waveCompletedCleanRef.current = false
     livesAtWaveStartRef.current = INITIAL_STATE.lives
     speedWasOneRef.current = false
     activeSynergyPairsRef.current = 0
