@@ -2097,4 +2097,294 @@ test.describe('Tower Defense - smoke tests', () => {
     // No event label for a normal wave
     await expect(page.locator('.wave-countdown-event-label')).not.toBeAttached();
   });
+
+  // --- Achievement System (issue #72 / PR #96) ---
+
+  /**
+   * Hook index map (App.jsx, all hooks in declaration order):
+   *   0  gold             useState
+   *   1  lives            useState
+   *   2  wave             useState
+   *   3  speed            useState
+   *   4  towers           useState
+   *   5  enemies          useState
+   *   6  projectiles      useState
+   *   7  deathAnimations  useState
+   *   8  deathAnimationsRef useRef
+   *   9  selectedTowerType useState
+   *  10  selectedTower    useState
+   *  11  hoveredSlot      useState
+   *  12  gamePhase        useState
+   *  13  endlessMode      useState
+   *  14  endlessModeRef   useRef
+   *  15  finalScore       useState
+   *  16  powerCrates      useState
+   *  17  powerCratesRef   useRef
+   *  18  nextCrateIdRef   useRef
+   *  19  overchargeActive useState
+   *  20  overchargeUntilRef useRef
+   *  21  overchargeActiveRef useRef
+   *  22  unlockedAchievements useState
+   *  23  unlockedAchievementsRef useRef
+   *  24  achievementToasts useState
+   *  25  achievementToastsRef useRef
+   *  26  achievementModalOpen useState
+   */
+
+  /**
+   * Collect all state hooks (hooks with a .queue.dispatch) from the App fiber,
+   * returning them in declaration order (only useState hooks, not useRef).
+   */
+  async function getAppStateHooks(page) {
+    return page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          // Collect all hooks (both useState and useRef) in order
+          const hooks = [];
+          let hookNode = fiber.memoizedState;
+          while (hookNode) {
+            hooks.push({
+              hasDispatch: !!(hookNode.queue && typeof hookNode.queue.dispatch === 'function'),
+              index: hooks.length,
+            });
+            hookNode = hookNode.next;
+          }
+          return hooks;
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find App fiber');
+    });
+  }
+
+  /**
+   * Inject a value into App hook at the given overall hook index (including useRef hooks).
+   * Only works for useState hooks (those with queue.dispatch).
+   */
+  async function dispatchAppHook(page, hookIndex, value) {
+    await page.evaluate(({ hookIndex, value }) => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          let hookNode = fiber.memoizedState;
+          let i = 0;
+          while (hookNode) {
+            if (i === hookIndex) {
+              if (hookNode.queue && typeof hookNode.queue.dispatch === 'function') {
+                hookNode.queue.dispatch(value);
+                return;
+              }
+              throw new Error(`Hook ${hookIndex} has no dispatch — it may be a useRef`);
+            }
+            hookNode = hookNode.next;
+            i++;
+          }
+          throw new Error(`Hook index ${hookIndex} out of range`);
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find App fiber');
+    }, { hookIndex, value });
+  }
+
+  test('HUD shows trophy button with achievement count (e.g. "🏆 0/12")', async ({ page }) => {
+    // The HUD achievement button must be visible on initial load
+    const btn = page.locator('.hud-achievement-btn');
+    await expect(btn).toBeVisible();
+    // Must contain the trophy emoji and a fraction of the form N/12
+    const text = await btn.textContent();
+    expect(text).toMatch(/🏆\s*\d+\/12/);
+  });
+
+  test('HUD trophy button shows 0/12 when no achievements are unlocked', async ({ page }) => {
+    // Clear localStorage achievements and reload to start fresh
+    await page.evaluate(() => localStorage.removeItem('unlockedAchievements'));
+    await page.reload();
+    const btn = page.locator('.hud-achievement-btn');
+    await expect(btn).toBeVisible();
+    const text = await btn.textContent();
+    expect(text).toMatch(/🏆\s*0\/12/);
+  });
+
+  test('clicking the HUD trophy button opens the achievement modal', async ({ page }) => {
+    // Dismiss the NextWave overlay so the HUD trophy button is clickable
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Modal should not be visible initially
+    await expect(page.locator('.achievement-modal')).not.toBeAttached();
+    // Click the trophy button
+    await page.locator('.hud-achievement-btn').click();
+    // Modal overlay and modal must appear
+    await expect(page.locator('.achievement-modal-overlay')).toBeVisible({ timeout: 2000 });
+    await expect(page.locator('.achievement-modal')).toBeVisible();
+  });
+
+  test('achievement modal lists 12 achievement items', async ({ page }) => {
+    // Dismiss the NextWave overlay so the HUD trophy button is clickable
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Open modal via trophy button
+    await page.locator('.hud-achievement-btn').click();
+    await expect(page.locator('.achievement-modal')).toBeVisible({ timeout: 2000 });
+    // Must have exactly 12 achievement items
+    const items = page.locator('.achievement-item');
+    await expect(items).toHaveCount(12);
+  });
+
+  test('achievement modal shows locked items with 🔒 icon when no achievements unlocked', async ({ page }) => {
+    // Ensure no achievements are unlocked
+    await page.evaluate(() => localStorage.removeItem('unlockedAchievements'));
+    await page.reload();
+    // Dismiss the NextWave overlay so the HUD trophy button is clickable
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Open modal
+    await page.locator('.hud-achievement-btn').click();
+    await expect(page.locator('.achievement-modal')).toBeVisible({ timeout: 2000 });
+    // All items must be locked
+    const lockedItems = page.locator('.achievement-item--locked');
+    await expect(lockedItems).toHaveCount(12);
+    // Locked items show 🔒 icon
+    const firstIcon = page.locator('.achievement-item--locked .achievement-item-icon').first();
+    const iconText = await firstIcon.textContent();
+    expect(iconText).toContain('🔒');
+    // Locked names show '???'
+    const firstName = page.locator('.achievement-item--locked .achievement-item-name').first();
+    const nameText = await firstName.textContent();
+    expect(nameText).toBe('???');
+  });
+
+  test('achievement modal shows unlocked items with 🏆 icon when achievements are injected', async ({ page }) => {
+    // Dismiss the NextWave overlay so the HUD trophy button is clickable
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Inject unlockedAchievements = ['first_blood'] via React fiber (hook index 22)
+    await dispatchAppHook(page, 22, ['first_blood']);
+    // Open modal
+    await page.locator('.hud-achievement-btn').click();
+    await expect(page.locator('.achievement-modal')).toBeVisible({ timeout: 2000 });
+    // At least one unlocked item should appear
+    const unlockedItems = page.locator('.achievement-item--unlocked');
+    await expect(unlockedItems).toHaveCount(1);
+    // Unlocked item shows 🏆 icon
+    const icon = unlockedItems.locator('.achievement-item-icon');
+    const iconText = await icon.textContent();
+    expect(iconText).toContain('🏆');
+    // Unlocked item shows actual achievement name (not '???')
+    const name = unlockedItems.locator('.achievement-item-name');
+    const nameText = await name.textContent();
+    expect(nameText).toBe('First Blood');
+  });
+
+  test('achievement modal header shows correct unlocked count', async ({ page }) => {
+    // Dismiss the NextWave overlay so the HUD trophy button is clickable
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Inject 3 unlocked achievements
+    await dispatchAppHook(page, 22, ['first_blood', 'boss_slayer', 'combo_king']);
+    // Open modal
+    await page.locator('.hud-achievement-btn').click();
+    await expect(page.locator('.achievement-modal')).toBeVisible({ timeout: 2000 });
+    // Modal title must show 3/12
+    const title = page.locator('.achievement-modal-title');
+    const titleText = await title.textContent();
+    expect(titleText).toContain('3/12');
+  });
+
+  test('clicking the close button in the achievement modal closes it', async ({ page }) => {
+    // Dismiss the NextWave overlay so the HUD trophy button is clickable
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Open modal
+    await page.locator('.hud-achievement-btn').click();
+    await expect(page.locator('.achievement-modal')).toBeVisible({ timeout: 2000 });
+    // Click close button
+    await page.locator('.achievement-modal-close').click();
+    // Modal must be gone
+    await expect(page.locator('.achievement-modal')).not.toBeAttached({ timeout: 2000 });
+  });
+
+  test('clicking the modal overlay backdrop closes the modal', async ({ page }) => {
+    // Dismiss the NextWave overlay so the HUD trophy button is clickable
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Open modal
+    await page.locator('.hud-achievement-btn').click();
+    await expect(page.locator('.achievement-modal-overlay')).toBeVisible({ timeout: 2000 });
+    // Click the overlay (not the modal itself) — use coordinates at the very top-left
+    // of the overlay which is outside the centered modal panel
+    await page.locator('.achievement-modal-overlay').click({ position: { x: 5, y: 5 } });
+    await expect(page.locator('.achievement-modal')).not.toBeAttached({ timeout: 2000 });
+  });
+
+  test('HUD trophy button count updates when achievements are injected', async ({ page }) => {
+    // Initially 0/12
+    const btn = page.locator('.hud-achievement-btn');
+    await expect(btn).toBeVisible();
+    // Inject 5 achievements
+    await dispatchAppHook(page, 22, ['first_blood', 'boss_slayer', 'combo_king', 'tower_builder', 'golden_hoard']);
+    // Button text should update to 5/12
+    await expect(btn).toContainText('5/12');
+  });
+
+  test('AchievementToast appears when an achievement toast is injected', async ({ page }) => {
+    // Toast container must not be visible when no toasts are active
+    await expect(page.locator('.achievement-toast-container')).not.toBeAttached();
+    // Inject a toast via hook index 24
+    await dispatchAppHook(page, 24, [{ id: 'first_blood', name: 'First Blood', dismissAt: Date.now() + 5000 }]);
+    // Toast container and toast must appear
+    await expect(page.locator('.achievement-toast-container')).toBeVisible({ timeout: 2000 });
+    await expect(page.locator('.achievement-toast').first()).toBeVisible();
+    // Toast text must mention "Achievement Unlocked" and the achievement name
+    const toastText = await page.locator('.achievement-toast').first().textContent();
+    expect(toastText).toContain('Achievement Unlocked');
+    expect(toastText).toContain('First Blood');
+  });
+
+  test('AchievementToast shows trophy icon', async ({ page }) => {
+    // Inject a toast
+    await dispatchAppHook(page, 24, [{ id: 'boss_slayer', name: 'Boss Slayer', dismissAt: Date.now() + 5000 }]);
+    await expect(page.locator('.achievement-toast').first()).toBeVisible({ timeout: 2000 });
+    const icon = page.locator('.achievement-toast-icon').first();
+    const iconText = await icon.textContent();
+    expect(iconText).toContain('🏆');
+  });
+
+  test('achievement modal is accessible — has achievement-modal-list with list items', async ({ page }) => {
+    // Dismiss the NextWave overlay so the HUD trophy button is clickable
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Open modal
+    await page.locator('.hud-achievement-btn').click();
+    await expect(page.locator('.achievement-modal')).toBeVisible({ timeout: 2000 });
+    // Must have a list
+    await expect(page.locator('.achievement-modal-list')).toBeVisible();
+    // List must contain li elements
+    const listItems = page.locator('.achievement-modal-list li');
+    const count = await listItems.count();
+    expect(count).toBe(12);
+  });
 });
