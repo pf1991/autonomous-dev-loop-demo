@@ -2388,3 +2388,75 @@ test.describe('Tower Defense - smoke tests', () => {
     expect(count).toBe(12);
   });
 });
+
+// --- DifficultySelector component (issue #73) ---
+
+test.describe('DifficultySelector', () => {
+  test('difficulty overlay is visible on fresh page load', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('.difficulty-overlay')).toBeVisible();
+  });
+
+  test('difficulty overlay shows all four difficulty buttons', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('.difficulty-btn--easy')).toBeVisible();
+    await expect(page.locator('.difficulty-btn--normal')).toBeVisible();
+    await expect(page.locator('.difficulty-btn--hard')).toBeVisible();
+    await expect(page.locator('.difficulty-btn--nightmare')).toBeVisible();
+  });
+
+  test('selecting Hard sets HUD gold to 75 and shows Hard difficulty pill', async ({ page }) => {
+    await page.goto('/');
+    // The difficulty overlay must be visible before clicking
+    await expect(page.locator('.difficulty-overlay')).toBeVisible();
+    // Click the Hard button
+    await page.click('.difficulty-btn--hard');
+    // Overlay must be dismissed
+    await expect(page.locator('.difficulty-overlay')).not.toBeVisible();
+    // HUD gold must reflect Hard starting gold (75)
+    await expect(page.locator('.hud-gold')).toContainText('Gold: 75');
+    // HUD difficulty pill must be visible and contain "Hard"
+    await expect(page.locator('.hud-difficulty-pill')).toBeVisible();
+    await expect(page.locator('.hud-difficulty-pill')).toContainText('Hard');
+  });
+
+  test('selecting Easy sets HUD gold to 150 and shows Easy difficulty pill', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('.difficulty-overlay')).toBeVisible();
+    await page.click('.difficulty-btn--easy');
+    await expect(page.locator('.difficulty-overlay')).not.toBeVisible();
+    await expect(page.locator('.hud-gold')).toContainText('Gold: 150');
+    await expect(page.locator('.hud-difficulty-pill')).toContainText('Easy');
+  });
+
+  test('selecting Normal sets HUD gold to 100 and shows Normal difficulty pill', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('.difficulty-overlay')).toBeVisible();
+    await page.click('.difficulty-btn--normal');
+    await expect(page.locator('.difficulty-overlay')).not.toBeVisible();
+    await expect(page.locator('.hud-gold')).toContainText('Gold: 100');
+    await expect(page.locator('.hud-difficulty-pill')).toContainText('Normal');
+  });
+
+  test('selecting Nightmare sets HUD gold to 50 and shows Nightmare difficulty pill', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('.difficulty-overlay')).toBeVisible();
+    await page.click('.difficulty-btn--nightmare');
+    await expect(page.locator('.difficulty-overlay')).not.toBeVisible();
+    await expect(page.locator('.hud-gold')).toContainText('Gold: 50');
+    await expect(page.locator('.hud-difficulty-pill')).toContainText('Nightmare');
+  });
+
+  test('difficulty overlay reappears after restart', async ({ page }) => {
+    await page.goto('/');
+    // Select any difficulty to dismiss the overlay
+    await page.click('.difficulty-btn--normal');
+    await expect(page.locator('.difficulty-overlay')).not.toBeVisible();
+    // Trigger game over via fiber injection then click restart
+    await triggerGamePhase(page, 'lose');
+    await expect(page.locator('.game-over-overlay')).toBeVisible({ timeout: 2000 });
+    await page.locator('.game-over-restart').click();
+    // After restart, difficulty overlay must appear again
+    await expect(page.locator('.difficulty-overlay')).toBeVisible({ timeout: 2000 });
+  });
+});
