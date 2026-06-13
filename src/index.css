@@ -437,10 +437,10 @@ body {
   z-index: 5;
 }
 
-/* ===== Tower synergy badge — bottom-left corner of a tile with active synergy ===== */
+/* ===== Tower synergy badge — top-left corner of a tile with active synergy ===== */
 .tower-synergy-badge {
   position: absolute;
-  bottom: 2px;
+  top: 2px;
   left: 2px;
   font-size: 11px;
   line-height: 1;
