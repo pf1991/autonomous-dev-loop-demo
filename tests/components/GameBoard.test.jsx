@@ -378,4 +378,92 @@ describe('GameBoard', () => {
     expect(btn).not.toBeNull()
     expect(btn.disabled).toBe(true)
   })
+
+  it('does not render .tower-kill-badge when tower has kills === 0', () => {
+    const tiles = createDefaultMap()
+    const onTileClick = vi.fn()
+    const tower = { ...createTower('BasicTower', 3, 7), kills: 0 }
+    const towers = [tower]
+
+    act(() => {
+      createRoot(container).render(createElement(GameBoard, { tiles, onTileClick, towers }))
+    })
+
+    const badge = container.querySelector('.tower-kill-badge')
+    expect(badge).toBeNull()
+  })
+
+  it('renders .tower-kill-badge when tower.kills >= 1', () => {
+    const tiles = createDefaultMap()
+    const onTileClick = vi.fn()
+    const tower = { ...createTower('BasicTower', 3, 7), kills: 1 }
+    const towers = [tower]
+
+    act(() => {
+      createRoot(container).render(createElement(GameBoard, { tiles, onTileClick, towers }))
+    })
+
+    const badge = container.querySelector('.tower-kill-badge')
+    expect(badge).not.toBeNull()
+  })
+
+  it('kill badge has grey tier class when kills is 1-9', () => {
+    const tiles = createDefaultMap()
+    const onTileClick = vi.fn()
+    const tower = { ...createTower('BasicTower', 3, 7), kills: 5 }
+    const towers = [tower]
+
+    act(() => {
+      createRoot(container).render(createElement(GameBoard, { tiles, onTileClick, towers }))
+    })
+
+    const badge = container.querySelector('.tower-kill-badge')
+    expect(badge).not.toBeNull()
+    expect(badge.classList.contains('tower-kill-badge--grey')).toBe(true)
+  })
+
+  it('kill badge has green tier class when kills is 10-24', () => {
+    const tiles = createDefaultMap()
+    const onTileClick = vi.fn()
+    const tower = { ...createTower('BasicTower', 3, 7), kills: 15 }
+    const towers = [tower]
+
+    act(() => {
+      createRoot(container).render(createElement(GameBoard, { tiles, onTileClick, towers }))
+    })
+
+    const badge = container.querySelector('.tower-kill-badge')
+    expect(badge).not.toBeNull()
+    expect(badge.classList.contains('tower-kill-badge--green')).toBe(true)
+  })
+
+  it('kill badge has blue tier class when kills is 25-49', () => {
+    const tiles = createDefaultMap()
+    const onTileClick = vi.fn()
+    const tower = { ...createTower('BasicTower', 3, 7), kills: 30 }
+    const towers = [tower]
+
+    act(() => {
+      createRoot(container).render(createElement(GameBoard, { tiles, onTileClick, towers }))
+    })
+
+    const badge = container.querySelector('.tower-kill-badge')
+    expect(badge).not.toBeNull()
+    expect(badge.classList.contains('tower-kill-badge--blue')).toBe(true)
+  })
+
+  it('kill badge has gold tier class when kills is 50+', () => {
+    const tiles = createDefaultMap()
+    const onTileClick = vi.fn()
+    const tower = { ...createTower('BasicTower', 3, 7), kills: 55 }
+    const towers = [tower]
+
+    act(() => {
+      createRoot(container).render(createElement(GameBoard, { tiles, onTileClick, towers }))
+    })
+
+    const badge = container.querySelector('.tower-kill-badge')
+    expect(badge).not.toBeNull()
+    expect(badge.classList.contains('tower-kill-badge--gold')).toBe(true)
+  })
 })

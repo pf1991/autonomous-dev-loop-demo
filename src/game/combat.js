@@ -49,8 +49,10 @@ export function processCombat(towers, enemies, nowMs, adjacencySynergies) {
   const enemyMap = new Map(enemies.map(e => [e.id, { ...e, pos: { ...e.pos } }]))
 
   const projectiles = []
+  // Track kill credits: Map from tower index → kill count increment for this tick
+  const killCredits = new Map()
 
-  const updatedTowers = towers.map(tower => {
+  const updatedTowers = towers.map((tower, towerIndex) => {
     // Compute synergy-boosted stats for this tick (base stats are never mutated)
     const synergyEffects = adjacencySynergies ? (adjacencySynergies.get(`${tower.row}-${tower.col}`) ?? []) : []
     let effectiveFireRate = tower.fireRate
@@ -99,7 +101,10 @@ export function processCombat(towers, enemies, nowMs, adjacencySynergies) {
     const target = enemyMap.get(nearestId)
     const resistMultiplier = target.damageResist?.[tower.type] ?? 1
     const effectiveDamage = tower.damage * effectiveDamageMultiplier * resistMultiplier
-    enemyMap.set(nearestId, { ...target, hp: target.hp - effectiveDamage })
+    const newHp = target.hp - effectiveDamage
+    // Track which tower index delivered the killing blow
+    const killedByThis = newHp <= 0
+    enemyMap.set(nearestId, { ...target, hp: newHp, ...(killedByThis ? { _killedByTowerIndex: towerIndex } : {}) })
 
     // Splash damage — CannonTower damages all enemies within splashRadius of the primary target
     const splashRadius = tower.splashRadius ?? 0
@@ -234,12 +239,23 @@ export function processCombat(towers, enemies, nowMs, adjacencySynergies) {
       const reward = enemy.goldReward ?? 10
       goldEarned += reward
       killedEnemies.push({ id: enemy.id, row: enemy.pos.row, col: enemy.pos.col, gold: reward, type: enemy.type })
+      // Credit kill to the tower that dealt the killing blow
+      if (enemy._killedByTowerIndex != null) {
+        killCredits.set(enemy._killedByTowerIndex, (killCredits.get(enemy._killedByTowerIndex) ?? 0) + 1)
+      }
     } else {
       updatedEnemies.push(enemy)
     }
   }
 
-  return { enemies: updatedEnemies, towers: updatedTowers, goldEarned, projectiles, killedEnemies }
+  // Apply kill credits to updated towers
+  const towersWithKills = updatedTowers.map((t, i) => {
+    const credits = killCredits.get(i) ?? 0
+    if (credits === 0) return t
+    return { ...t, kills: (t.kills ?? 0) + credits }
+  })
+
+  return { enemies: updatedEnemies, towers: towersWithKills, goldEarned, projectiles, killedEnemies }
 }
 
 /**

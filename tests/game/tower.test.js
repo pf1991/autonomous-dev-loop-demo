@@ -51,12 +51,25 @@ describe('createTower', () => {
       fireRate: 1,
       lastFiredAt: 0,
       upgradeLevel: 0,
+      kills: 0,
     })
   })
 
   it('initialises upgradeLevel to 0', () => {
     const tower = createTower('BasicTower', 0, 0)
     expect(tower.upgradeLevel).toBe(0)
+  })
+
+  it('initialises kills to 0', () => {
+    const tower = createTower('BasicTower', 0, 0)
+    expect(tower.kills).toBe(0)
+  })
+
+  it('all tower types initialise kills to 0', () => {
+    for (const type of Object.keys(TOWER_TYPES)) {
+      const tower = createTower(type, 0, 0)
+      expect(tower.kills, `${type}.kills`).toBe(0)
+    }
   })
 
   it('SniperTower initialises with upgradeLevel 0', () => {

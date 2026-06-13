@@ -7,6 +7,23 @@ import { TOWER_TYPES, towerKey } from '../game/tower.js'
 const TILE_PX = 40
 
 /**
+ * killBadgeClass — returns the CSS modifier class for the kill-count badge
+ * based on the tower's lifetime kill count.
+ *
+ * Tiers:
+ *   1–9   → grey   (.tower-kill-badge--grey)
+ *   10–24 → green  (.tower-kill-badge--green)
+ *   25–49 → blue   (.tower-kill-badge--blue)
+ *   50+   → gold   (.tower-kill-badge--gold)
+ */
+function killBadgeClass(kills) {
+  if (kills >= 50) return 'tower-kill-badge tower-kill-badge--gold'
+  if (kills >= 25) return 'tower-kill-badge tower-kill-badge--blue'
+  if (kills >= 10) return 'tower-kill-badge tower-kill-badge--green'
+  return 'tower-kill-badge tower-kill-badge--grey'
+}
+
+/**
  * hexPoints returns an SVG polygon points string for a regular hexagon.
  * @param {number} cx - centre x
  * @param {number} cy - centre y
@@ -229,6 +246,11 @@ function GameBoard({
                 {hasTower && tower.upgradeLevel > 0 && (
                   <span className="tower-level-badge">
                     {tower.upgradeLevel === 1 ? 'I' : 'II'}
+                  </span>
+                )}
+                {hasTower && (tower.kills ?? 0) >= 1 && (
+                  <span className={killBadgeClass(tower.kills)}>
+                    &#x2694;&#xFE0E; {tower.kills}
                   </span>
                 )}
                 {hasTower && (() => {

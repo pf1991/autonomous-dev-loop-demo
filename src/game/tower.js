@@ -105,7 +105,7 @@ export const TOWER_TYPES = {
 export function createTower(type, row, col) {
   const typeDef = TOWER_TYPES[type]
   const { range, damage, fireRate } = typeDef
-  const tower = { type, row, col, range, damage, fireRate, lastFiredAt: 0, upgradeLevel: 0 }
+  const tower = { type, row, col, range, damage, fireRate, lastFiredAt: 0, upgradeLevel: 0, kills: 0 }
   // Include special properties for towers that have unique mechanics
   if (typeDef.splashRadius      != null) tower.splashRadius      = typeDef.splashRadius
   if (typeDef.slowFactor        != null) tower.slowFactor        = typeDef.slowFactor
