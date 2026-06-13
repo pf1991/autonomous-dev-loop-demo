@@ -14,24 +14,33 @@ export function isBossWave(waveNumber) {
 
 /**
  * getWaveEnemyHp returns the HP for enemies in the given wave.
- * Formula: 100 + (wave - 1) * 25
- * wave 1: 100, wave 5: 200, wave 10: 325
+ * Formula: Math.round(100 * 1.4^(wave - 1))
+ * wave 1: 100, wave 5: 384, wave 10: 2064
+ *
+ * Exponential growth ensures enemies remain a genuine threat even against
+ * fully-upgraded towers; the old linear formula (+25/wave) was trivially
+ * outpaced by tower DPS upgrades.
+ *
  * @param {number} waveNumber - 1-based wave number
  * @returns {number} HP value
  */
 export function getWaveEnemyHp(waveNumber) {
-  return 100 + (waveNumber - 1) * 25
+  return Math.round(100 * Math.pow(1.4, waveNumber - 1))
 }
 
 /**
  * getWaveEnemyCount returns the number of enemies to spawn in the given wave.
- * Formula: 5 + Math.floor((wave - 1) / 2)
- * wave 1: 5, wave 3: 6, wave 5: 7, wave 9: 9
+ * Formula: 5 + (wave - 1)
+ * wave 1: 5, wave 3: 7, wave 5: 9, wave 9: 13
+ *
+ * One additional enemy per wave (previously only one extra every two waves)
+ * so the total enemy count scales meaningfully alongside HP growth.
+ *
  * @param {number} waveNumber - 1-based wave number
  * @returns {number} Enemy count
  */
 export function getWaveEnemyCount(waveNumber) {
-  return 5 + Math.floor((waveNumber - 1) / 2)
+  return 5 + (waveNumber - 1)
 }
 
 /**
@@ -114,14 +123,14 @@ export function createWave(waveNumber) {
  * getEndlessWaveEnemyHp returns the HP for enemies in an endless-mode wave.
  *
  * Waves 1–10 use the standard formula.
- * Wave 11+: starts at wave-10 HP (325) and scales by ×1.15 per wave beyond 10.
+ * Wave 11+: starts at wave-10 HP (2064) and scales by ×1.15 per wave beyond 10.
  *
  * @param {number} waveNumber - 1-based wave number
  * @returns {number} HP value (integer)
  */
 export function getEndlessWaveEnemyHp(waveNumber) {
   if (waveNumber <= 10) return getWaveEnemyHp(waveNumber)
-  const base = getWaveEnemyHp(10) // 325
+  const base = getWaveEnemyHp(10) // 2064 with exponential formula
   return Math.round(base * Math.pow(1.15, waveNumber - 10))
 }
 
@@ -129,14 +138,14 @@ export function getEndlessWaveEnemyHp(waveNumber) {
  * getEndlessWaveEnemyCount returns the number of enemies in an endless-mode wave.
  *
  * Waves 1–10 use the standard formula.
- * Wave 11+: starts at wave-10 count (9) and adds 1 per 2 extra waves.
+ * Wave 11+: starts at wave-10 count (14) and adds 1 per 2 extra waves.
  *
  * @param {number} waveNumber - 1-based wave number
  * @returns {number} Enemy count
  */
 export function getEndlessWaveEnemyCount(waveNumber) {
   if (waveNumber <= 10) return getWaveEnemyCount(waveNumber)
-  const base = getWaveEnemyCount(10) // 9
+  const base = getWaveEnemyCount(10) // 14 with the new per-wave formula
   return base + Math.floor((waveNumber - 10) / 2)
 }
 
