@@ -1850,4 +1850,137 @@ test.describe('Tower Defense - smoke tests', () => {
     // The .power-crate element must appear on the board
     await expect(page.locator('.power-crate').first()).toBeAttached({ timeout: 2000 });
   });
+
+  // --- Tower kill counter and kill badge (issue #70) ---
+  // App.jsx useState dispatch hook order (0-indexed):
+  //   0=gold, 1=lives, 2=wave, 3=speed, 4=towers, 5=enemies,
+  //   6=projectiles, 7=deathAnimations, 8=selectedTowerType, 9=selectedTower,
+  //   10=hoveredSlot, 11=gamePhase, ...
+
+  test('tower at 0 kills shows no .tower-kill-badge', async ({ page }) => {
+    // Dismiss overlay and place a tower
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    const slot = page.locator('.tower-slot').first();
+    await slot.click();
+    await expect(page.locator('.tower-icon').first()).toBeVisible();
+    // Fresh tower has kills=0 — badge must NOT be present
+    await expect(page.locator('.tower-kill-badge')).toHaveCount(0);
+  });
+
+  test('tower with kills >= 1 shows .tower-kill-badge via state injection', async ({ page }) => {
+    // Dismiss overlay
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Place a tower so there is a tile at row=1, col=1
+    const slot = page.locator('.tower-slot').first();
+    await slot.click();
+    await expect(page.locator('.tower-icon').first()).toBeVisible();
+
+    // Inject towers state with kills=5 on the placed tower via React fiber (dispatch index 4)
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          const stateHooks = [];
+          let hookNode = fiber.memoizedState;
+          while (hookNode) {
+            if (hookNode.queue && typeof hookNode.queue.dispatch === 'function') {
+              stateHooks.push(hookNode);
+            }
+            hookNode = hookNode.next;
+          }
+          // Read current towers (index 4) and patch kills on the first tower
+          const towersHook = stateHooks[4];
+          if (towersHook) {
+            const currentTowers = towersHook.memoizedState;
+            if (currentTowers && currentTowers.length > 0) {
+              const patched = currentTowers.map((t, i) =>
+                i === 0 ? { ...t, kills: 5 } : t
+              );
+              towersHook.queue.dispatch(patched);
+            }
+          }
+          return;
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find App fiber hooks');
+    });
+
+    // Badge must appear for a tower with 5 kills
+    await expect(page.locator('.tower-kill-badge').first()).toBeAttached({ timeout: 2000 });
+  });
+
+  test('kill badge on a tower with 5 kills has .tower-kill-badge--grey colour class', async ({ page }) => {
+    // Dismiss overlay and place a tower
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    const slot = page.locator('.tower-slot').first();
+    await slot.click();
+    await expect(page.locator('.tower-icon').first()).toBeVisible();
+
+    // Inject kills=9 (upper boundary of grey tier)
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          const stateHooks = [];
+          let hookNode = fiber.memoizedState;
+          while (hookNode) {
+            if (hookNode.queue && typeof hookNode.queue.dispatch === 'function') {
+              stateHooks.push(hookNode);
+            }
+            hookNode = hookNode.next;
+          }
+          const towersHook = stateHooks[4];
+          if (towersHook) {
+            const currentTowers = towersHook.memoizedState;
+            if (currentTowers && currentTowers.length > 0) {
+              towersHook.queue.dispatch(
+                currentTowers.map((t, i) => i === 0 ? { ...t, kills: 9 } : t)
+              );
+            }
+          }
+          return;
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find App fiber hooks');
+    });
+
+    const badge = page.locator('.tower-kill-badge').first();
+    await expect(badge).toBeAttached({ timeout: 2000 });
+    const classes = await badge.getAttribute('class');
+    expect(classes).toContain('tower-kill-badge--grey');
+  });
+
+  test('UpgradePanel shows "Kills:" stat row when a tower is selected', async ({ page }) => {
+    // Dismiss overlay and place a tower (auto-select opens panel immediately)
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    const slot = page.locator('.tower-slot').first();
+    await slot.click();
+    await expect(page.locator('.tower-icon').first()).toBeVisible();
+    // UpgradePanel opens automatically on placement
+    const panel = page.locator('.upgrade-panel');
+    await expect(panel).toBeVisible();
+    // The stats section must contain a "Kills:" label
+    const statsText = await panel.locator('.upgrade-panel-stats').textContent();
+    expect(statsText).toContain('Kills:');
+  });
 });

@@ -20,6 +20,7 @@ function UpgradePanel({ tower, gold, onUpgrade, onSell, getUpgradeCost, canUpgra
         <span>Dmg: {tower.damage}</span>
         <span>Range: {tower.range}</span>
         <span>Rate: {tower.fireRate}</span>
+        <span>Kills: {tower.kills ?? 0}</span>
       </div>
       {nextStats && (
         <div className="upgrade-panel-next-stats">

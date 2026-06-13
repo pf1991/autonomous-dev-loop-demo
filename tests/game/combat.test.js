@@ -356,3 +356,113 @@ describe('processCombat — fire animation metadata', () => {
     }
   })
 })
+
+describe('kill attribution (tower.kills)', () => {
+  it('killing blow increments kills on the tower that dealt it', () => {
+    const tower = { ...makeTower({ row: 0, col: 0, range: 5, damage: 100, fireRate: 1, lastFiredAt: 0 }), kills: 0 }
+    const enemy = makeEnemy({ id: 1, hp: 100, row: 1, col: 0 })
+
+    const { towers } = processCombat([tower], [enemy], 1000)
+
+    expect(towers[0].kills).toBe(1)
+  })
+
+  it('no kill — tower.kills stays at 0', () => {
+    const tower = { ...makeTower({ row: 0, col: 0, range: 5, damage: 10, fireRate: 1, lastFiredAt: 0 }), kills: 0 }
+    const enemy = makeEnemy({ id: 1, hp: 100, row: 1, col: 0 })
+
+    const { towers } = processCombat([tower], [enemy], 1000)
+
+    expect(towers[0].kills).toBe(0)
+  })
+
+  it('kill credit goes to the tower that dealt the killing blow, not the other', () => {
+    // tower1 is in range of enemy1, tower2 is far away (out of range of enemy1)
+    const tower1 = { ...makeTower({ row: 0, col: 0, range: 5, damage: 100, fireRate: 1, lastFiredAt: 0 }), kills: 0 }
+    const tower2 = { ...makeTower({ row: 14, col: 19, range: 1, damage: 100, fireRate: 1, lastFiredAt: 0 }), kills: 0 }
+    const enemy = makeEnemy({ id: 1, hp: 100, row: 1, col: 0 })
+
+    const { towers } = processCombat([tower1, tower2], [enemy], 1000)
+
+    expect(towers[0].kills).toBe(1)
+    expect(towers[1].kills).toBe(0)
+  })
+
+  it('kills accumulate across multiple kills', () => {
+    const tower = { ...makeTower({ row: 0, col: 0, range: 5, damage: 100, fireRate: 1, lastFiredAt: 0 }), kills: 3 }
+    const enemy = makeEnemy({ id: 1, hp: 100, row: 1, col: 0 })
+
+    const { towers } = processCombat([tower], [enemy], 1000)
+
+    expect(towers[0].kills).toBe(4)
+  })
+
+  it('towers without kills field default kills to 0 and credit kill correctly', () => {
+    const tower = makeTower({ row: 0, col: 0, range: 5, damage: 100, fireRate: 1, lastFiredAt: 0 })
+    const enemy = makeEnemy({ id: 1, hp: 100, row: 1, col: 0 })
+
+    const { towers } = processCombat([tower], [enemy], 1000)
+
+    expect(towers[0].kills).toBe(1)
+  })
+})
+
+// Helper: simulate N one-shot kills by a single tower starting with kills=startKills.
+// Returns the tower's accumulated kills count after N kills.
+function simulateKills(startKills, n) {
+  let tower = { ...makeTower({ row: 0, col: 0, range: 5, damage: 999, fireRate: 999, lastFiredAt: 0 }), kills: startKills }
+  let nowMs = 1000
+  for (let i = 0; i < n; i++) {
+    const enemy = makeEnemy({ id: i + 1, hp: 1, row: 1, col: 0 })
+    const result = processCombat([tower], [enemy], nowMs)
+    tower = result.towers[0]
+    nowMs += 1000
+  }
+  return tower.kills
+}
+
+describe('kill badge colour tier boundaries (via processCombat kill accumulation)', () => {
+  // Grey tier: 1–9 kills. Boundary values: 0 (no badge), 1 (first kill), 9 (upper grey).
+  it('tower with 0 kills stays at 0 (no badge tier)', () => {
+    // No kill — tower with high damage but no enemy in range
+    const tower = { ...makeTower({ row: 0, col: 0, range: 1, damage: 999, fireRate: 999, lastFiredAt: 0 }), kills: 0 }
+    const enemy = makeEnemy({ id: 1, hp: 1, row: 10, col: 0 }) // out of range
+    const { towers } = processCombat([tower], [enemy], 1000)
+    expect(towers[0].kills).toBe(0)
+  })
+
+  it('first kill brings kills from 0 to 1 (enters grey tier)', () => {
+    expect(simulateKills(0, 1)).toBe(1)
+  })
+
+  it('9th kill stays in grey tier (kills === 9, still < 10)', () => {
+    expect(simulateKills(0, 9)).toBe(9)
+  })
+
+  // Green tier: 10–24 kills. Boundary values: 10 (entry), 24 (upper green).
+  it('10th kill crosses into green tier (kills === 10)', () => {
+    expect(simulateKills(0, 10)).toBe(10)
+  })
+
+  it('24 kills stays in green tier (kills === 24, still < 25)', () => {
+    expect(simulateKills(0, 24)).toBe(24)
+  })
+
+  // Blue tier: 25–49 kills. Boundary values: 25 (entry), 49 (upper blue).
+  it('25th kill crosses into blue tier (kills === 25)', () => {
+    expect(simulateKills(0, 25)).toBe(25)
+  })
+
+  it('49 kills stays in blue tier (kills === 49, still < 50)', () => {
+    expect(simulateKills(0, 49)).toBe(49)
+  })
+
+  // Gold tier: 50+ kills. Boundary values: 50 (entry).
+  it('50th kill crosses into gold tier (kills === 50)', () => {
+    expect(simulateKills(0, 50)).toBe(50)
+  })
+
+  it('kills accumulate correctly from an existing count (e.g. 48 → 50)', () => {
+    expect(simulateKills(48, 2)).toBe(50)
+  })
+})
