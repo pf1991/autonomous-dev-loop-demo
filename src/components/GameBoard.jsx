@@ -1,6 +1,6 @@
 import UpgradePanel from './UpgradePanel.jsx'
 import WaveCountdownBanner from './WaveCountdownBanner.jsx'
-import { getEnemyRadius } from '../game/enemy.js'
+import { getEnemyRadius, isEnemyPoisoned } from '../game/enemy.js'
 import { TOWER_TYPES } from '../game/tower.js'
 
 // Tile size in pixels — must match the CSS (.tile width/height)
@@ -377,7 +377,7 @@ function GameBoard({
             }
             const typeClass = typeClassMap[enemy.type] ?? 'enemy-grunt'
             const isSlowed = enemy.slowUntil != null
-            const isPoisoned = (enemy.effects ?? []).some(e => e.type === 'poison' && e.ticksRemaining > 0)
+            const isPoisoned = isEnemyPoisoned(enemy)
             const statusClass = isSlowed ? ' enemy-slowed' : isPoisoned ? ' enemy-poisoned' : ''
             return (
               <div

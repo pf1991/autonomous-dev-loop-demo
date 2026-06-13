@@ -143,6 +143,16 @@ export function getEnemyRadius(hp, maxHp, type) {
 }
 
 /**
+ * isEnemyPoisoned returns true when the enemy currently has an active poison effect.
+ * An effect is active when its type is 'poison' and ticksRemaining > 0.
+ * @param {{ effects?: Array<{type: string, ticksRemaining: number}> }} enemy
+ * @returns {boolean}
+ */
+export function isEnemyPoisoned(enemy) {
+  return (enemy.effects ?? []).some(e => e.type === 'poison' && e.ticksRemaining > 0)
+}
+
+/**
  * moveEnemy advances the enemy along the path by the given time delta.
  * Returns null if the enemy has reached (or passed) the last waypoint.
  * @param {{ id, hp, maxHp, pos: {row, col}, waypointIndex: number, speed: number }} enemy
