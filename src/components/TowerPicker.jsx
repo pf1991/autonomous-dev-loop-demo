@@ -26,6 +26,8 @@ function TowerPicker({ selectedType, gold, onSelect }) {
           specialLabel = `Splash: ${config.splashRadius}t`
         } else if (config.slowFactor != null) {
           specialLabel = `Slow: ${Math.round((1 - config.slowFactor) * 100)}%`
+        } else if (config.poisonTickDamage != null) {
+          specialLabel = `Poison: ${config.poisonTicks}×${config.poisonTickDamage} DoT`
         }
 
         return (

@@ -65,15 +65,35 @@ export const TOWER_TYPES = {
    * Synergises with all other towers by keeping enemies in range longer.
    */
   SlowTower: {
-    cost: 90,
-    range: 3.5,
-    damage: 8,
+    cost: 75,
+    range: 3,
+    damage: 5,
     fireRate: 1.5,
     slowFactor: 0.4,
     slowDuration: 2000,
     upgrades: [
-      { cost: 60, range: 4, damage: 12, fireRate: 1.8, slowFactor: 0.3, slowDuration: 2500 },
-      { cost: 90, range: 4.5, damage: 18, fireRate: 2, slowFactor: 0.2, slowDuration: 3000 },
+      { cost: 60, range: 4, damage: 8, fireRate: 1.8, slowFactor: 0.35, slowDuration: 2500 },
+      { cost: 90, range: 4.5, damage: 12, fireRate: 2, slowFactor: 0.3, slowDuration: 3000, aoeSlowRadius: 2.5 },
+    ],
+  },
+  /**
+   * PoisonTower — medium range, applies a damage-over-time (DoT) poison on hit.
+   * Initial hit deals direct damage; then the poison ticks for additional damage.
+   * DoT continues even if the tower is sold. DoT kills award gold normally.
+   * L1 upgrade: +2 extra DoT ticks (5 total).
+   * L2 upgrade: +20 DoT damage per tick (35 per tick).
+   */
+  PoisonTower: {
+    cost: 90,
+    range: 4,
+    damage: 8,
+    fireRate: 0.8,
+    poisonTickDamage: 15,
+    poisonTicks: 3,
+    poisonTickInterval: 1000,
+    upgrades: [
+      { cost: 70, range: 4.5, damage: 12, fireRate: 1.0, poisonTickDamage: 15, poisonTicks: 5, poisonTickInterval: 1000 },
+      { cost: 100, range: 5, damage: 16, fireRate: 1.2, poisonTickDamage: 35, poisonTicks: 5, poisonTickInterval: 1000 },
     ],
   },
 }
@@ -87,9 +107,13 @@ export function createTower(type, row, col) {
   const { range, damage, fireRate } = typeDef
   const tower = { type, row, col, range, damage, fireRate, lastFiredAt: 0, upgradeLevel: 0 }
   // Include special properties for towers that have unique mechanics
-  if (typeDef.splashRadius != null) tower.splashRadius = typeDef.splashRadius
-  if (typeDef.slowFactor   != null) tower.slowFactor   = typeDef.slowFactor
-  if (typeDef.slowDuration != null) tower.slowDuration = typeDef.slowDuration
+  if (typeDef.splashRadius      != null) tower.splashRadius      = typeDef.splashRadius
+  if (typeDef.slowFactor        != null) tower.slowFactor        = typeDef.slowFactor
+  if (typeDef.slowDuration      != null) tower.slowDuration      = typeDef.slowDuration
+  if (typeDef.aoeSlowRadius     != null) tower.aoeSlowRadius     = typeDef.aoeSlowRadius
+  if (typeDef.poisonTickDamage  != null) tower.poisonTickDamage  = typeDef.poisonTickDamage
+  if (typeDef.poisonTicks       != null) tower.poisonTicks       = typeDef.poisonTicks
+  if (typeDef.poisonTickInterval!= null) tower.poisonTickInterval= typeDef.poisonTickInterval
   return tower
 }
 
@@ -128,9 +152,13 @@ export function upgradeTower(tower) {
     fireRate: upgrade.fireRate,
   }
   // Carry over special properties from the upgrade level definition when present
-  if (upgrade.splashRadius != null) updated.splashRadius = upgrade.splashRadius
-  if (upgrade.slowFactor   != null) updated.slowFactor   = upgrade.slowFactor
-  if (upgrade.slowDuration != null) updated.slowDuration = upgrade.slowDuration
+  if (upgrade.splashRadius      != null) updated.splashRadius      = upgrade.splashRadius
+  if (upgrade.slowFactor        != null) updated.slowFactor        = upgrade.slowFactor
+  if (upgrade.slowDuration      != null) updated.slowDuration      = upgrade.slowDuration
+  if (upgrade.aoeSlowRadius     != null) updated.aoeSlowRadius     = upgrade.aoeSlowRadius
+  if (upgrade.poisonTickDamage  != null) updated.poisonTickDamage  = upgrade.poisonTickDamage
+  if (upgrade.poisonTicks       != null) updated.poisonTicks       = upgrade.poisonTicks
+  if (upgrade.poisonTickInterval!= null) updated.poisonTickInterval= upgrade.poisonTickInterval
   return updated
 }
 

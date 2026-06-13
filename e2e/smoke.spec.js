@@ -1229,6 +1229,42 @@ test.describe('Tower Defense - smoke tests', () => {
     await expect(svgEl.locator('polygon.tower-slow')).toBeAttached();
   });
 
+  // --- Status-effect towers: PoisonTower (issue #67) ---
+
+  test('TowerPicker shows PoisonTower button', async ({ page }) => {
+    await expect(page.locator('.tower-picker')).toBeVisible();
+    await expect(page.locator('.tower-picker button').filter({ hasText: 'PoisonTower' })).toBeAttached();
+  });
+
+  test('TowerPicker shows Poison special-ability label for PoisonTower', async ({ page }) => {
+    const poisonBtn = page.locator('.tower-picker button').filter({ hasText: 'PoisonTower' });
+    await expect(poisonBtn).toBeAttached();
+    const specialLabel = poisonBtn.locator('.tower-picker-special');
+    await expect(specialLabel).toBeAttached();
+    const labelText = await specialLabel.textContent();
+    expect(labelText).toMatch(/Poison/);
+  });
+
+  test('PoisonTower renders SVG with polygon.tower-poison when placed', async ({ page }) => {
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Select PoisonTower (costs 90g — affordable on 100g start with no prior purchases)
+    const poisonBtn = page.locator('.tower-picker button').filter({ hasText: 'PoisonTower' });
+    if ((await poisonBtn.getAttribute('disabled')) !== null) return; // skip if unaffordable
+    await poisonBtn.click();
+    await expect(poisonBtn).toHaveClass(/selected/);
+    // Place on first available tower slot
+    const slot = page.locator('.tower-slot').first();
+    await slot.click();
+    const towerIcon = page.locator('.tower-icon').first();
+    await expect(towerIcon).toBeVisible();
+    const svgEl = towerIcon.locator('svg');
+    await expect(svgEl).toBeAttached();
+    await expect(svgEl.locator('polygon.tower-poison').first()).toBeAttached();
+  });
+
   // --- Per-tower-type projectile fire animations (issue #65) ---
 
   test('projectile line has a type-specific CSS class (projectile-basic) when BasicTower fires', async ({ page }) => {

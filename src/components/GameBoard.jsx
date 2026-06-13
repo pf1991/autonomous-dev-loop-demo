@@ -1,6 +1,6 @@
 import UpgradePanel from './UpgradePanel.jsx'
 import WaveCountdownBanner from './WaveCountdownBanner.jsx'
-import { getEnemyRadius } from '../game/enemy.js'
+import { getEnemyRadius, isEnemyPoisoned } from '../game/enemy.js'
 import { TOWER_TYPES } from '../game/tower.js'
 
 // Tile size in pixels — must match the CSS (.tile width/height)
@@ -82,6 +82,24 @@ function TowerSVG({ type, upgradeLevel }) {
           <polygon className="tower-slow" points="15,2 26,8 26,22 15,28 4,22 4,8" />
           {upgradeLevel >= 1 && (
             <polygon className="tower-slow-ring" points="15,0 28,7 28,23 15,30 2,23 2,7" />
+          )}
+        </svg>
+      </span>
+    )
+  }
+
+  if (type === 'PoisonTower') {
+    // Rounded pentagon shape — conveys a biological/poison effect
+    // Pentagon points at top, slight rounding via rx/ry on the polygon container
+    return (
+      <span className="tower-icon">
+        <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
+          <polygon className="tower-poison" points="15,2 27,11 22,26 8,26 3,11" />
+          {upgradeLevel >= 1 && (
+            <circle className="tower-poison-ring" cx="15" cy="16" r="5" />
+          )}
+          {upgradeLevel >= 2 && (
+            <polygon className="tower-poison-ring-outer" points="15,0 29,10 24,28 6,28 1,10" />
           )}
         </svg>
       </span>
@@ -358,14 +376,17 @@ function GameBoard({
               phantom: 'enemy-phantom',
             }
             const typeClass = typeClassMap[enemy.type] ?? 'enemy-grunt'
+            const isSlowed = enemy.slowUntil != null
+            const isPoisoned = isEnemyPoisoned(enemy)
+            const statusClass = isSlowed ? ' enemy-slowed' : isPoisoned ? ' enemy-poisoned' : ''
             return (
               <div
                 key={enemy.id}
-                className={`enemy ${typeClass}`}
+                className={`enemy ${typeClass}${statusClass}`}
                 style={{ left, top, width: diameter, height: diameter }}
               >
                 <div
-                  className="enemy-hp-bar"
+                  className={isPoisoned ? 'enemy-hp-bar enemy-hp-bar--poisoned' : 'enemy-hp-bar'}
                   style={{ width: `${Math.max(0, (enemy.hp / enemy.maxHp) * 100)}%` }}
                 />
               </div>
