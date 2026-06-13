@@ -911,3 +911,91 @@ body {
   user-select: none;
   line-height: 1;
 }
+
+/* ===== Boss (Colossus) enemy ===== */
+.enemy-colossus-wrapper {
+  position: absolute;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.enemy-colossus {
+  display: block;
+}
+
+.enemy-colossus-hex {
+  fill: #6b21a8;
+  stroke: #d8b4fe;
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 6px rgba(107, 33, 168, 0.85));
+}
+
+.enemy-colossus-skull {
+  font-size: 14px;
+  fill: #fff;
+  dominant-baseline: auto;
+}
+
+/* Thick HP bar below the colossus */
+.enemy-colossus-hp-bar-bg {
+  position: absolute;
+  bottom: -8px;
+  left: 0;
+  width: 100%;
+  height: 6px;
+  background: #c0304a;
+  border-radius: 3px;
+}
+
+.enemy-colossus-hp-bar {
+  height: 100%;
+  background: #a855f7;
+  border-radius: 3px;
+  transition: width 0.1s linear;
+}
+
+/* ===== Power crate (boss death drop) ===== */
+@keyframes crate-pulse {
+  0%, 100% { box-shadow: 0 0 8px 3px rgba(250, 204, 21, 0.7); }
+  50% { box-shadow: 0 0 14px 6px rgba(250, 204, 21, 1); }
+}
+
+.power-crate-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: all;
+  z-index: 28;
+}
+
+.power-crate {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  transform: translate(-50%, -50%);
+  background: #fbbf24;
+  border: 2px solid #facc15;
+  border-radius: 4px;
+  cursor: pointer;
+  animation: crate-pulse 1.2s ease-in-out infinite;
+}
+
+.power-crate:hover {
+  background: #f59e0b;
+}
+
+/* ===== Boss wave countdown banner ===== */
+.wave-countdown-banner--boss {
+  background: rgba(60, 10, 20, 0.88);
+  border-bottom-color: #e94560;
+}
+
+.wave-countdown-boss-label {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #e94560;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}

@@ -7,6 +7,20 @@ import { TOWER_TYPES } from '../game/tower.js'
 const TILE_PX = 40
 
 /**
+ * hexPoints returns an SVG polygon points string for a regular hexagon.
+ * @param {number} cx - centre x
+ * @param {number} cy - centre y
+ * @param {number} r  - radius
+ * @returns {string}
+ */
+function hexPoints(cx, cy, r) {
+  return Array.from({ length: 6 }, (_, i) => {
+    const angle = (Math.PI / 3) * i - Math.PI / 6
+    return `${cx + r * Math.cos(angle)},${cy + r * Math.sin(angle)}`
+  }).join(' ')
+}
+
+/**
  * Render an SVG tower icon based on tower type and upgrade level.
  *
  * BasicTower:  teal diamond; rings added at upgrade levels 1 and 2.
@@ -106,6 +120,9 @@ function TowerSVG({ type, upgradeLevel }) {
  *   getUpgradeCost      — function(tower) returning the upgrade cost (number | null)
  *   canUpgrade          — function(tower) returning boolean
  *   getNextUpgradeStats — function(tower) returning next level stats object or null
+ *   powerCrates    — array of { id, row, col } crate objects dropped by boss enemies
+ *   onCrateClick   — callback(crateId) invoked when a power crate is clicked
+ *   countdownIsBossWave — boolean: true when the upcoming wave is a boss wave
  */
 function GameBoard({
   tiles,
@@ -127,10 +144,13 @@ function GameBoard({
   canUpgrade,
   getNextUpgradeStats,
   sellTower,
+  powerCrates = [],
+  onCrateClick,
   showCountdownBanner = false,
   countdownWave = 2,
   countdownEnemyCount = 5,
   countdownEnemyHp = 100,
+  countdownIsBossWave = false,
   onCountdownStart,
 }) {
   // Build a map from "row-col" key to tower object for O(1) lookup
@@ -293,6 +313,43 @@ function GameBoard({
             const left = (enemy.pos.col + 0.5) * TILE_PX - radius
             const top = (enemy.pos.row + 0.5) * TILE_PX - radius
             const diameter = radius * 2
+            if (enemy.type === 'colossus') {
+              // Colossus: purple hexagon SVG with skull overlay and thick HP bar
+              const hpPct = Math.max(0, (enemy.hp / enemy.maxHp) * 100)
+              return (
+                <div
+                  key={enemy.id}
+                  className="enemy-colossus-wrapper"
+                  style={{ left, top, width: diameter, height: diameter }}
+                >
+                  <svg
+                    className="enemy-colossus"
+                    width={diameter}
+                    height={diameter}
+                    viewBox={`0 0 ${diameter} ${diameter}`}
+                    aria-hidden="true"
+                  >
+                    <polygon
+                      className="enemy-colossus-hex"
+                      points={hexPoints(diameter / 2, diameter / 2, diameter / 2 - 2)}
+                    />
+                    <text
+                      className="enemy-colossus-skull"
+                      x={diameter / 2}
+                      y={diameter / 2 + 6}
+                      textAnchor="middle"
+                    >&#x2620;</text>
+                  </svg>
+                  <div className="enemy-colossus-hp-bar-bg">
+                    <div
+                      className="enemy-colossus-hp-bar"
+                      style={{ width: `${hpPct}%` }}
+                    />
+                  </div>
+                </div>
+              )
+            }
+
             const typeClassMap = {
               grunt: 'enemy-grunt',
               tank: 'enemy-tank',
@@ -332,11 +389,29 @@ function GameBoard({
           ))}
         </div>
       )}
+      {powerCrates.length > 0 && (
+        <div className="power-crate-layer" aria-label="power crates">
+          {powerCrates.map(crate => (
+            <div
+              key={crate.id}
+              className="power-crate"
+              style={{
+                left: (crate.col + 0.5) * TILE_PX,
+                top: (crate.row + 0.5) * TILE_PX,
+              }}
+              onClick={() => onCrateClick && onCrateClick(crate.id)}
+              role="button"
+              aria-label="power crate"
+            />
+          ))}
+        </div>
+      )}
       {showCountdownBanner && (
         <WaveCountdownBanner
           wave={countdownWave}
           enemyCount={countdownEnemyCount}
           enemyHp={countdownEnemyHp}
+          isBossWave={countdownIsBossWave}
           onStart={onCountdownStart}
         />
       )}

@@ -6,9 +6,10 @@ import NextWave from './components/NextWave'
 import TowerPicker from './components/TowerPicker'
 import { createDefaultMap, getPathWaypoints } from './game/map'
 import { TOWER_TYPES, createTower, canAfford, canUpgrade, upgradeTower, getUpgradeCost, getNextUpgradeStats, sellTower } from './game/tower'
-import { createEnemy, moveEnemy } from './game/enemy'
+import { createEnemy, moveEnemy, getBossHp } from './game/enemy'
 import { processCombat } from './game/combat'
-import { getWaveEnemyHp, getWaveEnemyCount, getWaveComposition, getEarlyWaveBonus, getEndlessWaveEnemyHp, getEndlessWaveEnemyCount, getEndlessWaveComposition } from './game/wave'
+import { getWaveEnemyHp, getWaveEnemyCount, getWaveComposition, getEarlyWaveBonus, getEndlessWaveEnemyHp, getEndlessWaveEnemyCount, getEndlessWaveComposition, isBossWave } from './game/wave'
+import { createPowerCrate, selectCrateReward } from './game/powerCrate'
 import { useGameLoop } from './hooks/useGameLoop'
 import { computeScore } from './game/score'
 import { saveLeaderboardEntry } from './utils/leaderboard'
@@ -55,6 +56,15 @@ function App() {
   const endlessModeRef = useRef(false)
   // Score tracking
   const [finalScore, setFinalScore] = useState(null)
+
+  // Power crates dropped by boss enemies on death
+  const [powerCrates, setPowerCrates] = useState([])
+  const powerCratesRef = useRef([])
+  const nextCrateIdRef = useRef(0)
+  // Tower overcharge: when active, towers fire at 1.5× rate until overchargeUntilRef passes
+  const [overchargeActive, setOverchargeActive] = useState(false)
+  const overchargeUntilRef = useRef(0)
+  const overchargeActiveRef = useRef(false)
 
   const nextEnemyIdRef = useRef(0)
   const spawnTimerRef = useRef(0)
@@ -146,7 +156,8 @@ function App() {
     ) {
       spawnTimerRef.current = 0
       const enemyType = spawnQueueRef.current[spawnedInWaveRef.current] ?? 'grunt'
-      newEnemy = createEnemy(nextEnemyIdRef.current++, PATH_WAYPOINTS, enemyType)
+      const hpOverride = enemyType === 'colossus' ? getBossHp() : undefined
+      newEnemy = createEnemy(nextEnemyIdRef.current++, PATH_WAYPOINTS, enemyType, hpOverride)
       spawnedInWaveRef.current += 1
     }
 
@@ -184,9 +195,31 @@ function App() {
     }
 
     // Run combat: towers fire at surviving enemies; dead enemies removed; gold awarded
-    const combatResult = processCombat(towersRef.current, surviving, nowMs)
+    // When overcharge is active, boost each tower's fireRate by 50% for this tick only
+    const combatTowers = overchargeActiveRef.current
+      ? towersRef.current.map(t => ({ ...t, fireRate: t.fireRate * 1.5 }))
+      : towersRef.current
+    const combatResult = processCombat(combatTowers, surviving, nowMs)
     const afterCombat = combatResult.enemies
     killedNow += surviving.length - afterCombat.length
+
+    // Spawn power crate on colossus death
+    const bossKilled = combatResult.killedEnemies?.filter(k => k.type === 'colossus') ?? []
+    if (bossKilled.length > 0) {
+      const newCrates = bossKilled.map(k =>
+        createPowerCrate(`crate-${nextCrateIdRef.current++}`, Math.round(k.row), Math.round(k.col))
+      )
+      const nextCrates = [...powerCratesRef.current, ...newCrates]
+      powerCratesRef.current = nextCrates
+      setPowerCrates(nextCrates)
+    }
+
+    // Expire overcharge when timer is up
+    if (overchargeUntilRef.current > 0 && nowMs >= overchargeUntilRef.current) {
+      overchargeUntilRef.current = 0
+      overchargeActiveRef.current = false
+      setOverchargeActive(false)
+    }
 
     if (combatResult.goldEarned > 0) {
       const bonusMultiplier = earlyWaveBonusRef.current
@@ -331,6 +364,26 @@ function App() {
     setSelectedTower(null)
   }
 
+  function handleCrateClick(crateId) {
+    // Remove the crate
+    const nextCrates = powerCratesRef.current.filter(c => c.id !== crateId)
+    powerCratesRef.current = nextCrates
+    setPowerCrates(nextCrates)
+
+    // Apply a random reward
+    const reward = selectCrateReward()
+    if (reward.id === 'lives') {
+      syncLives(Math.min(livesRef.current + 3, 99))
+    } else if (reward.id === 'gold') {
+      setGold(g => g + 200)
+    } else if (reward.id === 'overcharge') {
+      const OVERCHARGE_DURATION_MS = 15000
+      overchargeUntilRef.current = gameClockRef.current + OVERCHARGE_DURATION_MS
+      overchargeActiveRef.current = true
+      setOverchargeActive(true)
+    }
+  }
+
   function handleToggleEndless() {
     // Only toggleable on the pre-wave-1 screen (wave hasn't started yet)
     const next = !endlessModeRef.current
@@ -370,6 +423,11 @@ function App() {
     setFinalScore(null)
     endlessModeRef.current = false
     setEndlessMode(false)
+    powerCratesRef.current = []
+    setPowerCrates([])
+    nextCrateIdRef.current = 0
+    overchargeUntilRef.current = 0
+    setOverchargeActive(false)
     syncPhase('between-waves')
   }
 
@@ -481,10 +539,14 @@ function App() {
         canUpgrade={canUpgrade}
         getNextUpgradeStats={getNextUpgradeStats}
         sellTower={sellTower}
+        powerCrates={powerCrates}
+        onCrateClick={handleCrateClick}
+        overchargeActive={overchargeActive}
         showCountdownBanner={gamePhase === 'between-waves' && wave > 1}
         countdownWave={wave + 1 + pendingWaveAdvance}
         countdownEnemyCount={waveEnemyCount(wave + 1 + pendingWaveAdvance)}
         countdownEnemyHp={waveEnemyHp(wave + 1 + pendingWaveAdvance)}
+        countdownIsBossWave={isBossWave(wave + 1 + pendingWaveAdvance)}
         onCountdownStart={handleNextWaveStart}
       />
       {gamePhase === 'lose' && (

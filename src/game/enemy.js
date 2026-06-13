@@ -21,6 +21,19 @@ export const ENEMY_TYPES = {
   tank:  { hp: 300, speed: 1.0, goldReward: 25 },
 
   /**
+   * colossus — boss enemy that appears every 5th wave.
+   * HP is computed dynamically from tank HP × 3 for the wave; this entry
+   * provides the base stats used by createEnemy when an explicit hp override
+   * is not supplied.  The actual HP is overridden at spawn time via
+   * getBossHp(waveNumber).
+   */
+  colossus: {
+    hp: 900,
+    speed: 0.6,
+    goldReward: 150,
+  },
+
+  /**
    * speeder — extremely fast but frail.
    * Resists SlowTower (slow effects are cut in half).
    * Small HP pool so basic towers can still kill it quickly if it gets hit.
@@ -59,23 +72,37 @@ export const ENEMY_TYPES = {
 }
 
 /**
+ * getBossHp returns the HP for the Colossus boss on a given wave.
+ * Formula: 3 × tank base HP (300) = 900, constant across waves.
+ * (The colossus is already the highest-HP enemy by far; further per-wave
+ * scaling can be added if needed without breaking any callers.)
+ *
+ * @returns {number} HP value
+ */
+export function getBossHp() {
+  return 3 * ENEMY_TYPES.tank.hp
+}
+
+/**
  * createEnemy creates a new enemy object.
  * @param {string|number} id - Unique enemy identifier
  * @param {Array<{row: number, col: number}>} pathWaypoints - Array of waypoints defining the path
- * @param {'grunt'|'tank'|'speeder'|'armored'|'phantom'} [type='grunt'] - Enemy type; defaults to 'grunt' for backwards compatibility
+ * @param {'grunt'|'tank'|'speeder'|'armored'|'phantom'|'colossus'} [type='grunt'] - Enemy type; defaults to 'grunt' for backwards compatibility
+ * @param {number} [hpOverride] - Optional HP override (used for colossus boss whose HP scales with wave)
  * @returns {{ id, hp: number, maxHp: number, pos: {row, col}, waypointIndex: number, speed: number, type: string, goldReward: number, slowResist?: number, damageResist?: object }}
  */
-export function createEnemy(id, pathWaypoints, type = 'grunt') {
+export function createEnemy(id, pathWaypoints, type = 'grunt', hpOverride) {
   const startPos = pathWaypoints && pathWaypoints.length > 0
     ? { row: pathWaypoints[0].row, col: pathWaypoints[0].col }
     : { row: 0, col: 0 }
 
   const stats = ENEMY_TYPES[type] ?? ENEMY_TYPES.grunt
+  const hp = hpOverride != null ? hpOverride : stats.hp
 
   const enemy = {
     id,
-    hp: stats.hp,
-    maxHp: stats.hp,
+    hp,
+    maxHp: hp,
     pos: { ...startPos },
     waypointIndex: 0,
     speed: stats.speed,
@@ -106,6 +133,7 @@ export function getEnemyRadius(hp, maxHp, type) {
   if (type === 'speeder')  return 8   // tiny — hard to hit, fast-moving
   if (type === 'armored')  return 18  // largest — lumbering behemoth
   if (type === 'phantom')  return 12  // mid-size
+  if (type === 'colossus') return 28  // boss — visually dominant
   // Legacy fallback — hp-ratio sizing
   const ratio = maxHp > 0 ? hp / maxHp : 0
   if (ratio >= 0.5) return 14

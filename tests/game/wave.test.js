@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { createWave, getWaveEnemyHp, getWaveEnemyCount, getWaveComposition, getEarlyWaveBonus, getEndlessWaveEnemyHp, getEndlessWaveEnemyCount, getEndlessWaveComposition } from '../../src/game/wave.js'
+import { createWave, getWaveEnemyHp, getWaveEnemyCount, getWaveComposition, getEarlyWaveBonus, getEndlessWaveEnemyHp, getEndlessWaveEnemyCount, getEndlessWaveComposition, isBossWave } from '../../src/game/wave.js'
 
 describe('getWaveEnemyHp', () => {
   it('wave 1 returns 100 HP', () => {
@@ -149,18 +149,19 @@ describe('getWaveComposition', () => {
 
   it('wave 10: includes harder enemy types (armored and phantom)', () => {
     const comp = getWaveComposition(10)
-    const total = getWaveEnemyCount(10)
     expect(comp.some(c => c.type === 'armored')).toBe(true)
     expect(comp.some(c => c.type === 'phantom')).toBe(true)
+    // wave 10 is a boss wave: sum = regular count + 1 colossus
     const sum = comp.reduce((acc, c) => acc + c.count, 0)
-    expect(sum).toBe(total)
+    expect(sum).toBe(getWaveEnemyCount(10) + 1)
   })
 
-  it('counts always sum to getWaveEnemyCount', () => {
+  it('counts always sum to getWaveEnemyCount (+ 1 for boss waves)', () => {
     for (const wave of [1, 4, 7, 10]) {
       const comp = getWaveComposition(wave)
       const sum = comp.reduce((acc, c) => acc + c.count, 0)
-      expect(sum).toBe(getWaveEnemyCount(wave))
+      const expectedTotal = getWaveEnemyCount(wave) + (isBossWave(wave) ? 1 : 0)
+      expect(sum).toBe(expectedTotal)
     }
   })
 })
@@ -268,11 +269,12 @@ describe('getEndlessWaveComposition', () => {
     expect(sum).toBe(total)
   })
 
-  it('wave 20: all counts sum to total enemy count', () => {
+  it('wave 20: all counts sum to total enemy count (+ 1 for boss wave)', () => {
     const comp = getEndlessWaveComposition(20)
     const total = getEndlessWaveEnemyCount(20)
     const sum = comp.reduce((acc, c) => acc + c.count, 0)
-    expect(sum).toBe(total)
+    // wave 20 is a boss wave: +1 colossus
+    expect(sum).toBe(total + 1)
   })
 
   it('wave 20: includes harder enemy types (armored and phantom)', () => {
@@ -293,12 +295,81 @@ describe('getEndlessWaveComposition', () => {
     }
   })
 
-  it('wave 15: counts sum to getEndlessWaveEnemyCount(15) and includes harder enemies', () => {
+  it('wave 15: counts sum to getEndlessWaveEnemyCount(15) + 1 boss and includes harder enemies', () => {
     const comp = getEndlessWaveComposition(15)
     const total = getEndlessWaveEnemyCount(15)
     const sum = comp.reduce((acc, c) => acc + c.count, 0)
-    expect(sum).toBe(total)
+    // wave 15 is a boss wave: +1 colossus
+    expect(sum).toBe(total + 1)
     expect(comp.some(c => c.type === 'armored')).toBe(true)
     expect(comp.some(c => c.type === 'phantom')).toBe(true)
+  })
+})
+
+describe('isBossWave', () => {
+  it('returns true for multiples of 5', () => {
+    expect(isBossWave(5)).toBe(true)
+    expect(isBossWave(10)).toBe(true)
+    expect(isBossWave(15)).toBe(true)
+    expect(isBossWave(20)).toBe(true)
+  })
+
+  it('returns false for non-multiples of 5', () => {
+    expect(isBossWave(1)).toBe(false)
+    expect(isBossWave(3)).toBe(false)
+    expect(isBossWave(6)).toBe(false)
+    expect(isBossWave(9)).toBe(false)
+  })
+})
+
+describe('boss composition in getWaveComposition', () => {
+  it('wave 5 includes exactly one colossus entry', () => {
+    const comp = getWaveComposition(5)
+    const boss = comp.filter(c => c.type === 'colossus')
+    expect(boss).toHaveLength(1)
+    expect(boss[0].count).toBe(1)
+  })
+
+  it('wave 10 includes exactly one colossus entry', () => {
+    const comp = getWaveComposition(10)
+    const boss = comp.filter(c => c.type === 'colossus')
+    expect(boss).toHaveLength(1)
+    expect(boss[0].count).toBe(1)
+  })
+
+  it('wave 1 has no colossus', () => {
+    const comp = getWaveComposition(1)
+    expect(comp.some(c => c.type === 'colossus')).toBe(false)
+  })
+
+  it('wave 7 has no colossus', () => {
+    const comp = getWaveComposition(7)
+    expect(comp.some(c => c.type === 'colossus')).toBe(false)
+  })
+
+  it('colossus is the last entry on boss waves', () => {
+    const comp = getWaveComposition(5)
+    expect(comp[comp.length - 1].type).toBe('colossus')
+  })
+})
+
+describe('boss composition in getEndlessWaveComposition', () => {
+  it('wave 15 (endless) includes exactly one colossus entry', () => {
+    const comp = getEndlessWaveComposition(15)
+    const boss = comp.filter(c => c.type === 'colossus')
+    expect(boss).toHaveLength(1)
+    expect(boss[0].count).toBe(1)
+  })
+
+  it('wave 20 (endless) includes exactly one colossus entry', () => {
+    const comp = getEndlessWaveComposition(20)
+    const boss = comp.filter(c => c.type === 'colossus')
+    expect(boss).toHaveLength(1)
+    expect(boss[0].count).toBe(1)
+  })
+
+  it('wave 11 (endless) has no colossus', () => {
+    const comp = getEndlessWaveComposition(11)
+    expect(comp.some(c => c.type === 'colossus')).toBe(false)
   })
 })

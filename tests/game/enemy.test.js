@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { createEnemy, moveEnemy, getEnemyRadius } from '../../src/game/enemy.js'
+import { createEnemy, moveEnemy, getEnemyRadius, getBossHp, ENEMY_TYPES } from '../../src/game/enemy.js'
 
 const WAYPOINTS = [
   { row: 0, col: 0 },
@@ -129,4 +129,34 @@ describe('getEnemyRadius', () => {
   it('returns 8 for 24% HP (legacy)', () => expect(getEnemyRadius(24, 100)).toBe(8))
   it('returns 8 for 0 HP (legacy)', () => expect(getEnemyRadius(0, 100)).toBe(8))
   it('returns 8 when maxHp is 0 (guard, legacy)', () => expect(getEnemyRadius(0, 0)).toBe(8))
+  it('returns 28 for colossus type', () => expect(getEnemyRadius(900, 900, 'colossus')).toBe(28))
+})
+
+describe('getBossHp', () => {
+  it('returns 3× tank base HP', () => {
+    expect(getBossHp()).toBe(3 * ENEMY_TYPES.tank.hp)
+  })
+
+  it('returns 900', () => {
+    expect(getBossHp()).toBe(900)
+  })
+})
+
+describe('createEnemy — colossus with HP override', () => {
+  it('uses hpOverride when provided', () => {
+    const enemy = createEnemy('b1', WAYPOINTS, 'colossus', 900)
+    expect(enemy.hp).toBe(900)
+    expect(enemy.maxHp).toBe(900)
+    expect(enemy.type).toBe('colossus')
+  })
+
+  it('colossus goldReward is 150', () => {
+    const enemy = createEnemy('b1', WAYPOINTS, 'colossus')
+    expect(enemy.goldReward).toBe(150)
+  })
+
+  it('colossus speed is 0.6', () => {
+    const enemy = createEnemy('b1', WAYPOINTS, 'colossus')
+    expect(enemy.speed).toBe(0.6)
+  })
 })

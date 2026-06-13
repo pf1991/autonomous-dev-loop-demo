@@ -1386,4 +1386,167 @@ test.describe('Tower Defense - smoke tests', () => {
     // Layer must be inside the game board wrapper
     await expect(page.locator('.game-board-wrapper .death-animation-layer')).toBeAttached({ timeout: 2000 });
   });
+
+  // --- Boss enemy every 5th wave (issue #66) ---
+
+  /**
+   * Helper: inject wave and gamePhase via React fiber dispatch hooks.
+   * App.jsx useState hook order (dispatch-only, 0-indexed):
+   *   0=gold, 1=lives, 2=wave, 3=speed, 4=towers, 5=enemies,
+   *   6=projectiles, 7=deathAnimations, 8=selectedTowerType, 9=selectedTower,
+   *   10=hoveredSlot, 11=gamePhase, 12=endlessMode, 13=finalScore,
+   *   14=powerCrates, 15=overchargeActive, 16=earlyWaveCalled, 17=pendingWaveAdvance
+   */
+
+  test('WaveCountdownBanner shows BOSS WAVE label when next wave is a multiple of 5', async ({ page }) => {
+    // Inject wave=4 and gamePhase='between-waves'.
+    // App renders: countdownIsBossWave = isBossWave(wave + 1) = isBossWave(5) = true
+    // So the banner should show .wave-countdown-boss-label with "BOSS WAVE"
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          // Collect all dispatch-capable hooks
+          const stateHooks = [];
+          let hookNode = fiber.memoizedState;
+          while (hookNode) {
+            if (hookNode.queue && typeof hookNode.queue.dispatch === 'function') {
+              stateHooks.push(hookNode);
+            }
+            hookNode = hookNode.next;
+          }
+          // wave=index 2, gamePhase=index 11
+          if (stateHooks[2]) stateHooks[2].queue.dispatch(4);           // wave → 4
+          if (stateHooks[11]) stateHooks[11].queue.dispatch('between-waves');
+          return;
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find App fiber hooks');
+    });
+    // Countdown banner must appear
+    await expect(page.locator('.wave-countdown-banner')).toBeVisible({ timeout: 2000 });
+    // Boss wave label must be attached in the DOM (it is position:absolute within flex and
+    // may not register as visually 'visible' in headless — check attachment + text instead)
+    await expect(page.locator('.wave-countdown-boss-label')).toBeAttached({ timeout: 2000 });
+    const bossLabelText = await page.locator('.wave-countdown-boss-label').textContent();
+    expect(bossLabelText).toContain('BOSS WAVE');
+  });
+
+  test('WaveCountdownBanner does NOT show BOSS WAVE label on a non-boss wave', async ({ page }) => {
+    // Inject wave=2, gamePhase='between-waves' → next wave is 3 (not a multiple of 5)
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          const stateHooks = [];
+          let hookNode = fiber.memoizedState;
+          while (hookNode) {
+            if (hookNode.queue && typeof hookNode.queue.dispatch === 'function') {
+              stateHooks.push(hookNode);
+            }
+            hookNode = hookNode.next;
+          }
+          if (stateHooks[2]) stateHooks[2].queue.dispatch(2);           // wave → 2
+          if (stateHooks[11]) stateHooks[11].queue.dispatch('between-waves');
+          return;
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find App fiber hooks');
+    });
+    await expect(page.locator('.wave-countdown-banner')).toBeVisible({ timeout: 2000 });
+    // Boss label must NOT be present
+    await expect(page.locator('.wave-countdown-boss-label')).not.toBeAttached();
+  });
+
+  test('colossus enemy renders .enemy-colossus-wrapper and .enemy-colossus-hex when injected', async ({ page }) => {
+    // Inject a colossus enemy while in between-waves (game loop only runs when gamePhaseRef='playing';
+    // fiber dispatch updates React state but NOT the ref, so the loop stays paused and won't wipe
+    // our injected enemies before GameBoard re-renders them).
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          const stateHooks = [];
+          let hookNode = fiber.memoizedState;
+          while (hookNode) {
+            if (hookNode.queue && typeof hookNode.queue.dispatch === 'function') {
+              stateHooks.push(hookNode);
+            }
+            hookNode = hookNode.next;
+          }
+          // enemies = dispatch index 5
+          if (stateHooks[5]) {
+            stateHooks[5].queue.dispatch([{
+              id: 'test-colossus-1',
+              hp: 900,
+              maxHp: 900,
+              pos: { row: 2, col: 3 },
+              waypointIndex: 1,
+              speed: 0.6,
+              type: 'colossus',
+              goldReward: 150,
+            }]);
+          }
+          return;
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find enemies hook dispatcher');
+    });
+
+    // The enemy-layer renders when enemies.length > 0
+    await expect(page.locator('.enemy-layer').first()).toBeAttached({ timeout: 2000 });
+    // The colossus wrapper must appear in the enemy layer
+    await expect(page.locator('.enemy-layer .enemy-colossus-wrapper').first()).toBeAttached({ timeout: 2000 });
+    // The hexagon SVG polygon element must be rendered inside the colossus SVG
+    await expect(page.locator('.enemy-colossus-hex').first()).toBeAttached({ timeout: 1000 });
+  });
+
+  test('power crate renders .power-crate element when injected into state', async ({ page }) => {
+    // Inject a power crate directly via React fiber (powerCrates = dispatch index 14).
+    // No need to start the wave — crate rendering is independent of gamePhase.
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          const stateHooks = [];
+          let hookNode = fiber.memoizedState;
+          while (hookNode) {
+            if (hookNode.queue && typeof hookNode.queue.dispatch === 'function') {
+              stateHooks.push(hookNode);
+            }
+            hookNode = hookNode.next;
+          }
+          // powerCrates = dispatch index 14
+          if (stateHooks[14]) {
+            stateHooks[14].queue.dispatch([{
+              id: 'test-crate-1',
+              row: 3,
+              col: 4,
+            }]);
+          }
+          return;
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find powerCrates hook dispatcher');
+    });
+
+    // The .power-crate element must appear on the board
+    await expect(page.locator('.power-crate').first()).toBeAttached({ timeout: 2000 });
+  });
 });
