@@ -6,6 +6,7 @@ import NextWave from './components/NextWave'
 import TowerPicker from './components/TowerPicker'
 import AchievementToast from './components/AchievementToast'
 import AchievementModal from './components/AchievementModal'
+import DifficultySelector from './components/DifficultySelector'
 import { createDefaultMap, getPathWaypoints } from './game/map'
 import { TOWER_TYPES, createTower, canAfford, canUpgrade, upgradeTower, getUpgradeCost, getNextUpgradeStats, sellTower, getAdjacentSynergies } from './game/tower'
 import { createEnemy, moveEnemy, getEnemyHpForWave } from './game/enemy'
@@ -14,6 +15,7 @@ import { getWaveEnemyHp, getWaveEnemyCount, getWaveComposition, getEarlyWaveBonu
 import { createPowerCrate, selectCrateReward } from './game/powerCrate'
 import { useGameLoop } from './hooks/useGameLoop'
 import { computeScore, computeComboBonus, getComboLabel } from './game/score'
+import { getDifficultyConfig, applyDifficultyToScore } from './game/difficulty'
 import { saveLeaderboardEntry } from './utils/leaderboard'
 import { checkAchievements, ACHIEVEMENTS } from './game/achievements'
 import { loadUnlockedAchievements, persistNewAchievements } from './utils/achievements'
@@ -38,6 +40,10 @@ const INITIAL_STATE = {
 }
 
 function App() {
+  // difficultyMode: null = show selector; string = mode chosen for this run
+  const [difficultyMode, setDifficultyMode] = useState(null)
+  const difficultyModeRef = useRef(null)
+
   const [gold, setGold] = useState(INITIAL_STATE.gold)
   const [lives, setLives] = useState(INITIAL_STATE.lives)
   const [wave, setWave] = useState(INITIAL_STATE.wave)
@@ -193,6 +199,16 @@ function App() {
     setGamePhase(val)
   }
 
+  // Called when the player picks a difficulty from the DifficultySelector overlay.
+  function handleSelectDifficulty(mode) {
+    const cfg = getDifficultyConfig(mode)
+    difficultyModeRef.current = mode
+    setDifficultyMode(mode)
+    // Apply starting gold and lives
+    setGold(cfg.startingGold)
+    syncLives(cfg.startingLives)
+  }
+
   // Keep towersRef in sync with towers state so onTick always sees the latest tower list.
   // Also recompute adjacency synergies whenever the tower list changes.
   useEffect(() => {
@@ -205,18 +221,19 @@ function App() {
   // Transition to 'lose' when lives hit 0 — scheduled outside setEnemies callback
   useEffect(() => {
     if (lives <= 0 && gamePhase === 'playing') {
-      const score = computeScore({
+      const rawScore = computeScore({
         kills: totalKillsRef.current,
         goldEarned: totalGoldEarnedRef.current,
         livesRemaining: 0,
         wavesCompleted: wavesCompletedRef.current,
       })
-      const entry = { score, date: new Date().toLocaleDateString(), result: 'lose' }
+      const score = applyDifficultyToScore(rawScore, difficultyMode ?? 'normal')
+      const entry = { score, date: new Date().toLocaleDateString(), result: 'lose', difficulty: difficultyMode ?? 'normal' }
       saveLeaderboardEntry(entry)
       setFinalScore(score)
       syncPhase('lose')
     }
-  }, [lives, gamePhase])
+  }, [lives, gamePhase, difficultyMode])
 
   const onTick = useCallback((deltaMs) => {
     if (gamePhaseRef.current !== 'playing') return
@@ -240,6 +257,12 @@ function App() {
       // getEnemyHpForWave returns getBossHp() for 'colossus' and base×1.4^(wave-1) for others.
       let hpOverride = getEnemyHpForWave(enemyType, currentWaveNum)
 
+      // Apply difficulty HP multiplier
+      const diffCfg = getDifficultyConfig(difficultyModeRef.current ?? 'normal')
+      if (diffCfg.enemyHpMult !== 1 && enemyType !== 'colossus') {
+        hpOverride = Math.round(hpOverride * diffCfg.enemyHpMult)
+      }
+
       // Apply elite wave modifiers: +50% HP, +25% speed
       const waveEvtType = currentWaveEventTypeRef.current
       const waveEvtCfg = WAVE_EVENT_CONFIG[waveEvtType] ?? WAVE_EVENT_CONFIG.normal
@@ -248,6 +271,11 @@ function App() {
       }
 
       newEnemy = createEnemy(nextEnemyIdRef.current++, PATH_WAYPOINTS, enemyType, hpOverride)
+
+      // Apply difficulty speed multiplier
+      if (diffCfg.enemySpeedMult !== 1 && enemyType !== 'colossus') {
+        newEnemy = { ...newEnemy, speed: newEnemy.speed * diffCfg.enemySpeedMult }
+      }
 
       // Apply elite speed multiplier
       if (waveEvtCfg.speedMultiplier !== 1 && enemyType !== 'colossus') {
@@ -379,8 +407,9 @@ function App() {
 
     const totalGoldThisTick = combatResult.goldEarned + effectResult.goldEarned
     if (totalGoldThisTick > 0 || comboBonusGoldThisTick > 0) {
-      // Compose the early-call multiplier and the event-type gold multiplier independently.
-      const bonusMultiplier = earlyWaveBonusRef.current * eventGoldMultiplierRef.current
+      // Compose the early-call multiplier, event-type gold multiplier, and difficulty gold multiplier.
+      const diffGoldMult = getDifficultyConfig(difficultyModeRef.current ?? 'normal').goldPerKillMult
+      const bonusMultiplier = earlyWaveBonusRef.current * eventGoldMultiplierRef.current * diffGoldMult
       const bonusGold = Math.round(totalGoldThisTick * bonusMultiplier) + comboBonusGoldThisTick
       setGold(g => g + bonusGold)
       totalGoldEarnedRef.current += bonusGold
@@ -507,13 +536,14 @@ function App() {
 
       // In endless mode the game never ends on wave 10 — keep going
       if (currentWaveNum >= TOTAL_WAVES && !endlessModeRef.current) {
-        const score = computeScore({
+        const rawScore = computeScore({
           kills: totalKillsRef.current,
           goldEarned: totalGoldEarnedRef.current,
           livesRemaining: livesRef.current,
           wavesCompleted: wavesCompletedRef.current,
         })
-        const entry = { score, date: new Date().toLocaleDateString(), result: 'win' }
+        const score = applyDifficultyToScore(rawScore, difficultyModeRef.current ?? 'normal')
+        const entry = { score, date: new Date().toLocaleDateString(), result: 'win', difficulty: difficultyModeRef.current ?? 'normal' }
         saveLeaderboardEntry(entry)
         setFinalScore(score)
         // Achievement: flawless, speed_demon — on win
@@ -643,6 +673,9 @@ function App() {
   }
 
   function handleRestart() {
+    // Reset difficulty: show selector again on next render
+    difficultyModeRef.current = null
+    setDifficultyMode(null)
     setGold(INITIAL_STATE.gold)
     syncLives(INITIAL_STATE.lives)
     syncWave(INITIAL_STATE.wave)
@@ -828,6 +861,8 @@ function App() {
         unlockedAchievements={unlockedAchievements}
         totalAchievements={ACHIEVEMENTS.length}
         onAchievementClick={() => setAchievementModalOpen(true)}
+        difficultyLabel={difficultyMode ? getDifficultyConfig(difficultyMode).label : ''}
+        difficultyColor={difficultyMode ? getDifficultyConfig(difficultyMode).color : '#e0e0e0'}
       />
       <TowerPicker
         selectedType={selectedTowerType}
@@ -877,7 +912,11 @@ function App() {
       {gamePhase === 'win' && (
         <GameOver result="win" score={finalScore} onRestart={handleRestart} />
       )}
-      {gamePhase === 'between-waves' && wave === 1 && (
+      {/* Difficulty selector: shown before the player picks a mode (fresh game or after restart) */}
+      {difficultyMode === null && (
+        <DifficultySelector onSelect={handleSelectDifficulty} />
+      )}
+      {gamePhase === 'between-waves' && wave === 1 && difficultyMode !== null && (
         <NextWave
           wave={wave}
           enemyCount={waveEnemyCount(wave)}
