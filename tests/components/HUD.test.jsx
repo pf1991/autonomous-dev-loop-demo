@@ -164,4 +164,81 @@ describe('HUD', () => {
     act(() => { container.querySelector('.hud-next-wave').click() })
     expect(onNextWaveEarly).toHaveBeenCalledTimes(1)
   })
+
+  it('does not render combo banner when comboVisible is false', () => {
+    act(() => {
+      root.render(
+        createElement(HUD, {
+          lives: 20, gold: 100, wave: 1, speed: 1,
+          onSpeedToggle: vi.fn(), onRestart: vi.fn(),
+          comboCount: 3, comboLabel: 'TRIPLE KILL', comboBonus: 5, comboVisible: false,
+        })
+      )
+    })
+    expect(container.querySelector('.combo-banner')).toBeNull()
+  })
+
+  it('does not render combo banner when comboCount is 1 (no bonus tier)', () => {
+    act(() => {
+      root.render(
+        createElement(HUD, {
+          lives: 20, gold: 100, wave: 1, speed: 1,
+          onSpeedToggle: vi.fn(), onRestart: vi.fn(),
+          comboCount: 1, comboLabel: '', comboBonus: 0, comboVisible: true,
+        })
+      )
+    })
+    expect(container.querySelector('.combo-banner')).toBeNull()
+  })
+
+  it('renders combo banner with correct text for a Triple Kill', () => {
+    act(() => {
+      root.render(
+        createElement(HUD, {
+          lives: 20, gold: 100, wave: 1, speed: 1,
+          onSpeedToggle: vi.fn(), onRestart: vi.fn(),
+          comboCount: 3, comboLabel: 'TRIPLE KILL', comboBonus: 5, comboVisible: true,
+        })
+      )
+    })
+    const banner = container.querySelector('.combo-banner')
+    expect(banner).not.toBeNull()
+    expect(banner.textContent).toContain('3×')
+    expect(banner.textContent).toContain('TRIPLE KILL')
+    expect(banner.textContent).toContain('+5g')
+  })
+
+  it('renders combo banner with rampage modifier class at 5+ kills', () => {
+    act(() => {
+      root.render(
+        createElement(HUD, {
+          lives: 20, gold: 100, wave: 1, speed: 1,
+          onSpeedToggle: vi.fn(), onRestart: vi.fn(),
+          comboCount: 5, comboLabel: 'RAMPAGE', comboBonus: 20, comboVisible: true,
+        })
+      )
+    })
+    const banner = container.querySelector('.combo-banner')
+    expect(banner).not.toBeNull()
+    expect(banner.classList.contains('combo-banner--rampage')).toBe(true)
+    expect(banner.textContent).toContain('RAMPAGE')
+    expect(banner.textContent).toContain('+20g')
+  })
+
+  it('renders combo banner without rampage class for Quad Kill (4 kills)', () => {
+    act(() => {
+      root.render(
+        createElement(HUD, {
+          lives: 20, gold: 100, wave: 1, speed: 1,
+          onSpeedToggle: vi.fn(), onRestart: vi.fn(),
+          comboCount: 4, comboLabel: 'QUAD KILL', comboBonus: 10, comboVisible: true,
+        })
+      )
+    })
+    const banner = container.querySelector('.combo-banner')
+    expect(banner).not.toBeNull()
+    expect(banner.classList.contains('combo-banner--rampage')).toBe(false)
+    expect(banner.textContent).toContain('QUAD KILL')
+    expect(banner.textContent).toContain('+10g')
+  })
 })

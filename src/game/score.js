@@ -14,3 +14,38 @@ export function computeScore({ kills, goldEarned, livesRemaining, wavesCompleted
     (wavesCompleted * 100)
   )
 }
+
+/**
+ * Compute bonus gold awarded for a kill-streak combo.
+ *
+ * Thresholds:
+ *   1  kill  — no bonus (0)
+ *   2  kills — Double Kill  (+2)
+ *   3  kills — Triple Kill  (+5)
+ *   4  kills — Quad Kill    (+10)
+ *   5+ kills — RAMPAGE      (+20)
+ *
+ * @param {number} comboCount — number of kills in the current combo window (≥ 1)
+ * @returns {number} Bonus gold to award on top of the enemy's base gold reward
+ */
+export function computeComboBonus(comboCount) {
+  if (comboCount >= 5) return 20
+  if (comboCount === 4) return 10
+  if (comboCount === 3) return 5
+  if (comboCount === 2) return 2
+  return 0
+}
+
+/**
+ * Return the label string for a given combo count.
+ *
+ * @param {number} comboCount
+ * @returns {string}
+ */
+export function getComboLabel(comboCount) {
+  if (comboCount >= 5) return 'RAMPAGE'
+  if (comboCount === 4) return 'QUAD KILL'
+  if (comboCount === 3) return 'TRIPLE KILL'
+  if (comboCount === 2) return 'DOUBLE KILL'
+  return ''
+}

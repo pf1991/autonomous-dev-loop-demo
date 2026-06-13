@@ -1050,6 +1050,32 @@ body {
   background: #f59e0b;
 }
 
+/* ===== Combo banner (kill-streak multiplier) ===== */
+@keyframes combo-fade-out {
+  0% { opacity: 1; }
+  60% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes combo-rampage-pulse {
+  0%, 100% { text-shadow: 0 0 4px rgba(249, 115, 22, 0.8), 0 1px 3px rgba(0,0,0,0.85); }
+  50% { text-shadow: 0 0 12px rgba(249, 115, 22, 1), 0 0 20px rgba(249, 115, 22, 0.6), 0 1px 3px rgba(0,0,0,0.85); }
+}
+
+.combo-banner {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #f97316;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+  white-space: nowrap;
+  letter-spacing: 0.04em;
+  animation: combo-fade-out 1.5s ease-out forwards;
+}
+
+.combo-banner--rampage {
+  animation: combo-rampage-pulse 0.5s ease-in-out infinite, combo-fade-out 1.5s ease-out forwards;
+}
+
 /* ===== Boss wave countdown banner ===== */
 .wave-countdown-banner--boss {
   background: rgba(60, 10, 20, 0.88);

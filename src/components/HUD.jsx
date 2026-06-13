@@ -12,14 +12,25 @@
  *   earlyWaveDisabled — whether the early-call button is already used this wave (bool)
  *   onNextWaveEarly   — callback invoked when the player calls next wave early
  *   endlessMode       — whether endless mode is active (bool)
+ *   comboCount        — current combo kill count (number, ≥ 0; 0 = no active combo)
+ *   comboLabel        — label text for current combo tier (string)
+ *   comboBonus        — bonus gold per kill for current combo (number)
+ *   comboVisible      — whether the combo banner should be visible (bool)
  */
-function HUD({ lives, gold, wave, speed, onSpeedToggle, onRestart, showNextWave, earlyWaveDisabled, onNextWaveEarly, endlessMode = false }) {
+function HUD({ lives, gold, wave, speed, onSpeedToggle, onRestart, showNextWave, earlyWaveDisabled, onNextWaveEarly, endlessMode = false, comboCount = 0, comboLabel = '', comboBonus = 0, comboVisible = false }) {
+  const isRampage = comboCount >= 5
+
   return (
     <div className="hud">
       <span className="hud-lives">Lives: {lives}</span>
       <span className="hud-gold">Gold: {gold}</span>
       <span className="hud-wave">Wave: {wave}</span>
       {endlessMode && <span className="hud-endless-badge">ENDLESS</span>}
+      {comboVisible && comboCount >= 2 && (
+        <span className={`combo-banner${isRampage ? ' combo-banner--rampage' : ''}`}>
+          {comboCount}× {comboLabel} +{comboBonus}g
+        </span>
+      )}
       {showNextWave && (
         <button
           className="hud-next-wave"
