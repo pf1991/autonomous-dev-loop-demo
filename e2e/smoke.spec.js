@@ -1394,6 +1394,13 @@ test.describe('Tower Defense - smoke tests', () => {
   });
 
   test('death-animation-layer is present in the game-board-wrapper when deathAnimations has entries', async ({ page }) => {
+    // Wait for React to mount and attach fiber data to the #game element
+    await page.waitForSelector('#game', { state: 'attached' });
+    await page.waitForFunction(() => {
+      const el = document.querySelector('#game');
+      if (!el) return false;
+      return Object.keys(el).some(k => k.startsWith('__reactFiber'));
+    }, { timeout: 5000 });
     // Inject a deathAnimation entry directly via React fiber (hook index 7)
     await page.evaluate(() => {
       const gameEl = document.querySelector('#game');
