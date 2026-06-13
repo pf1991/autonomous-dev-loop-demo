@@ -5,8 +5,10 @@ import { useState, useEffect, useRef } from 'react'
  * Shown between waves (wave > 1). Counts down 3→2→1 at 1-second intervals,
  * then calls onStart. The player may also click "Start Now" to skip.
  * Rendered inside .game-board-wrapper so it does not block the board tiles.
+ *
+ * eventType: 'normal' | 'horde' | 'elite' | 'stealth' — drives the banner styling.
  */
-function WaveCountdownBanner({ wave, enemyCount = 5, enemyHp = 100, isBossWave = false, onStart }) {
+function WaveCountdownBanner({ wave, enemyCount = 5, enemyHp = 100, isBossWave = false, eventType = 'normal', onStart }) {
   const [countdown, setCountdown] = useState(3)
   const firedRef = useRef(false)
   // Hold latest onStart in a ref so the countdown effect is not sensitive to
@@ -37,10 +39,22 @@ function WaveCountdownBanner({ wave, enemyCount = 5, enemyHp = 100, isBossWave =
     onStartRef.current()
   }
 
+  const eventClass = eventType !== 'normal' ? ` wave-countdown-banner--${eventType}` : ''
+  const EVENT_LABELS = {
+    horde:   '⚡ HORDE WAVE — Brace yourself!',
+    elite:   '💀 ELITE WAVE — Hardened enemies incoming',
+    stealth: "👁 STEALTH WAVE — You can't see them... but they're there",
+  }
+
   return (
-    <div className={`wave-countdown-banner${isBossWave ? ' wave-countdown-banner--boss' : ''}`}>
+    <div className={`wave-countdown-banner${isBossWave ? ' wave-countdown-banner--boss' : ''}${eventClass}`}>
       {isBossWave && (
         <span className="wave-countdown-boss-label">&#9888; BOSS WAVE</span>
+      )}
+      {eventType !== 'normal' && EVENT_LABELS[eventType] && (
+        <span className={`wave-countdown-event-label wave-countdown-event-label--${eventType}`}>
+          {EVENT_LABELS[eventType]}
+        </span>
       )}
       <span className="wave-countdown-text">
         Wave {wave} in {countdown}&hellip;

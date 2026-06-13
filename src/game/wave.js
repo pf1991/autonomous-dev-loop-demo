@@ -189,6 +189,80 @@ export function getEndlessWaveComposition(waveNumber) {
 }
 
 /**
+ * getWaveEventType returns the special event type for a given wave.
+ *
+ * Rules:
+ *   - Waves 1–3: always 'normal'
+ *   - Waves 4+: 20% chance of a special event ('horde', 'elite', or 'stealth')
+ *               distributed evenly (~6.67% each); 80% chance of 'normal'
+ *
+ * Uses a seeded LCG (linear congruential generator) so that the same
+ * waveNumber + seed always produces the same result (deterministic replays).
+ *
+ * @param {number} waveNumber - 1-based wave number
+ * @param {number} [seed=12345] - Optional seed for determinism
+ * @returns {'normal'|'horde'|'elite'|'stealth'}
+ */
+export function getWaveEventType(waveNumber, seed = 12345) {
+  if (waveNumber < 4) return 'normal'
+
+  // Mulberry32 hash: mix seed and waveNumber into a 32-bit value, then map to [0,1).
+  // Using Math.imul for safe 32-bit integer multiplication in all JS environments.
+  let a = (seed * 1000 + waveNumber) | 0
+  a = (a + 0x6D2B79F5) | 0
+  let t = Math.imul(a ^ (a >>> 15), 1 | a)
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+  const rand = ((t ^ (t >>> 14)) >>> 0) / 4294967296  // 0 ≤ rand < 1
+
+  if (rand < 0.8) return 'normal'
+  if (rand < 0.8667) return 'horde'
+  if (rand < 0.9333) return 'elite'
+  return 'stealth'
+}
+
+/**
+ * WAVE_EVENT_CONFIG holds display metadata and spawn modifiers for each event type.
+ */
+export const WAVE_EVENT_CONFIG = {
+  normal: {
+    label: null,
+    goldMultiplier: 1,
+    countMultiplier: 1,
+    hpMultiplier: 1,
+    speedMultiplier: 1,
+    forceType: null,
+  },
+  horde: {
+    label: '⚡ HORDE WAVE — Brace yourself!',
+    color: 'orange',
+    goldMultiplier: 1.2,
+    countMultiplier: 2.5,
+    hpMultiplier: 1,
+    speedMultiplier: 1,
+    forceType: 'grunt',
+  },
+  elite: {
+    label: '💀 ELITE WAVE — Hardened enemies incoming',
+    color: 'red',
+    goldMultiplier: 1.5,
+    countMultiplier: 1,
+    hpMultiplier: 1.5,
+    speedMultiplier: 1.25,
+    forceType: null,
+  },
+  stealth: {
+    label: '👁 STEALTH WAVE — You can\'t see them... but they\'re there',
+    color: 'purple',
+    goldMultiplier: 1,
+    countMultiplier: 1,
+    hpMultiplier: 1,
+    speedMultiplier: 1,
+    forceType: null,
+    stealthDurationMs: 5000,
+  },
+}
+
+/**
  * getEarlyWaveBonus returns the gold-per-kill multiplier granted when the player
  * calls the next wave early.
  *
