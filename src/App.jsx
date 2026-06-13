@@ -11,7 +11,7 @@ import { processCombat, processEffectTick } from './game/combat'
 import { getWaveEnemyHp, getWaveEnemyCount, getWaveComposition, getEarlyWaveBonus, getEndlessWaveEnemyHp, getEndlessWaveEnemyCount, getEndlessWaveComposition, isBossWave } from './game/wave'
 import { createPowerCrate, selectCrateReward } from './game/powerCrate'
 import { useGameLoop } from './hooks/useGameLoop'
-import { computeScore } from './game/score'
+import { computeScore, computeComboBonus, getComboLabel } from './game/score'
 import { saveLeaderboardEntry } from './utils/leaderboard'
 
 const INITIAL_MAP = createDefaultMap()
@@ -65,6 +65,15 @@ function App() {
   const [overchargeActive, setOverchargeActive] = useState(false)
   const overchargeUntilRef = useRef(0)
   const overchargeActiveRef = useRef(false)
+
+  // Combo kill-streak tracking
+  // comboCount: how many kills in the current 2s window
+  // comboWindowExpiry: game-clock ms when the combo window expires (0 = inactive)
+  // comboBannerUntil: game-clock ms until the HUD banner should stay visible
+  const comboCountRef = useRef(0)
+  const comboWindowExpiryRef = useRef(0)
+  const comboBannerUntilRef = useRef(0)
+  const [comboDisplay, setComboDisplay] = useState({ count: 0, label: '', bonus: 0, visible: false })
 
   const nextEnemyIdRef = useRef(0)
   const spawnTimerRef = useRef(0)
@@ -230,10 +239,49 @@ function App() {
       setOverchargeActive(false)
     }
 
+    // --- Combo kill-streak tracking ---
+    // Process each killed enemy through the combo window
+    const COMBO_WINDOW_MS = 2000
+    const COMBO_BANNER_DURATION_MS = 1500
+    let comboBonusGoldThisTick = 0
+    if (allKilledEnemies.length > 0) {
+      for (let i = 0; i < allKilledEnemies.length; i++) {
+        // Reset combo if window expired before this kill
+        if (nowMs > comboWindowExpiryRef.current) {
+          comboCountRef.current = 0
+        }
+        comboCountRef.current += 1
+        comboWindowExpiryRef.current = nowMs + COMBO_WINDOW_MS
+        const bonus = computeComboBonus(comboCountRef.current)
+        comboBonusGoldThisTick += bonus
+      }
+      // Update the HUD banner for the highest combo count this tick
+      const latestCount = comboCountRef.current
+      if (latestCount >= 2) {
+        comboBannerUntilRef.current = nowMs + COMBO_BANNER_DURATION_MS
+        setComboDisplay({
+          count: latestCount,
+          label: getComboLabel(latestCount),
+          bonus: computeComboBonus(latestCount),
+          visible: true,
+        })
+      }
+    }
+    // Hide banner when it has expired
+    if (comboBannerUntilRef.current > 0 && nowMs > comboBannerUntilRef.current) {
+      comboBannerUntilRef.current = 0
+      setComboDisplay(prev => ({ ...prev, visible: false }))
+    }
+    // Expire combo window when no kill in last 2s
+    if (comboWindowExpiryRef.current > 0 && nowMs > comboWindowExpiryRef.current) {
+      comboWindowExpiryRef.current = 0
+      comboCountRef.current = 0
+    }
+
     const totalGoldThisTick = combatResult.goldEarned + effectResult.goldEarned
-    if (totalGoldThisTick > 0) {
+    if (totalGoldThisTick > 0 || comboBonusGoldThisTick > 0) {
       const bonusMultiplier = earlyWaveBonusRef.current
-      const bonusGold = Math.round(totalGoldThisTick * bonusMultiplier)
+      const bonusGold = Math.round(totalGoldThisTick * bonusMultiplier) + comboBonusGoldThisTick
       setGold(g => g + bonusGold)
       totalGoldEarnedRef.current += bonusGold
 
@@ -438,6 +486,10 @@ function App() {
     nextCrateIdRef.current = 0
     overchargeUntilRef.current = 0
     setOverchargeActive(false)
+    comboCountRef.current = 0
+    comboWindowExpiryRef.current = 0
+    comboBannerUntilRef.current = 0
+    setComboDisplay({ count: 0, label: '', bonus: 0, visible: false })
     syncPhase('between-waves')
   }
 
@@ -476,6 +528,11 @@ function App() {
     earlyWaveCalledRef.current = false
     setEarlyWaveCalled(false)
     setPendingWaveAdvance(0)
+    // Reset combo streak between waves
+    comboCountRef.current = 0
+    comboWindowExpiryRef.current = 0
+    comboBannerUntilRef.current = 0
+    setComboDisplay({ count: 0, label: '', bonus: 0, visible: false })
     const queue = buildSpawnQueue(waveRef.current)
     spawnQueueRef.current = queue
     totalEnemiesToSpawnRef.current = queue.length
@@ -523,6 +580,10 @@ function App() {
         endlessMode={endlessMode}
         earlyWaveDisabled={earlyWaveCalled}
         onNextWaveEarly={handleCallNextWaveEarly}
+        comboCount={comboDisplay.count}
+        comboLabel={comboDisplay.label}
+        comboBonus={comboDisplay.bonus}
+        comboVisible={comboDisplay.visible}
       />
       <TowerPicker
         selectedType={selectedTowerType}

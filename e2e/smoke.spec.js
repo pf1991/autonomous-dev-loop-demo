@@ -1549,6 +1549,151 @@ test.describe('Tower Defense - smoke tests', () => {
     await expect(page.locator('.enemy-colossus-hex').first()).toBeAttached({ timeout: 1000 });
   });
 
+  // --- Combo kill-streak banner (issue #68) ---
+
+  test('combo banner is hidden by default before any kills', async ({ page }) => {
+    // On initial load comboDisplay.visible is false — .combo-banner must NOT be in the DOM
+    await expect(page.locator('.combo-banner')).not.toBeAttached();
+  });
+
+  test('combo banner appears when comboDisplay state is injected with visible=true and count>=2', async ({ page }) => {
+    // Inject comboDisplay = { count: 3, label: 'TRIPLE KILL', bonus: 5, visible: true }
+    // via React fiber dispatch. comboDisplay = dispatch index 16.
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          const stateHooks = [];
+          let hookNode = fiber.memoizedState;
+          while (hookNode) {
+            if (hookNode.queue && typeof hookNode.queue.dispatch === 'function') {
+              stateHooks.push(hookNode);
+            }
+            hookNode = hookNode.next;
+          }
+          // comboDisplay = dispatch index 16
+          if (stateHooks[16]) {
+            stateHooks[16].queue.dispatch({ count: 3, label: 'TRIPLE KILL', bonus: 5, visible: true });
+          }
+          return;
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find comboDisplay hook dispatcher');
+    });
+    // .combo-banner must be attached after injection
+    await expect(page.locator('.combo-banner').first()).toBeAttached({ timeout: 2000 });
+    const bannerText = await page.locator('.combo-banner').first().textContent();
+    expect(bannerText).toContain('3×');
+    expect(bannerText).toContain('TRIPLE KILL');
+    expect(bannerText).toContain('+5g');
+  });
+
+  test('combo banner shows rampage class at 5+ kills', async ({ page }) => {
+    // Inject comboDisplay = { count: 5, label: 'RAMPAGE', bonus: 20, visible: true }
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          const stateHooks = [];
+          let hookNode = fiber.memoizedState;
+          while (hookNode) {
+            if (hookNode.queue && typeof hookNode.queue.dispatch === 'function') {
+              stateHooks.push(hookNode);
+            }
+            hookNode = hookNode.next;
+          }
+          // comboDisplay = dispatch index 16
+          if (stateHooks[16]) {
+            stateHooks[16].queue.dispatch({ count: 5, label: 'RAMPAGE', bonus: 20, visible: true });
+          }
+          return;
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find comboDisplay hook dispatcher');
+    });
+    await expect(page.locator('.combo-banner').first()).toBeAttached({ timeout: 2000 });
+    // Rampage class must be present at 5+ kills
+    const cls = await page.locator('.combo-banner').first().getAttribute('class');
+    expect(cls).toContain('combo-banner--rampage');
+    const bannerText = await page.locator('.combo-banner').first().textContent();
+    expect(bannerText).toContain('RAMPAGE');
+    expect(bannerText).toContain('+20g');
+  });
+
+  test('combo banner does not show rampage class for Quad Kill (4 kills)', async ({ page }) => {
+    // Inject comboDisplay = { count: 4, label: 'QUAD KILL', bonus: 10, visible: true }
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          const stateHooks = [];
+          let hookNode = fiber.memoizedState;
+          while (hookNode) {
+            if (hookNode.queue && typeof hookNode.queue.dispatch === 'function') {
+              stateHooks.push(hookNode);
+            }
+            hookNode = hookNode.next;
+          }
+          // comboDisplay = dispatch index 16
+          if (stateHooks[16]) {
+            stateHooks[16].queue.dispatch({ count: 4, label: 'QUAD KILL', bonus: 10, visible: true });
+          }
+          return;
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find comboDisplay hook dispatcher');
+    });
+    await expect(page.locator('.combo-banner').first()).toBeAttached({ timeout: 2000 });
+    const cls = await page.locator('.combo-banner').first().getAttribute('class');
+    expect(cls).not.toContain('combo-banner--rampage');
+    const bannerText = await page.locator('.combo-banner').first().textContent();
+    expect(bannerText).toContain('QUAD KILL');
+    expect(bannerText).toContain('+10g');
+  });
+
+  test('combo banner is hidden when comboVisible is set to false', async ({ page }) => {
+    // First inject a visible combo, then hide it
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          const stateHooks = [];
+          let hookNode = fiber.memoizedState;
+          while (hookNode) {
+            if (hookNode.queue && typeof hookNode.queue.dispatch === 'function') {
+              stateHooks.push(hookNode);
+            }
+            hookNode = hookNode.next;
+          }
+          // comboDisplay = dispatch index 16
+          if (stateHooks[16]) {
+            stateHooks[16].queue.dispatch({ count: 0, label: '', bonus: 0, visible: false });
+          }
+          return;
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find comboDisplay hook dispatcher');
+    });
+    // Banner must NOT be in the DOM
+    await expect(page.locator('.combo-banner')).not.toBeAttached({ timeout: 2000 });
+  });
+
   test('power crate renders .power-crate element when injected into state', async ({ page }) => {
     // Inject a power crate directly via React fiber (powerCrates = dispatch index 14).
     // No need to start the wave — crate rendering is independent of gamePhase.
