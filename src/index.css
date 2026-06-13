@@ -1168,3 +1168,48 @@ body {
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
+
+/* ===== Special wave event countdown banners ===== */
+.wave-countdown-banner--horde {
+  background: rgba(60, 35, 5, 0.88);
+  border-bottom-color: #f5a623;
+}
+
+.wave-countdown-banner--elite {
+  background: rgba(50, 5, 5, 0.88);
+  border-bottom-color: #e94560;
+}
+
+.wave-countdown-banner--stealth {
+  background: rgba(30, 10, 50, 0.88);
+  border-bottom-color: #9b59b6;
+}
+
+/* Event-type label inside the countdown banner */
+.wave-countdown-event-label {
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.wave-countdown-event-label--horde {
+  color: #f5a623;
+}
+
+.wave-countdown-event-label--elite {
+  color: #e94560;
+}
+
+.wave-countdown-event-label--stealth {
+  color: #9b59b6;
+}
+
+/* ===== Stealth enemy visibility ===== */
+.enemy-stealth {
+  opacity: 0;
+}
+
+.enemy-visible {
+  /* explicit visible state — towers still target normally */
+  opacity: 1;
+}

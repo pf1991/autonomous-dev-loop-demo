@@ -187,6 +187,7 @@ function GameBoard({
   countdownEnemyCount = 5,
   countdownEnemyHp = 100,
   countdownIsBossWave = false,
+  countdownEventType = 'normal',
   onCountdownStart,
 }) {
   // Build a map from "row-col" key to tower object for O(1) lookup
@@ -410,7 +411,8 @@ function GameBoard({
             const typeClass = typeClassMap[enemy.type] ?? 'enemy-grunt'
             const isSlowed = enemy.slowUntil != null
             const isPoisoned = isEnemyPoisoned(enemy)
-            const statusClass = isSlowed ? ' enemy-slowed' : isPoisoned ? ' enemy-poisoned' : ''
+            const stealthClass = enemy.stealth ? ' enemy-stealth' : ' enemy-visible'
+            const statusClass = (isSlowed ? ' enemy-slowed' : isPoisoned ? ' enemy-poisoned' : '') + stealthClass
             return (
               <div
                 key={enemy.id}
@@ -465,6 +467,7 @@ function GameBoard({
           enemyCount={countdownEnemyCount}
           enemyHp={countdownEnemyHp}
           isBossWave={countdownIsBossWave}
+          eventType={countdownEventType}
           onStart={onCountdownStart}
         />
       )}

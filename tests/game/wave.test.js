@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { createWave, getWaveEnemyHp, getWaveEnemyCount, getWaveComposition, getEarlyWaveBonus, getEndlessWaveEnemyHp, getEndlessWaveEnemyCount, getEndlessWaveComposition, isBossWave } from '../../src/game/wave.js'
+import { createWave, getWaveEnemyHp, getWaveEnemyCount, getWaveComposition, getEarlyWaveBonus, getEndlessWaveEnemyHp, getEndlessWaveEnemyCount, getEndlessWaveComposition, isBossWave, getWaveEventType, WAVE_EVENT_CONFIG } from '../../src/game/wave.js'
 
 describe('getWaveEnemyHp', () => {
   it('wave 1 returns 100 HP', () => {
@@ -391,5 +391,90 @@ describe('boss composition in getEndlessWaveComposition', () => {
   it('wave 11 (endless) has no colossus', () => {
     const comp = getEndlessWaveComposition(11)
     expect(comp.some(c => c.type === 'colossus')).toBe(false)
+  })
+})
+
+describe('getWaveEventType', () => {
+  it('waves 1–3 always return normal', () => {
+    const seeds = [0, 1, 12345, 99999]
+    for (const seed of seeds) {
+      for (const wave of [1, 2, 3]) {
+        expect(getWaveEventType(wave, seed)).toBe('normal')
+      }
+    }
+  })
+
+  it('returns one of the four valid event types for wave ≥ 4', () => {
+    const valid = new Set(['normal', 'horde', 'elite', 'stealth'])
+    for (let wave = 4; wave <= 20; wave++) {
+      expect(valid.has(getWaveEventType(wave, 12345))).toBe(true)
+    }
+  })
+
+  it('is deterministic: same wave + seed always returns same result', () => {
+    for (let wave = 4; wave <= 10; wave++) {
+      expect(getWaveEventType(wave, 42)).toBe(getWaveEventType(wave, 42))
+    }
+  })
+
+  it('different seeds can produce different results for the same wave', () => {
+    // Run many seeds and ensure we eventually see variation
+    const results = new Set()
+    for (let seed = 0; seed < 500; seed++) {
+      results.add(getWaveEventType(4, seed))
+    }
+    // With 500 seeds we expect more than one distinct result
+    expect(results.size).toBeGreaterThan(1)
+  })
+
+  it('special event frequency is approximately 20% for wave ≥ 4', () => {
+    // Run 1000 different seeds for wave 4 and count specials
+    let specialCount = 0
+    for (let seed = 0; seed < 1000; seed++) {
+      const t = getWaveEventType(4, seed)
+      if (t !== 'normal') specialCount++
+    }
+    // Expect between 10% and 35% specials (generous range for LCG distribution)
+    expect(specialCount).toBeGreaterThan(100)
+    expect(specialCount).toBeLessThan(350)
+  })
+})
+
+describe('WAVE_EVENT_CONFIG', () => {
+  it('horde event has 2.5× count multiplier and forces grunt type', () => {
+    expect(WAVE_EVENT_CONFIG.horde.countMultiplier).toBe(2.5)
+    expect(WAVE_EVENT_CONFIG.horde.forceType).toBe('grunt')
+  })
+
+  it('horde event has +20% gold multiplier (1.2)', () => {
+    expect(WAVE_EVENT_CONFIG.horde.goldMultiplier).toBeCloseTo(1.2)
+  })
+
+  it('elite event has +50% HP multiplier and +25% speed multiplier', () => {
+    expect(WAVE_EVENT_CONFIG.elite.hpMultiplier).toBeCloseTo(1.5)
+    expect(WAVE_EVENT_CONFIG.elite.speedMultiplier).toBeCloseTo(1.25)
+  })
+
+  it('elite event has +50% gold multiplier (1.5)', () => {
+    expect(WAVE_EVENT_CONFIG.elite.goldMultiplier).toBeCloseTo(1.5)
+  })
+
+  it('stealth event has stealthDurationMs of 5000', () => {
+    expect(WAVE_EVENT_CONFIG.stealth.stealthDurationMs).toBe(5000)
+  })
+
+  it('normal event has all multipliers at 1 and no forceType', () => {
+    expect(WAVE_EVENT_CONFIG.normal.goldMultiplier).toBe(1)
+    expect(WAVE_EVENT_CONFIG.normal.countMultiplier).toBe(1)
+    expect(WAVE_EVENT_CONFIG.normal.hpMultiplier).toBe(1)
+    expect(WAVE_EVENT_CONFIG.normal.speedMultiplier).toBe(1)
+    expect(WAVE_EVENT_CONFIG.normal.forceType).toBeNull()
+  })
+
+  it('every event type has a label (except normal which is null)', () => {
+    expect(WAVE_EVENT_CONFIG.horde.label).toContain('HORDE')
+    expect(WAVE_EVENT_CONFIG.elite.label).toContain('ELITE')
+    expect(WAVE_EVENT_CONFIG.stealth.label).toContain('STEALTH')
+    expect(WAVE_EVENT_CONFIG.normal.label).toBeNull()
   })
 })

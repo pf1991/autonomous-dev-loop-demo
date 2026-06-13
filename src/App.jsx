@@ -8,7 +8,7 @@ import { createDefaultMap, getPathWaypoints } from './game/map'
 import { TOWER_TYPES, createTower, canAfford, canUpgrade, upgradeTower, getUpgradeCost, getNextUpgradeStats, sellTower, getAdjacentSynergies } from './game/tower'
 import { createEnemy, moveEnemy, getEnemyHpForWave } from './game/enemy'
 import { processCombat, processEffectTick } from './game/combat'
-import { getWaveEnemyHp, getWaveEnemyCount, getWaveComposition, getEarlyWaveBonus, getEndlessWaveEnemyHp, getEndlessWaveEnemyCount, getEndlessWaveComposition, isBossWave } from './game/wave'
+import { getWaveEnemyHp, getWaveEnemyCount, getWaveComposition, getEarlyWaveBonus, getEndlessWaveEnemyHp, getEndlessWaveEnemyCount, getEndlessWaveComposition, isBossWave, getWaveEventType, WAVE_EVENT_CONFIG } from './game/wave'
 import { createPowerCrate, selectCrateReward } from './game/powerCrate'
 import { useGameLoop } from './hooks/useGameLoop'
 import { computeScore, computeComboBonus, getComboLabel } from './game/score'
@@ -102,6 +102,16 @@ function App() {
   const [earlyWaveCalled, setEarlyWaveCalled] = useState(false)
   // How many extra waves were called early last round (used to advance wave counter correctly)
   const [pendingWaveAdvance, setPendingWaveAdvance] = useState(0)
+  // Special wave event type for the current wave: 'normal' | 'horde' | 'elite' | 'stealth'
+  // waveEventSeedRef: seed used for deterministic event generation (randomised once per run)
+  const waveEventSeedRef = useRef(Math.floor(Math.random() * 100000))
+  const [currentWaveEventType, setCurrentWaveEventType] = useState('normal')
+  const currentWaveEventTypeRef = useRef('normal')
+  // Separate ref to track the event-type gold multiplier for the current wave.
+  // earlyWaveBonusRef tracks the early-call multiplier; the two are composed at gold-award time.
+  const eventGoldMultiplierRef = useRef(1)
+  // For stealth waves: the game-clock time when enemies should become visible
+  const stealthRevealAtRef = useRef(0)
   const livesRef = useRef(INITIAL_STATE.lives)
   const waveRef = useRef(INITIAL_STATE.wave)
   const gamePhaseRef = useRef('between-waves')
@@ -175,8 +185,27 @@ function App() {
       const enemyType = spawnQueueRef.current[spawnedInWaveRef.current] ?? 'grunt'
       // Scale every enemy type's HP by the wave multiplier so later waves are genuinely harder.
       // getEnemyHpForWave returns getBossHp() for 'colossus' and base×1.4^(wave-1) for others.
-      const hpOverride = getEnemyHpForWave(enemyType, currentWaveNum)
+      let hpOverride = getEnemyHpForWave(enemyType, currentWaveNum)
+
+      // Apply elite wave modifiers: +50% HP, +25% speed
+      const waveEvtType = currentWaveEventTypeRef.current
+      const waveEvtCfg = WAVE_EVENT_CONFIG[waveEvtType] ?? WAVE_EVENT_CONFIG.normal
+      if (waveEvtCfg.hpMultiplier !== 1 && enemyType !== 'colossus') {
+        hpOverride = Math.round(hpOverride * waveEvtCfg.hpMultiplier)
+      }
+
       newEnemy = createEnemy(nextEnemyIdRef.current++, PATH_WAYPOINTS, enemyType, hpOverride)
+
+      // Apply elite speed multiplier
+      if (waveEvtCfg.speedMultiplier !== 1 && enemyType !== 'colossus') {
+        newEnemy = { ...newEnemy, speed: newEnemy.speed * waveEvtCfg.speedMultiplier }
+      }
+
+      // Apply stealth: enemies spawn invisible for the first 5 seconds
+      if (waveEvtType === 'stealth' && stealthRevealAtRef.current > 0 && gameClockRef.current < stealthRevealAtRef.current) {
+        newEnemy = { ...newEnemy, stealth: true }
+      }
+
       spawnedInWaveRef.current += 1
     }
 
@@ -187,11 +216,18 @@ function App() {
     // Expire any slow debuffs whose duration has elapsed before movement/combat.
     const rawAll = newEnemy ? [...enemiesRef.current, newEnemy] : [...enemiesRef.current]
     const all = rawAll.map(e => {
-      if (e.slowUntil != null && nowMs >= e.slowUntil) {
-        const { slowUntil, speedMult, ...rest } = e
-        return rest
+      // Expire slow debuffs
+      let updated = e
+      if (updated.slowUntil != null && nowMs >= updated.slowUntil) {
+        const { slowUntil, speedMult, ...rest } = updated
+        updated = rest
       }
-      return e
+      // Reveal stealth enemies after the stealth window expires
+      if (updated.stealth && stealthRevealAtRef.current > 0 && nowMs >= stealthRevealAtRef.current) {
+        const { stealth: _stealth, ...rest } = updated
+        updated = rest
+      }
+      return updated
     })
     const surviving = []
     let livesLost = 0
@@ -290,7 +326,8 @@ function App() {
 
     const totalGoldThisTick = combatResult.goldEarned + effectResult.goldEarned
     if (totalGoldThisTick > 0 || comboBonusGoldThisTick > 0) {
-      const bonusMultiplier = earlyWaveBonusRef.current
+      // Compose the early-call multiplier and the event-type gold multiplier independently.
+      const bonusMultiplier = earlyWaveBonusRef.current * eventGoldMultiplierRef.current
       const bonusGold = Math.round(totalGoldThisTick * bonusMultiplier) + comboBonusGoldThisTick
       setGold(g => g + bonusGold)
       totalGoldEarnedRef.current += bonusGold
@@ -498,6 +535,11 @@ function App() {
     nextCrateIdRef.current = 0
     overchargeUntilRef.current = 0
     setOverchargeActive(false)
+    currentWaveEventTypeRef.current = 'normal'
+    setCurrentWaveEventType('normal')
+    stealthRevealAtRef.current = 0
+    eventGoldMultiplierRef.current = 1
+    waveEventSeedRef.current = Math.floor(Math.random() * 100000)
     comboCountRef.current = 0
     comboWindowExpiryRef.current = 0
     comboBannerUntilRef.current = 0
@@ -516,19 +558,36 @@ function App() {
     return endlessModeRef.current ? getEndlessWaveComposition(waveNumber) : getWaveComposition(waveNumber)
   }
 
-  function buildSpawnQueue(waveNumber) {
-    const composition = waveComposition(waveNumber)
+  function buildSpawnQueue(waveNumber, eventType = 'normal') {
+    const eventCfg = WAVE_EVENT_CONFIG[eventType] ?? WAVE_EVENT_CONFIG.normal
+    let composition = waveComposition(waveNumber)
+
+    if (eventCfg.forceType) {
+      // Horde: replace all non-colossus enemies with the forced type
+      const total = composition.reduce((s, e) => e.type === 'colossus' ? s : s + e.count, 0)
+      const hordeCount = Math.round(total * eventCfg.countMultiplier)
+      const bossEntry = composition.filter(e => e.type === 'colossus')
+      composition = [{ type: eventCfg.forceType, count: hordeCount }, ...bossEntry]
+    } else if (eventCfg.countMultiplier !== 1) {
+      // Scale counts but keep composition (used if we ever add count-only variants)
+      composition = composition.map(e =>
+        e.type === 'colossus' ? e : { ...e, count: Math.round(e.count * eventCfg.countMultiplier) }
+      )
+    }
+
     // Flatten into an ordered array of type strings
     const types = []
     for (const { type, count } of composition) {
       for (let i = 0; i < count; i++) types.push(type)
     }
-    // Fisher-Yates shuffle for randomised spawn order
-    for (let i = types.length - 1; i > 0; i--) {
+    // Fisher-Yates shuffle for randomised spawn order (colossus stays last for boss waves)
+    const regular = types.filter(t => t !== 'colossus')
+    const bosses = types.filter(t => t === 'colossus')
+    for (let i = regular.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1))
-      ;[types[i], types[j]] = [types[j], types[i]]
+      ;[regular[i], regular[j]] = [regular[j], regular[i]]
     }
-    return types
+    return [...regular, ...bosses]
   }
 
   function handleStartWave() {
@@ -545,7 +604,22 @@ function App() {
     comboWindowExpiryRef.current = 0
     comboBannerUntilRef.current = 0
     setComboDisplay({ count: 0, label: '', bonus: 0, visible: false })
-    const queue = buildSpawnQueue(waveRef.current)
+
+    // Determine special event type for this wave
+    const eventType = getWaveEventType(waveRef.current, waveEventSeedRef.current)
+    currentWaveEventTypeRef.current = eventType
+    setCurrentWaveEventType(eventType)
+
+    // Stealth: record reveal time (game clock + 5s); reset to 0 for non-stealth
+    const stealthDuration = WAVE_EVENT_CONFIG[eventType]?.stealthDurationMs ?? 0
+    stealthRevealAtRef.current = stealthDuration > 0 ? gameClockRef.current + stealthDuration : 0
+
+    // Store event-type gold multiplier separately so it is not overwritten
+    // if the player triggers an early wave call during this wave.
+    const eventCfg = WAVE_EVENT_CONFIG[eventType] ?? WAVE_EVENT_CONFIG.normal
+    eventGoldMultiplierRef.current = eventCfg.goldMultiplier
+
+    const queue = buildSpawnQueue(waveRef.current, eventType)
     spawnQueueRef.current = queue
     totalEnemiesToSpawnRef.current = queue.length
     syncPhase('playing')
@@ -628,9 +702,15 @@ function App() {
         overchargeActive={overchargeActive}
         showCountdownBanner={gamePhase === 'between-waves' && wave > 1}
         countdownWave={wave + 1 + pendingWaveAdvance}
-        countdownEnemyCount={waveEnemyCount(wave + 1 + pendingWaveAdvance)}
+        countdownEnemyCount={(() => {
+          const nextWave = wave + 1 + pendingWaveAdvance
+          const nextEvt = getWaveEventType(nextWave, waveEventSeedRef.current)
+          const nextEvtCfg = WAVE_EVENT_CONFIG[nextEvt] ?? WAVE_EVENT_CONFIG.normal
+          return Math.round(waveEnemyCount(nextWave) * nextEvtCfg.countMultiplier)
+        })()}
         countdownEnemyHp={waveEnemyHp(wave + 1 + pendingWaveAdvance)}
         countdownIsBossWave={isBossWave(wave + 1 + pendingWaveAdvance)}
+        countdownEventType={getWaveEventType(wave + 1 + pendingWaveAdvance, waveEventSeedRef.current)}
         onCountdownStart={handleNextWaveStart}
       />
       {gamePhase === 'lose' && (
