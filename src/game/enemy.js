@@ -84,6 +84,26 @@ export function getBossHp() {
 }
 
 /**
+ * getEnemyHpForWave returns the HP for the given enemy type scaled to the wave number.
+ *
+ * Each wave enemy HP grows by ×1.4 per wave (matching the wave.js formula).
+ * The scale factor is 1.4^(waveNumber - 1), so wave 1 enemies have their base HP
+ * and wave 10 enemies have roughly ×20.7× more HP.
+ *
+ * Colossus (boss) HP is constant at getBossHp() and ignores wave scaling.
+ *
+ * @param {string} type - Enemy type key (e.g. 'grunt', 'tank', 'armored', 'colossus')
+ * @param {number} waveNumber - 1-based wave number
+ * @returns {number} HP value (integer)
+ */
+export function getEnemyHpForWave(type, waveNumber) {
+  if (type === 'colossus') return getBossHp()
+  const stats = ENEMY_TYPES[type] ?? ENEMY_TYPES.grunt
+  const scaleFactor = Math.pow(1.4, waveNumber - 1)
+  return Math.round(stats.hp * scaleFactor)
+}
+
+/**
  * createEnemy creates a new enemy object.
  * @param {string|number} id - Unique enemy identifier
  * @param {Array<{row: number, col: number}>} pathWaypoints - Array of waypoints defining the path

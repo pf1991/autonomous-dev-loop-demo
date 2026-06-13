@@ -6,7 +6,7 @@ import NextWave from './components/NextWave'
 import TowerPicker from './components/TowerPicker'
 import { createDefaultMap, getPathWaypoints } from './game/map'
 import { TOWER_TYPES, createTower, canAfford, canUpgrade, upgradeTower, getUpgradeCost, getNextUpgradeStats, sellTower, getAdjacentSynergies } from './game/tower'
-import { createEnemy, moveEnemy, getBossHp } from './game/enemy'
+import { createEnemy, moveEnemy, getEnemyHpForWave } from './game/enemy'
 import { processCombat, processEffectTick } from './game/combat'
 import { getWaveEnemyHp, getWaveEnemyCount, getWaveComposition, getEarlyWaveBonus, getEndlessWaveEnemyHp, getEndlessWaveEnemyCount, getEndlessWaveComposition, isBossWave } from './game/wave'
 import { createPowerCrate, selectCrateReward } from './game/powerCrate'
@@ -173,7 +173,9 @@ function App() {
     ) {
       spawnTimerRef.current = 0
       const enemyType = spawnQueueRef.current[spawnedInWaveRef.current] ?? 'grunt'
-      const hpOverride = enemyType === 'colossus' ? getBossHp() : undefined
+      // Scale every enemy type's HP by the wave multiplier so later waves are genuinely harder.
+      // getEnemyHpForWave returns getBossHp() for 'colossus' and base×1.4^(wave-1) for others.
+      const hpOverride = getEnemyHpForWave(enemyType, currentWaveNum)
       newEnemy = createEnemy(nextEnemyIdRef.current++, PATH_WAYPOINTS, enemyType, hpOverride)
       spawnedInWaveRef.current += 1
     }

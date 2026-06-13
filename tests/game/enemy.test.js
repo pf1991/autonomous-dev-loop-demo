@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { createEnemy, moveEnemy, getEnemyRadius, getBossHp, ENEMY_TYPES } from '../../src/game/enemy.js'
+import { createEnemy, moveEnemy, getEnemyRadius, getBossHp, getEnemyHpForWave, ENEMY_TYPES } from '../../src/game/enemy.js'
 
 const WAYPOINTS = [
   { row: 0, col: 0 },
@@ -158,5 +158,56 @@ describe('createEnemy — colossus with HP override', () => {
   it('colossus speed is 0.6', () => {
     const enemy = createEnemy('b1', WAYPOINTS, 'colossus')
     expect(enemy.speed).toBe(0.6)
+  })
+})
+
+describe('getEnemyHpForWave', () => {
+  it('grunt wave 1 returns base grunt HP (80)', () => {
+    expect(getEnemyHpForWave('grunt', 1)).toBe(80)
+  })
+
+  it('tank wave 1 returns base tank HP (300)', () => {
+    expect(getEnemyHpForWave('tank', 1)).toBe(300)
+  })
+
+  it('armored wave 1 returns base armored HP (600)', () => {
+    expect(getEnemyHpForWave('armored', 1)).toBe(600)
+  })
+
+  it('grunt wave 2 is 1.4× wave 1 grunt HP', () => {
+    expect(getEnemyHpForWave('grunt', 2)).toBe(Math.round(80 * 1.4))
+  })
+
+  it('tank wave 5 scales by 1.4^4', () => {
+    const expected = Math.round(300 * Math.pow(1.4, 4))
+    expect(getEnemyHpForWave('tank', 5)).toBe(expected)
+  })
+
+  it('grunt wave 10 HP is much higher than wave 1', () => {
+    const wave1Hp = getEnemyHpForWave('grunt', 1)
+    const wave10Hp = getEnemyHpForWave('grunt', 10)
+    expect(wave10Hp).toBeGreaterThan(wave1Hp * 10)
+  })
+
+  it('colossus always returns getBossHp() regardless of wave', () => {
+    const bossHp = getBossHp()
+    expect(getEnemyHpForWave('colossus', 1)).toBe(bossHp)
+    expect(getEnemyHpForWave('colossus', 5)).toBe(bossHp)
+    expect(getEnemyHpForWave('colossus', 10)).toBe(bossHp)
+  })
+
+  it('unknown type falls back to grunt base HP (80) at wave 1', () => {
+    expect(getEnemyHpForWave('unknown', 1)).toBe(80)
+  })
+
+  it('HP strictly increases each wave for grunt', () => {
+    for (let wave = 1; wave < 10; wave++) {
+      expect(getEnemyHpForWave('grunt', wave + 1)).toBeGreaterThan(getEnemyHpForWave('grunt', wave))
+    }
+  })
+
+  it('higher wave enemies are harder: wave 10 grunt has more HP than wave 1 tank', () => {
+    // Ensures scaling makes later-wave weak units genuinely dangerous
+    expect(getEnemyHpForWave('grunt', 10)).toBeGreaterThan(getEnemyHpForWave('tank', 1))
   })
 })
