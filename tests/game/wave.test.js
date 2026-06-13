@@ -6,18 +6,28 @@ describe('getWaveEnemyHp', () => {
     expect(getWaveEnemyHp(1)).toBe(100)
   })
 
-  it('wave 5 returns 200 HP', () => {
-    expect(getWaveEnemyHp(5)).toBe(200)
+  it('wave 5 returns 384 HP', () => {
+    expect(getWaveEnemyHp(5)).toBe(384)
   })
 
-  it('wave 10 returns 325 HP', () => {
-    expect(getWaveEnemyHp(10)).toBe(325)
+  it('wave 10 returns 2066 HP', () => {
+    expect(getWaveEnemyHp(10)).toBe(2066)
   })
 
-  it('formula: 100 + (wave - 1) * 25', () => {
-    for (const wave of [1, 2, 3, 5, 10]) {
-      expect(getWaveEnemyHp(wave)).toBe(100 + (wave - 1) * 25)
+  it('each wave is harder than the previous (HP grows each wave)', () => {
+    for (let wave = 1; wave < 10; wave++) {
+      expect(getWaveEnemyHp(wave + 1)).toBeGreaterThan(getWaveEnemyHp(wave))
     }
+  })
+
+  it('formula: Math.round(100 * 1.4^(wave - 1))', () => {
+    for (const wave of [1, 2, 3, 5, 10]) {
+      expect(getWaveEnemyHp(wave)).toBe(Math.round(100 * Math.pow(1.4, wave - 1)))
+    }
+  })
+
+  it('wave 5 HP is significantly higher than wave 1 (not trivially close)', () => {
+    expect(getWaveEnemyHp(5)).toBeGreaterThan(getWaveEnemyHp(1) * 2)
   })
 })
 
@@ -26,21 +36,31 @@ describe('getWaveEnemyCount', () => {
     expect(getWaveEnemyCount(1)).toBe(5)
   })
 
-  it('wave 3 returns 6 enemies', () => {
-    expect(getWaveEnemyCount(3)).toBe(6)
+  it('wave 3 returns 7 enemies', () => {
+    expect(getWaveEnemyCount(3)).toBe(7)
   })
 
-  it('wave 5 returns 7 enemies', () => {
-    expect(getWaveEnemyCount(5)).toBe(7)
+  it('wave 5 returns 9 enemies', () => {
+    expect(getWaveEnemyCount(5)).toBe(9)
   })
 
-  it('wave 9 returns 9 enemies', () => {
-    expect(getWaveEnemyCount(9)).toBe(9)
+  it('wave 9 returns 13 enemies', () => {
+    expect(getWaveEnemyCount(9)).toBe(13)
   })
 
-  it('formula: 5 + Math.floor((wave - 1) / 2)', () => {
-    for (const wave of [1, 3, 5, 9]) {
-      expect(getWaveEnemyCount(wave)).toBe(5 + Math.floor((wave - 1) / 2))
+  it('wave 10 returns 14 enemies', () => {
+    expect(getWaveEnemyCount(10)).toBe(14)
+  })
+
+  it('formula: 5 + (wave - 1)', () => {
+    for (const wave of [1, 3, 5, 9, 10]) {
+      expect(getWaveEnemyCount(wave)).toBe(5 + (wave - 1))
+    }
+  })
+
+  it('count grows by 1 each wave', () => {
+    for (let wave = 1; wave < 10; wave++) {
+      expect(getWaveEnemyCount(wave + 1)).toBe(getWaveEnemyCount(wave) + 1)
     }
   })
 })
@@ -72,16 +92,16 @@ describe('createWave', () => {
     expect(w.enemyHp).toBe(100)
   })
 
-  it('wave 5: 7 enemies, 200 HP', () => {
+  it('wave 5: 9 enemies, 384 HP', () => {
     const w = createWave(5)
-    expect(w.totalEnemies).toBe(7)
-    expect(w.enemyHp).toBe(200)
+    expect(w.totalEnemies).toBe(9)
+    expect(w.enemyHp).toBe(384)
   })
 
-  it('wave 10: 9 enemies, 325 HP', () => {
+  it('wave 10: 14 enemies, 2066 HP', () => {
     const w = createWave(10)
-    expect(w.totalEnemies).toBe(9)
-    expect(w.enemyHp).toBe(325)
+    expect(w.totalEnemies).toBe(14)
+    expect(w.enemyHp).toBe(2066)
   })
 })
 
@@ -177,20 +197,20 @@ describe('getEndlessWaveEnemyHp', () => {
     expect(getEndlessWaveEnemyHp(11)).toBeGreaterThan(getEndlessWaveEnemyHp(10))
   })
 
-  it('wave 11: 325 × 1.15 rounded = 374', () => {
-    expect(getEndlessWaveEnemyHp(11)).toBe(Math.round(325 * 1.15))
+  it('wave 11: 2066 × 1.15 rounded = 2376', () => {
+    expect(getEndlessWaveEnemyHp(11)).toBe(Math.round(2066 * 1.15))
   })
 
-  it('wave 12: 325 × 1.15^2 rounded = 430', () => {
-    expect(getEndlessWaveEnemyHp(12)).toBe(Math.round(325 * Math.pow(1.15, 2)))
+  it('wave 12: 2066 × 1.15^2 rounded', () => {
+    expect(getEndlessWaveEnemyHp(12)).toBe(Math.round(2066 * Math.pow(1.15, 2)))
   })
 
-  it('wave 15: 325 × 1.15^5 rounded = 654', () => {
-    expect(getEndlessWaveEnemyHp(15)).toBe(Math.round(325 * Math.pow(1.15, 5)))
+  it('wave 15: 2066 × 1.15^5 rounded', () => {
+    expect(getEndlessWaveEnemyHp(15)).toBe(Math.round(2066 * Math.pow(1.15, 5)))
   })
 
-  it('wave 20: 325 × 1.15^10 rounded = 1315', () => {
-    expect(getEndlessWaveEnemyHp(20)).toBe(Math.round(325 * Math.pow(1.15, 10)))
+  it('wave 20: 2066 × 1.15^10 rounded', () => {
+    expect(getEndlessWaveEnemyHp(20)).toBe(Math.round(2066 * Math.pow(1.15, 10)))
   })
 
   it('wave 20 is significantly higher than wave 11', () => {
@@ -203,8 +223,8 @@ describe('getEndlessWaveEnemyHp', () => {
     }
   })
 
-  it('formula: Math.round(325 * 1.15^(wave-10)) for wave 13', () => {
-    expect(getEndlessWaveEnemyHp(13)).toBe(Math.round(325 * Math.pow(1.15, 3)))
+  it('formula: Math.round(2066 * 1.15^(wave-10)) for wave 13', () => {
+    expect(getEndlessWaveEnemyHp(13)).toBe(Math.round(2066 * Math.pow(1.15, 3)))
   })
 })
 
@@ -215,28 +235,28 @@ describe('getEndlessWaveEnemyCount', () => {
     }
   })
 
-  it('wave 11 equals 9 (base)', () => {
-    expect(getEndlessWaveEnemyCount(11)).toBe(9)
+  it('wave 11 equals 14 (base, inherits wave-10 count)', () => {
+    expect(getEndlessWaveEnemyCount(11)).toBe(14)
   })
 
-  it('wave 12 equals 10 (+1 for each 2-wave step from 10)', () => {
-    expect(getEndlessWaveEnemyCount(12)).toBe(10)
+  it('wave 12 equals 15 (+1 for each 2-wave step from 10)', () => {
+    expect(getEndlessWaveEnemyCount(12)).toBe(15)
   })
 
-  it('wave 13 equals 10 (+1 per 2 extra waves)', () => {
-    expect(getEndlessWaveEnemyCount(13)).toBe(10)
+  it('wave 13 equals 15 (+1 per 2 extra waves)', () => {
+    expect(getEndlessWaveEnemyCount(13)).toBe(15)
   })
 
-  it('wave 15 equals 11', () => {
-    expect(getEndlessWaveEnemyCount(15)).toBe(11)
+  it('wave 15 equals 16', () => {
+    expect(getEndlessWaveEnemyCount(15)).toBe(16)
   })
 
-  it('wave 17 equals 12', () => {
-    expect(getEndlessWaveEnemyCount(17)).toBe(12)
+  it('wave 17 equals 17', () => {
+    expect(getEndlessWaveEnemyCount(17)).toBe(17)
   })
 
-  it('wave 20 equals 14', () => {
-    expect(getEndlessWaveEnemyCount(20)).toBe(14)
+  it('wave 20 equals 19', () => {
+    expect(getEndlessWaveEnemyCount(20)).toBe(19)
   })
 
   it('count is non-decreasing beyond wave 10', () => {

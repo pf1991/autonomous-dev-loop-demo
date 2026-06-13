@@ -724,14 +724,14 @@ test.describe('Tower Defense - smoke tests', () => {
       throw new Error('Could not find App fiber hooks');
     });
     // Countdown banner for wave 5 shows NEXT wave (wave+1=6) stats:
-    // count = 5 + floor(5/2) = 7 enemies, HP = 100 + 5*25 = 225
+    // New exponential formula: count = 5 + (6-1) = 10 enemies, HP = Math.round(100 * 1.4^5) = 538
     await expect(page.locator('.wave-countdown-banner')).toBeVisible({ timeout: 2000 });
     const info = page.locator('.wave-countdown-info');
     // Use toBeAttached + inner text check — the span may be visually clipped in headless
     await expect(info).toBeAttached();
     const infoText = await info.textContent();
-    expect(infoText).toContain('7 enemies');
-    expect(infoText).toContain('225 HP');
+    expect(infoText).toContain('10 enemies');
+    expect(infoText).toContain('538 HP');
   });
 
   // --- Tower range preview ring (issue #36) ---
