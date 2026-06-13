@@ -19,6 +19,8 @@
  *   unlockedAchievements — array of unlocked achievement IDs (string[])
  *   totalAchievements    — total achievement count (number, default 12)
  *   onAchievementClick   — callback when the trophy button is clicked
+ *   difficultyLabel      — display label of the selected difficulty (string)
+ *   difficultyColor      — CSS colour for the difficulty pill (string)
  */
 function HUD({
   lives,
@@ -38,6 +40,8 @@ function HUD({
   unlockedAchievements = [],
   totalAchievements = 12,
   onAchievementClick,
+  difficultyLabel = '',
+  difficultyColor = '#e0e0e0',
 }) {
   const isRampage = comboCount >= 5
 
@@ -46,6 +50,14 @@ function HUD({
       <span className="hud-lives">Lives: {lives}</span>
       <span className="hud-gold">Gold: {gold}</span>
       <span className="hud-wave">Wave: {wave}</span>
+      {difficultyLabel && (
+        <span
+          className="hud-difficulty-pill"
+          style={{ background: difficultyColor }}
+        >
+          {difficultyLabel}
+        </span>
+      )}
       {endlessMode && <span className="hud-endless-badge">ENDLESS</span>}
       {comboVisible && comboCount >= 2 && (
         <span className={`combo-banner${isRampage ? ' combo-banner--rampage' : ''}`}>
