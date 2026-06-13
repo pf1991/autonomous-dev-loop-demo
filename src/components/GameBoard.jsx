@@ -1,7 +1,7 @@
 import UpgradePanel from './UpgradePanel.jsx'
 import WaveCountdownBanner from './WaveCountdownBanner.jsx'
 import { getEnemyRadius, isEnemyPoisoned } from '../game/enemy.js'
-import { TOWER_TYPES } from '../game/tower.js'
+import { TOWER_TYPES, towerKey } from '../game/tower.js'
 
 // Tile size in pixels — must match the CSS (.tile width/height)
 const TILE_PX = 40
@@ -162,6 +162,7 @@ function GameBoard({
   canUpgrade,
   getNextUpgradeStats,
   sellTower,
+  adjacencySynergies = null,
   powerCrates = [],
   onCrateClick,
   showCountdownBanner = false,
@@ -230,6 +231,14 @@ function GameBoard({
                     {tower.upgradeLevel === 1 ? 'I' : 'II'}
                   </span>
                 )}
+                {hasTower && (() => {
+                  const synergies = adjacencySynergies ? (adjacencySynergies.get(towerKey(tower)) ?? []) : []
+                  return synergies.length > 0 ? (
+                    <span className="tower-synergy-badge" title={synergies.map(s => s.description).join('; ')}>
+                      &#x26A1;
+                    </span>
+                  ) : null
+                })()}
                 {showPanel && (
                   <UpgradePanel
                     tower={tower}
@@ -240,6 +249,7 @@ function GameBoard({
                     canUpgrade={canUpgrade}
                     getNextUpgradeStats={getNextUpgradeStats}
                     sellTower={sellTower}
+                    synergies={adjacencySynergies ? (adjacencySynergies.get(towerKey(tower)) ?? []) : []}
                   />
                 )}
               </div>

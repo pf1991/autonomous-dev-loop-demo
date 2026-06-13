@@ -437,6 +437,43 @@ body {
   z-index: 5;
 }
 
+/* ===== Tower synergy badge — bottom-left corner of a tile with active synergy ===== */
+.tower-synergy-badge {
+  position: absolute;
+  bottom: 2px;
+  left: 2px;
+  font-size: 11px;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+  z-index: 6;
+  filter: drop-shadow(0 0 2px #ffe066);
+}
+
+/* ===== Synergy descriptions inside UpgradePanel ===== */
+.upgrade-panel-synergies {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 4px 0 2px;
+  border-top: 1px solid rgba(255, 224, 102, 0.3);
+  padding-top: 4px;
+}
+
+.upgrade-panel-synergy-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: #ffe066;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.upgrade-panel-synergy-item {
+  font-size: 9px;
+  color: #ffe066;
+  line-height: 1.3;
+}
+
 /* ===== Enemy layer overlay (absolutely positioned over the game board) ===== */
 .enemy-layer {
   position: absolute;
