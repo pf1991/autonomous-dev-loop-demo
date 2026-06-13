@@ -4,6 +4,8 @@ import HUD from './components/HUD'
 import GameOver from './components/GameOver'
 import NextWave from './components/NextWave'
 import TowerPicker from './components/TowerPicker'
+import AchievementToast from './components/AchievementToast'
+import AchievementModal from './components/AchievementModal'
 import { createDefaultMap, getPathWaypoints } from './game/map'
 import { TOWER_TYPES, createTower, canAfford, canUpgrade, upgradeTower, getUpgradeCost, getNextUpgradeStats, sellTower, getAdjacentSynergies } from './game/tower'
 import { createEnemy, moveEnemy, getEnemyHpForWave } from './game/enemy'
@@ -13,6 +15,8 @@ import { createPowerCrate, selectCrateReward } from './game/powerCrate'
 import { useGameLoop } from './hooks/useGameLoop'
 import { computeScore, computeComboBonus, getComboLabel } from './game/score'
 import { saveLeaderboardEntry } from './utils/leaderboard'
+import { checkAchievements, ACHIEVEMENTS } from './game/achievements'
+import { loadUnlockedAchievements, persistNewAchievements } from './utils/achievements'
 
 const INITIAL_MAP = createDefaultMap()
 const PATH_WAYPOINTS = getPathWaypoints()
@@ -65,6 +69,31 @@ function App() {
   const [overchargeActive, setOverchargeActive] = useState(false)
   const overchargeUntilRef = useRef(0)
   const overchargeActiveRef = useRef(false)
+
+  // Achievement tracking
+  // unlockedAchievements: array of unlocked achievement IDs, loaded from localStorage on mount
+  const [unlockedAchievements, setUnlockedAchievements] = useState(() => loadUnlockedAchievements())
+  const unlockedAchievementsRef = useRef(loadUnlockedAchievements())
+  // Achievement toast notifications: array of { id, name, dismissAt }
+  const [achievementToasts, setAchievementToasts] = useState([])
+  const achievementToastsRef = useRef([])
+  // Achievement modal visibility
+  const [achievementModalOpen, setAchievementModalOpen] = useState(false)
+  // Per-run tracking refs for achievement conditions
+  const totalTowersPlacedRef = useRef(0)
+  const maxComboReachedRef = useRef(0)
+  const sniperDamageDealtRef = useRef(0)
+  const waveCompletedCleanRef = useRef(false)
+  const livesAtWaveStartRef = useRef(20)
+  const speedDroppedToOneRef = useRef(true) // true = not eligible for speed_demon
+  const activeSynergyPairsRef = useRef(0)
+  // Track whether speed was ever lowered to 1x after being set higher
+  // speed_demon: never drop to 1× during the entire run
+  // We'll set speedDroppedToOne = false initially and flip to true if speed goes to 1× after being 2×+
+  // Actually: initialize as false (didn't drop yet); set true if speed hits 1× while already ≥2×
+  // But we need to know if the run started at 2× — simplify: track "was speed ever 1× during the run"
+  // speedWasOneRef: if player ever had speed=1 during the run after the run started, disqualify
+  const speedWasOneRef = useRef(false)
 
   // Combo kill-streak tracking
   // comboCount: how many kills in the current 2s window
@@ -128,6 +157,32 @@ function App() {
   function syncLives(val) {
     livesRef.current = val
     setLives(val)
+  }
+
+  // Achievement checking helper — called each tick with current game state snapshot.
+  // Side-effect boundary: persists to localStorage and updates React state.
+  function triggerAchievementCheck(snapshot) {
+    const newIds = checkAchievements(snapshot, unlockedAchievementsRef.current)
+    if (newIds.length === 0) return
+    const merged = persistNewAchievements(newIds)
+    unlockedAchievementsRef.current = merged
+    setUnlockedAchievements(merged)
+    // Build toast entries (dismissed after 3s via real-time animation)
+    const now = Date.now()
+    const newToasts = newIds.map(id => {
+      const meta = ACHIEVEMENTS.find(a => a.id === id)
+      return { id: `toast-${id}-${now}`, name: meta ? meta.name : id }
+    })
+    const nextToasts = [...achievementToastsRef.current, ...newToasts]
+    achievementToastsRef.current = nextToasts
+    setAchievementToasts(nextToasts)
+    // Schedule auto-dismiss after 3.2s (a little buffer over the 3s CSS animation)
+    setTimeout(() => {
+      achievementToastsRef.current = achievementToastsRef.current.filter(
+        t => !newToasts.some(nt => nt.id === t.id)
+      )
+      setAchievementToasts(prev => prev.filter(t => !newToasts.some(nt => nt.id === t.id)))
+    }, 3200)
   }
 
   function syncWave(val) {
@@ -386,6 +441,40 @@ function App() {
     killedInWaveRef.current += killedNow
     totalKillsRef.current += killedNow
 
+    // Track per-achievement metrics
+    // Update max combo reached
+    if (comboCountRef.current > maxComboReachedRef.current) {
+      maxComboReachedRef.current = comboCountRef.current
+    }
+    // Track sniper damage from this tick: sum damage of SniperTowers that fired this tick
+    const sniperDamageThisTick = combatResult.towers
+      .filter(t => t.type === 'SniperTower' && t.lastFiredAt === nowMs)
+      .reduce((sum, t) => sum + (t.damage ?? 0), 0)
+    sniperDamageDealtRef.current += sniperDamageThisTick
+    // Track active synergy pairs
+    activeSynergyPairsRef.current = adjacencySynergiesRef.current.size
+
+    // Check achievements each tick when kills happen or relevant state changes
+    const bossKilledThisTick = allKilledEnemies.some(k => k.type === 'colossus')
+    if (killedNow > 0 || bossKilledThisTick || sniperDamageThisTick > 0) {
+      const currentGold = gold  // NOTE: gold state is read from closure; good enough for threshold checks
+      triggerAchievementCheck({
+        totalKills: totalKillsRef.current,
+        totalTowersPlaced: totalTowersPlacedRef.current,
+        gold: currentGold,
+        waveCompletedClean: false,
+        gameWon: false,
+        livesRemaining: livesRef.current,
+        speedDroppedToOne: speedWasOneRef.current,
+        maxComboReached: maxComboReachedRef.current,
+        sniperDamageDealt: sniperDamageDealtRef.current,
+        bossKilledThisTick,
+        wave: currentWaveNum,
+        endlessMode: endlessModeRef.current,
+        activeSynergyPairs: activeSynergyPairsRef.current,
+      })
+    }
+
     enemiesRef.current = afterCombat
     setEnemies(afterCombat)
 
@@ -400,6 +489,24 @@ function App() {
       const wavesJustCompleted = 1 + earlyWaveCountRef.current
       wavesCompletedRef.current += wavesJustCompleted
 
+      // Achievement: untouchable — completed wave with no life losses
+      const waveWasClean = livesRef.current >= livesAtWaveStartRef.current
+      triggerAchievementCheck({
+        totalKills: totalKillsRef.current,
+        totalTowersPlaced: totalTowersPlacedRef.current,
+        gold: 0,
+        waveCompletedClean: waveWasClean,
+        gameWon: false,
+        livesRemaining: livesRef.current,
+        speedDroppedToOne: speedWasOneRef.current,
+        maxComboReached: maxComboReachedRef.current,
+        sniperDamageDealt: sniperDamageDealtRef.current,
+        bossKilledThisTick: false,
+        wave: currentWaveNum,
+        endlessMode: endlessModeRef.current,
+        activeSynergyPairs: activeSynergyPairsRef.current,
+      })
+
       // In endless mode the game never ends on wave 10 — keep going
       if (currentWaveNum >= TOTAL_WAVES && !endlessModeRef.current) {
         const score = computeScore({
@@ -411,17 +518,40 @@ function App() {
         const entry = { score, date: new Date().toLocaleDateString(), result: 'win' }
         saveLeaderboardEntry(entry)
         setFinalScore(score)
+        // Achievement: flawless, speed_demon — on win
+        triggerAchievementCheck({
+          totalKills: totalKillsRef.current,
+          totalTowersPlaced: totalTowersPlacedRef.current,
+          gold: 0,
+          waveCompletedClean: false,
+          gameWon: true,
+          livesRemaining: livesRef.current,
+          speedDroppedToOne: speedWasOneRef.current,
+          maxComboReached: maxComboReachedRef.current,
+          sniperDamageDealt: sniperDamageDealtRef.current,
+          bossKilledThisTick: false,
+          wave: currentWaveNum,
+          endlessMode: endlessModeRef.current,
+          activeSynergyPairs: activeSynergyPairsRef.current,
+        })
         syncPhase('win')
       } else {
         syncPhase('between-waves')
       }
     }
-  }, [])
+  }, [gold])
 
   useGameLoop(onTick, speed)
 
   function handleSpeedToggle() {
-    setSpeed(s => (s === 1 ? 2 : s === 2 ? 5 : 1))
+    setSpeed(s => {
+      const next = s === 1 ? 2 : s === 2 ? 5 : 1
+      // speed_demon: track if speed ever dropped back to 1× during the run
+      if (next === 1) {
+        speedWasOneRef.current = true
+      }
+      return next
+    })
   }
 
   function placeTower(row, col) {
@@ -440,6 +570,24 @@ function App() {
     setTowers(ts => [...ts, createTower(type, row, col)])
     // Auto-select the newly placed tower so its fire radius ring is visible immediately
     setSelectedTower({ row, col })
+    // Achievement: tower_builder — track cumulative placements in this run
+    totalTowersPlacedRef.current += 1
+    // Check tower_builder immediately
+    triggerAchievementCheck({
+      totalKills: totalKillsRef.current,
+      totalTowersPlaced: totalTowersPlacedRef.current,
+      gold: gold - cost,
+      waveCompletedClean: false,
+      gameWon: false,
+      livesRemaining: livesRef.current,
+      speedDroppedToOne: speedWasOneRef.current,
+      maxComboReached: maxComboReachedRef.current,
+      sniperDamageDealt: sniperDamageDealtRef.current,
+      bossKilledThisTick: false,
+      wave: waveRef.current,
+      endlessMode: endlessModeRef.current,
+      activeSynergyPairs: activeSynergyPairsRef.current,
+    })
   }
 
   function handleTowerClick(row, col) {
@@ -544,6 +692,14 @@ function App() {
     comboWindowExpiryRef.current = 0
     comboBannerUntilRef.current = 0
     setComboDisplay({ count: 0, label: '', bonus: 0, visible: false })
+    // Reset per-run achievement tracking refs
+    totalTowersPlacedRef.current = 0
+    maxComboReachedRef.current = 0
+    sniperDamageDealtRef.current = 0
+    waveCompletedCleanRef.current = false
+    livesAtWaveStartRef.current = INITIAL_STATE.lives
+    speedWasOneRef.current = false
+    activeSynergyPairsRef.current = 0
     syncPhase('between-waves')
   }
 
@@ -604,6 +760,8 @@ function App() {
     comboWindowExpiryRef.current = 0
     comboBannerUntilRef.current = 0
     setComboDisplay({ count: 0, label: '', bonus: 0, visible: false })
+    // Record lives at wave start for untouchable achievement
+    livesAtWaveStartRef.current = livesRef.current
 
     // Determine special event type for this wave
     const eventType = getWaveEventType(waveRef.current, waveEventSeedRef.current)
@@ -670,6 +828,9 @@ function App() {
         comboLabel={comboDisplay.label}
         comboBonus={comboDisplay.bonus}
         comboVisible={comboDisplay.visible}
+        unlockedAchievements={unlockedAchievements}
+        totalAchievements={ACHIEVEMENTS.length}
+        onAchievementClick={() => setAchievementModalOpen(true)}
       />
       <TowerPicker
         selectedType={selectedTowerType}
@@ -727,6 +888,13 @@ function App() {
           onStart={handleNextWaveStart}
           endlessMode={endlessMode}
           onToggleEndless={handleToggleEndless}
+        />
+      )}
+      <AchievementToast toasts={achievementToasts} />
+      {achievementModalOpen && (
+        <AchievementModal
+          unlocked={unlockedAchievements}
+          onClose={() => setAchievementModalOpen(false)}
         />
       )}
     </div>
