@@ -29,9 +29,14 @@ function tileDistance(tower, pos) {
  *   - SlowTower (slowFactor, slowDuration): applies a slow debuff to the primary target.
  *     The enemy's `slowUntil` and `speedMult` fields are set accordingly; the caller
  *     must honour `speedMult` in movement logic when `nowMs < slowUntil`.
+ *     At upgrade level 2 (aoeSlowRadius), the slow is also applied to all enemies within
+ *     aoeSlowRadius tiles of the primary target.
+ *   - PoisonTower (poisonTickDamage, poisonTicks, poisonTickInterval): applies a DoT poison
+ *     effect to the primary target. The effect is stored in enemy.effects[]. DoT continues
+ *     even if the tower is sold. Processed by processEffectTick().
  *
- * @param {Array<{ row: number, col: number, range: number, damage: number, fireRate: number, lastFiredAt: number, splashRadius?: number, slowFactor?: number, slowDuration?: number }>} towers
- * @param {Array<{ id: string|number, hp: number, pos: { row: number, col: number }, slowUntil?: number, speedMult?: number }>} enemies
+ * @param {Array<{ row: number, col: number, range: number, damage: number, fireRate: number, lastFiredAt: number, splashRadius?: number, slowFactor?: number, slowDuration?: number, poisonTickDamage?: number, poisonTicks?: number, poisonTickInterval?: number, aoeSlowRadius?: number }>} towers
+ * @param {Array<{ id: string|number, hp: number, pos: { row: number, col: number }, slowUntil?: number, speedMult?: number, effects?: Array }>} enemies
  * @param {number} nowMs - current timestamp in milliseconds
  * @returns {{ enemies: Array, towers: Array, goldEarned: number, projectiles: Projectile[] }}
  */
@@ -88,26 +93,62 @@ export function processCombat(towers, enemies, nowMs) {
     //   effectiveSlowFactor = 1 - (1 - rawSlowFactor) * (1 - slowResist)
     //   e.g. rawSlow=0.4, slowResist=0.5 → effectiveSlowFactor = 1 - 0.6*0.5 = 0.7
     if (tower.slowFactor != null && tower.slowDuration != null) {
-      const current = enemyMap.get(nearestId)
-      const slowResist = current.slowResist ?? 0
-      const rawFactor = tower.slowFactor
-      // When there is no resistance, pass the raw factor through unchanged (avoids floating-point drift).
-      // When resistance > 0, dilute the slow: effectiveFactor = 1 - (1 - raw) * (1 - resist)
-      const appliedFactor = slowResist <= 0
-        ? rawFactor
-        : slowResist >= 1
-          ? 1  // fully immune — no slow at all
-          : 1 - (1 - rawFactor) * (1 - slowResist)
-      // Only apply if this slow is stronger (lower speedMult) or longer than existing slow
-      const existingUntil = current.slowUntil ?? 0
-      const newUntil = nowMs + tower.slowDuration
-      if (appliedFactor < (current.speedMult ?? 1) || newUntil > existingUntil) {
-        enemyMap.set(nearestId, {
-          ...current,
-          speedMult: appliedFactor,
-          slowUntil: newUntil,
-        })
+      const applySlowTo = (enemyId) => {
+        const current = enemyMap.get(enemyId)
+        if (!current) return
+        const slowResist = current.slowResist ?? 0
+        const rawFactor = tower.slowFactor
+        // When there is no resistance, pass the raw factor through unchanged (avoids floating-point drift).
+        // When resistance > 0, dilute the slow: effectiveFactor = 1 - (1 - raw) * (1 - resist)
+        const appliedFactor = slowResist <= 0
+          ? rawFactor
+          : slowResist >= 1
+            ? 1  // fully immune — no slow at all
+            : 1 - (1 - rawFactor) * (1 - slowResist)
+        // Only apply if this slow is stronger (lower speedMult) or longer than existing slow
+        const existingUntil = current.slowUntil ?? 0
+        const newUntil = nowMs + tower.slowDuration
+        if (appliedFactor < (current.speedMult ?? 1) || newUntil > existingUntil) {
+          enemyMap.set(enemyId, {
+            ...current,
+            speedMult: appliedFactor,
+            slowUntil: newUntil,
+          })
+        }
       }
+
+      applySlowTo(nearestId)
+
+      // AoE slow — SlowTower L2 (aoeSlowRadius): slow all enemies within aoeSlowRadius tiles
+      const aoeSlowRadius = tower.aoeSlowRadius ?? 0
+      if (aoeSlowRadius > 0) {
+        const primary = enemyMap.get(nearestId)
+        for (const [id] of enemyMap) {
+          if (id === nearestId) continue
+          const e = enemyMap.get(id)
+          const dist = tileDistance({ row: primary.pos.row, col: primary.pos.col }, e.pos)
+          if (dist <= aoeSlowRadius) {
+            applySlowTo(id)
+          }
+        }
+      }
+    }
+
+    // Poison DoT — PoisonTower applies a stackable DoT effect to the primary target
+    if (tower.poisonTickDamage != null && tower.poisonTicks != null && tower.poisonTickInterval != null) {
+      const current = enemyMap.get(nearestId)
+      const newEffect = {
+        type: 'poison',
+        tickDamage: tower.poisonTickDamage,
+        tickInterval: tower.poisonTickInterval,
+        ticksRemaining: tower.poisonTicks,
+        nextTickAt: nowMs + tower.poisonTickInterval,
+      }
+      const existingEffects = current.effects ?? []
+      enemyMap.set(nearestId, {
+        ...current,
+        effects: [...existingEffects, newEffect],
+      })
     }
 
     // Record the projectile for visual feedback
@@ -142,4 +183,72 @@ export function processCombat(towers, enemies, nowMs) {
   }
 
   return { enemies: updatedEnemies, towers: updatedTowers, goldEarned, projectiles, killedEnemies }
+}
+
+/**
+ * processEffectTick advances all active DoT/status effects on enemies.
+ * Must be called once per game tick, after processCombat.
+ *
+ * For each enemy:
+ *   - Iterates effects[]; for each effect whose nextTickAt <= nowMs, applies tick damage
+ *     and decrements ticksRemaining.  Effects with ticksRemaining <= 0 are removed.
+ * Enemies whose hp drops to 0 or below from DoT are killed; their goldReward is collected.
+ *
+ * @param {Array<{ id: string|number, hp: number, maxHp: number, goldReward: number, effects?: Array }>} enemies
+ * @param {number} nowMs - current game clock in milliseconds
+ * @returns {{ enemies: Array, goldEarned: number, killedEnemies: Array }}
+ */
+export function processEffectTick(enemies, nowMs) {
+  let goldEarned = 0
+  const killedEnemies = []
+  const updatedEnemies = []
+
+  for (const enemy of enemies) {
+    const effects = enemy.effects ?? []
+    if (effects.length === 0) {
+      updatedEnemies.push(enemy)
+      continue
+    }
+
+    let currentHp = enemy.hp
+    const survivingEffects = []
+
+    for (const effect of effects) {
+      if (effect.type === 'poison') {
+        if (effect.ticksRemaining <= 0) continue // fully expired
+
+        if (nowMs >= effect.nextTickAt) {
+          // Apply this tick's damage
+          currentHp -= effect.tickDamage
+          const newRemaining = effect.ticksRemaining - 1
+          if (newRemaining > 0) {
+            survivingEffects.push({
+              ...effect,
+              ticksRemaining: newRemaining,
+              nextTickAt: effect.nextTickAt + effect.tickInterval,
+            })
+          }
+          // else effect is fully consumed — drop it
+        } else {
+          survivingEffects.push(effect)
+        }
+      }
+    }
+
+    if (currentHp <= 0) {
+      const reward = enemy.goldReward ?? 0
+      goldEarned += reward
+      killedEnemies.push({
+        id: enemy.id,
+        row: enemy.pos.row,
+        col: enemy.pos.col,
+        gold: reward,
+        type: enemy.type,
+      })
+    } else {
+      updatedEnemies.push({ ...enemy, hp: currentHp, effects: survivingEffects })
+    }
+  }
+
+  return { enemies: updatedEnemies, goldEarned, killedEnemies }
 }

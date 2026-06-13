@@ -264,6 +264,32 @@ body {
   filter: drop-shadow(0 0 3px #44a8d8);
 }
 
+/* PoisonTower — green dotted, base level */
+.projectile-poison {
+  stroke: #4caf50;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 3 5;
+  opacity: 0.85;
+}
+/* PoisonTower level 1 — brighter green */
+.projectile-poison-lv1 {
+  stroke: #66bb6a;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-dasharray: 4 4;
+  opacity: 0.9;
+}
+/* PoisonTower level 2 — vivid green, glow */
+.projectile-poison-lv2 {
+  stroke: #a5d6a7;
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-dasharray: 5 3;
+  opacity: 0.95;
+  filter: drop-shadow(0 0 3px #4caf50);
+}
+
 /* ===== Range preview ring (hover over empty tower-slot) ===== */
 .range-preview-ring {
   stroke: rgba(255, 255, 255, 0.35);
@@ -374,6 +400,26 @@ body {
   stroke-width: 1.5;
 }
 
+/* PoisonTower — green rounded pentagon */
+.tower-poison {
+  fill: #4caf50;
+  stroke: #2e7d32;
+  stroke-width: 1.5;
+}
+
+/* Inner circle accent for PoisonTower L1 upgrade */
+.tower-poison-ring {
+  fill: #a5d6a7;
+  opacity: 0.6;
+}
+
+/* Outer ring for PoisonTower L2 upgrade */
+.tower-poison-ring-outer {
+  fill: none;
+  stroke: #a5d6a7;
+  stroke-width: 1.5;
+}
+
 /* ===== Tower level badge — bottom-right corner of a placed tower tile ===== */
 .tower-level-badge {
   position: absolute;
@@ -451,6 +497,24 @@ body {
   background: #4ecca3;
   border-radius: 2px;
   transition: width 0.1s linear;
+}
+
+/* Poisoned enemy: green HP bar */
+.enemy-hp-bar--poisoned {
+  background: #4caf50;
+}
+
+/* Slowed enemy: blue ice overlay */
+.enemy-slowed {
+  box-shadow: 0 0 6px 3px rgba(68, 168, 216, 0.85);
+  border: 1px solid #44a8d8 !important;
+  filter: brightness(0.85) hue-rotate(160deg);
+}
+
+/* Poisoned enemy: green glow overlay */
+.enemy-poisoned {
+  box-shadow: 0 0 6px 3px rgba(76, 175, 80, 0.75);
+  border: 1px solid #4caf50 !important;
 }
 
 .enemy::after {

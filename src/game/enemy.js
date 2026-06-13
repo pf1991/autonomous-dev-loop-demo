@@ -89,7 +89,7 @@ export function getBossHp() {
  * @param {Array<{row: number, col: number}>} pathWaypoints - Array of waypoints defining the path
  * @param {'grunt'|'tank'|'speeder'|'armored'|'phantom'|'colossus'} [type='grunt'] - Enemy type; defaults to 'grunt' for backwards compatibility
  * @param {number} [hpOverride] - Optional HP override (used for colossus boss whose HP scales with wave)
- * @returns {{ id, hp: number, maxHp: number, pos: {row, col}, waypointIndex: number, speed: number, type: string, goldReward: number, slowResist?: number, damageResist?: object }}
+ * @returns {{ id, hp: number, maxHp: number, pos: {row, col}, waypointIndex: number, speed: number, type: string, goldReward: number, slowResist?: number, damageResist?: object, effects: Array }}
  */
 export function createEnemy(id, pathWaypoints, type = 'grunt', hpOverride) {
   const startPos = pathWaypoints && pathWaypoints.length > 0
@@ -108,6 +108,7 @@ export function createEnemy(id, pathWaypoints, type = 'grunt', hpOverride) {
     speed: stats.speed,
     type,
     goldReward: stats.goldReward,
+    effects: [],
   }
 
   // Carry over resistance fields when present

@@ -7,7 +7,7 @@ import TowerPicker from './components/TowerPicker'
 import { createDefaultMap, getPathWaypoints } from './game/map'
 import { TOWER_TYPES, createTower, canAfford, canUpgrade, upgradeTower, getUpgradeCost, getNextUpgradeStats, sellTower } from './game/tower'
 import { createEnemy, moveEnemy, getBossHp } from './game/enemy'
-import { processCombat } from './game/combat'
+import { processCombat, processEffectTick } from './game/combat'
 import { getWaveEnemyHp, getWaveEnemyCount, getWaveComposition, getEarlyWaveBonus, getEndlessWaveEnemyHp, getEndlessWaveEnemyCount, getEndlessWaveComposition, isBossWave } from './game/wave'
 import { createPowerCrate, selectCrateReward } from './game/powerCrate'
 import { useGameLoop } from './hooks/useGameLoop'
@@ -200,11 +200,20 @@ function App() {
       ? towersRef.current.map(t => ({ ...t, fireRate: t.fireRate * 1.5 }))
       : towersRef.current
     const combatResult = processCombat(combatTowers, surviving, nowMs)
-    const afterCombat = combatResult.enemies
-    killedNow += surviving.length - afterCombat.length
+    // Process DoT effect ticks (poison) — pure function, runs after combat each tick
+    const effectResult = processEffectTick(combatResult.enemies, nowMs)
+    const afterCombat = effectResult.enemies
+    killedNow += surviving.length - combatResult.enemies.length  // killed by towers
+    killedNow += combatResult.enemies.length - afterCombat.length // killed by DoT
+
+    // Merge killedEnemies from both combat and effect ticks
+    const allKilledEnemies = [
+      ...(combatResult.killedEnemies ?? []),
+      ...(effectResult.killedEnemies ?? []),
+    ]
 
     // Spawn power crate on colossus death
-    const bossKilled = combatResult.killedEnemies?.filter(k => k.type === 'colossus') ?? []
+    const bossKilled = allKilledEnemies.filter(k => k.type === 'colossus')
     if (bossKilled.length > 0) {
       const newCrates = bossKilled.map(k =>
         createPowerCrate(`crate-${nextCrateIdRef.current++}`, Math.round(k.row), Math.round(k.col))
@@ -221,15 +230,16 @@ function App() {
       setOverchargeActive(false)
     }
 
-    if (combatResult.goldEarned > 0) {
+    const totalGoldThisTick = combatResult.goldEarned + effectResult.goldEarned
+    if (totalGoldThisTick > 0) {
       const bonusMultiplier = earlyWaveBonusRef.current
-      const bonusGold = Math.round(combatResult.goldEarned * bonusMultiplier)
+      const bonusGold = Math.round(totalGoldThisTick * bonusMultiplier)
       setGold(g => g + bonusGold)
       totalGoldEarnedRef.current += bonusGold
 
       // Spawn floating "+N gold" death animations for each killed enemy
-      if (combatResult.killedEnemies && combatResult.killedEnemies.length > 0) {
-        const newAnims = combatResult.killedEnemies.map(k => ({
+      if (allKilledEnemies.length > 0) {
+        const newAnims = allKilledEnemies.map(k => ({
           id: `da-${k.id}-${nowMs}`,
           row: k.row,
           col: k.col,
