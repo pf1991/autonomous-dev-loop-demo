@@ -1990,4 +1990,111 @@ test.describe('Tower Defense - smoke tests', () => {
     const statsText = await panel.locator('.upgrade-panel-stats').textContent();
     expect(statsText).toContain('Kills:');
   });
+
+  // --- Special wave events — Horde, Elite, Stealth (issue #71) ---
+
+  test('WaveCountdownBanner shows .wave-countdown-event-label when next wave is a special event (elite)', async ({ page }) => {
+    // Strategy: force waveEventSeedRef.current = 0 so that getWaveEventType(4, 0) = 'elite' (deterministic).
+    // Then set wave=3 and gamePhase='between-waves' so countdownWave = wave+1 = 4.
+    // App.jsx hook order (all hooks, 0-indexed, including useRef and useState):
+    //   0=gold(S), 1=lives(S), 2=wave(S), 3=speed(S), 4=towers(S), 5=enemies(S),
+    //   6=projectiles(S), 7=deathAnimations(S), 8=deathAnimationsRef(R),
+    //   9=selectedTowerType(S), 10=selectedTower(S), 11=hoveredSlot(S), 12=gamePhase(S),
+    //   13=endlessMode(S), 14=endlessModeRef(R), 15=finalScore(S),
+    //   16=powerCrates(S), 17=powerCratesRef(R), 18=nextCrateIdRef(R),
+    //   19=overchargeActive(S), 20=overchargeUntilRef(R), 21=overchargeActiveRef(R),
+    //   22=comboCountRef(R), 23=comboWindowExpiryRef(R), 24=comboBannerUntilRef(R),
+    //   25=comboDisplay(S), 26=adjacencySynergies(S), 27=adjacencySynergiesRef(R),
+    //   28=nextEnemyIdRef(R), 29=spawnTimerRef(R), 30=spawnedInWaveRef(R),
+    //   31=killedInWaveRef(R), 32=totalKillsRef(R), 33=totalGoldEarnedRef(R),
+    //   34=wavesCompletedRef(R), 35=spawnQueueRef(R), 36=earlyWaveCountRef(R),
+    //   37=earlyWaveBonusRef(R), 38=earlyWaveCalledRef(R), 39=totalEnemiesToSpawnRef(R),
+    //   40=earlyWaveCalled(S), 41=pendingWaveAdvance(S), 42=waveEventSeedRef(R),
+    //   43=currentWaveEventType(S), 44=currentWaveEventTypeRef(R), 45=stealthRevealAtRef(R),
+    //   46=livesRef(R), 47=waveRef(R), 48=gamePhaseRef(R), 49=towersRef(R),
+    //   50=enemiesRef(R), 51=projectilesRef(R), 52=gameClockRef(R)
+    //   (S=useState, R=useRef)
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          // Walk all hooks (index 0..N) to find waveEventSeedRef at index 42
+          let hookNode = fiber.memoizedState;
+          let i = 0;
+          while (hookNode && i < 42) {
+            hookNode = hookNode.next;
+            i++;
+          }
+          // hook 42 = waveEventSeedRef (useRef): memoizedState = { current: <seed> }
+          if (hookNode && hookNode.memoizedState && 'current' in hookNode.memoizedState) {
+            hookNode.memoizedState.current = 0; // force seed=0 → getWaveEventType(4,0)='elite'
+          }
+
+          // Now collect dispatch-capable (useState) hooks to set wave and gamePhase
+          const stateHooks = [];
+          hookNode = fiber.memoizedState;
+          while (hookNode) {
+            if (hookNode.queue && typeof hookNode.queue.dispatch === 'function') {
+              stateHooks.push(hookNode);
+            }
+            hookNode = hookNode.next;
+          }
+          // Dispatch indices (useState only, 0-indexed): wave=2, gamePhase=11
+          if (stateHooks[2]) stateHooks[2].queue.dispatch(3);           // wave → 3
+          if (stateHooks[11]) stateHooks[11].queue.dispatch('between-waves');
+          return;
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find App fiber hooks');
+    });
+
+    // Countdown banner must be visible (wave=3 > 1, phase='between-waves')
+    await expect(page.locator('.wave-countdown-banner')).toBeVisible({ timeout: 2000 });
+    // The event label span must be attached: seed=0, wave+1=4 → getWaveEventType(4,0)='elite'
+    await expect(page.locator('.wave-countdown-event-label')).toBeAttached({ timeout: 2000 });
+    // The label must carry the elite modifier class
+    const labelEl = page.locator('.wave-countdown-event-label--elite');
+    await expect(labelEl).toBeAttached({ timeout: 2000 });
+    // The label text must mention ELITE
+    const labelText = await labelEl.textContent();
+    expect(labelText).toContain('ELITE');
+    // Banner itself must carry the event modifier class
+    const bannerCls = await page.locator('.wave-countdown-banner').getAttribute('class');
+    expect(bannerCls).toContain('wave-countdown-banner--elite');
+  });
+
+  test('WaveCountdownBanner shows no .wave-countdown-event-label on a normal wave', async ({ page }) => {
+    // With the default seed (any) wave=2 → countdownWave=3 → waves 1-3 are always 'normal'
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          const stateHooks = [];
+          let hookNode = fiber.memoizedState;
+          while (hookNode) {
+            if (hookNode.queue && typeof hookNode.queue.dispatch === 'function') {
+              stateHooks.push(hookNode);
+            }
+            hookNode = hookNode.next;
+          }
+          // wave=2 so countdownWave=3; waves <4 are always 'normal'
+          if (stateHooks[2]) stateHooks[2].queue.dispatch(2);
+          if (stateHooks[11]) stateHooks[11].queue.dispatch('between-waves');
+          return;
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find App fiber hooks');
+    });
+    await expect(page.locator('.wave-countdown-banner')).toBeVisible({ timeout: 2000 });
+    // No event label for a normal wave
+    await expect(page.locator('.wave-countdown-event-label')).not.toBeAttached();
+  });
 });

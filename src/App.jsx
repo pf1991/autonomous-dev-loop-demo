@@ -107,6 +107,9 @@ function App() {
   const waveEventSeedRef = useRef(Math.floor(Math.random() * 100000))
   const [currentWaveEventType, setCurrentWaveEventType] = useState('normal')
   const currentWaveEventTypeRef = useRef('normal')
+  // Separate ref to track the event-type gold multiplier for the current wave.
+  // earlyWaveBonusRef tracks the early-call multiplier; the two are composed at gold-award time.
+  const eventGoldMultiplierRef = useRef(1)
   // For stealth waves: the game-clock time when enemies should become visible
   const stealthRevealAtRef = useRef(0)
   const livesRef = useRef(INITIAL_STATE.lives)
@@ -323,7 +326,8 @@ function App() {
 
     const totalGoldThisTick = combatResult.goldEarned + effectResult.goldEarned
     if (totalGoldThisTick > 0 || comboBonusGoldThisTick > 0) {
-      const bonusMultiplier = earlyWaveBonusRef.current
+      // Compose the early-call multiplier and the event-type gold multiplier independently.
+      const bonusMultiplier = earlyWaveBonusRef.current * eventGoldMultiplierRef.current
       const bonusGold = Math.round(totalGoldThisTick * bonusMultiplier) + comboBonusGoldThisTick
       setGold(g => g + bonusGold)
       totalGoldEarnedRef.current += bonusGold
@@ -534,6 +538,7 @@ function App() {
     currentWaveEventTypeRef.current = 'normal'
     setCurrentWaveEventType('normal')
     stealthRevealAtRef.current = 0
+    eventGoldMultiplierRef.current = 1
     waveEventSeedRef.current = Math.floor(Math.random() * 100000)
     comboCountRef.current = 0
     comboWindowExpiryRef.current = 0
@@ -609,9 +614,10 @@ function App() {
     const stealthDuration = WAVE_EVENT_CONFIG[eventType]?.stealthDurationMs ?? 0
     stealthRevealAtRef.current = stealthDuration > 0 ? gameClockRef.current + stealthDuration : 0
 
-    // Apply gold multiplier from event config
+    // Store event-type gold multiplier separately so it is not overwritten
+    // if the player triggers an early wave call during this wave.
     const eventCfg = WAVE_EVENT_CONFIG[eventType] ?? WAVE_EVENT_CONFIG.normal
-    earlyWaveBonusRef.current = eventCfg.goldMultiplier
+    eventGoldMultiplierRef.current = eventCfg.goldMultiplier
 
     const queue = buildSpawnQueue(waveRef.current, eventType)
     spawnQueueRef.current = queue
