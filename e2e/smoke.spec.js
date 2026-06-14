@@ -2933,6 +2933,48 @@ test.describe('Tower Defense - smoke tests', () => {
     await expect(page.locator('.prestige-btn')).not.toBeAttached();
   });
 
+  test('clicking .prestige-btn increments prestigeStars in localStorage and persists on reload', async ({ page }) => {
+    // Ensure clean state: 0 prestige stars
+    await page.evaluate(() => localStorage.removeItem('prestigeStars'));
+    await page.reload();
+    await page.waitForSelector('.game-board', { state: 'visible' });
+    // Inject conditions that show the prestige button via fiber
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          const stateHooks = [];
+          let hookNode = fiber.memoizedState;
+          while (hookNode) {
+            if (hookNode.queue && typeof hookNode.queue.dispatch === 'function') stateHooks.push(hookNode);
+            hookNode = hookNode.next;
+          }
+          if (stateHooks[22]) stateHooks[22].queue.dispatch(0);           // prestigeStars = 0
+          if (stateHooks[23]) stateHooks[23].queue.dispatch(20);          // wavesReached = 20
+          if (stateHooks[13]) stateHooks[13].queue.dispatch(true);        // endlessMode = true
+          if (stateHooks[12]) stateHooks[12].queue.dispatch('lose');      // gamePhase = 'lose'
+          return;
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find App fiber hooks');
+    });
+    await expect(page.locator('.game-over-overlay .prestige-btn')).toBeVisible({ timeout: 2000 });
+    // Click the prestige button
+    await page.locator('.prestige-btn').click();
+    // localStorage must now have prestigeStars = '1'
+    const stored = await page.evaluate(() => localStorage.getItem('prestigeStars'));
+    expect(stored).toBe('1');
+    // Reload and verify the star persists in the HUD
+    await page.reload();
+    await page.waitForSelector('.hud-prestige-stars', { state: 'visible' });
+    const filledAfterReload = await page.locator('.prestige-star--filled').count();
+    expect(filledAfterReload).toBe(1);
+  });
+
   test('tower-cooldown-bar is visible after placing a tower on the board', async ({ page }) => {
     // Dismiss the NextWave overlay so the board is interactive
     const startBtn = page.locator('.next-wave-start');

@@ -6,7 +6,7 @@
 /**
  * All supported difficulty modes.
  */
-export const DIFFICULTY_MODES = ['easy', 'normal', 'hard', 'veteran', 'nightmare']
+export const DIFFICULTY_MODES = ['easy', 'normal', 'hard', 'nightmare']
 
 /**
  * getDifficultyConfig returns the modifier object for a given difficulty mode.

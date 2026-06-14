@@ -1091,8 +1091,8 @@ function App() {
         <DifficultySelector
           onSelect={handleSelectDifficulty}
           availableModes={getPrestigeBonus(prestigeStars).unlockVeteran
-            ? ['easy', 'normal', 'hard', 'veteran', 'nightmare']
-            : ['easy', 'normal', 'hard', 'nightmare']
+            ? [...DIFFICULTY_MODES.slice(0, 3), 'veteran', DIFFICULTY_MODES[3]]
+            : DIFFICULTY_MODES
           }
         />
       )}
