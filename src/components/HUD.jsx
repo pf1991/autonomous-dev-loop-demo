@@ -25,6 +25,7 @@ import { computeInterest } from '../game/score.js'
  *   difficultyColor      — CSS colour for the difficulty pill (string)
  *   interestCountdown    — seconds until next interest payout (number | null; null = not playing)
  *   interestFlash        — { amount, key } | null — triggers a brief "+Xg interest" flash
+ *   prestigeStars        — current prestige star count (0–5)
  */
 function HUD({
   lives,
@@ -48,6 +49,7 @@ function HUD({
   difficultyColor = '#e0e0e0',
   interestCountdown = null,
   interestFlash = null,
+  prestigeStars = 0,
 }) {
   const isRampage = comboCount >= 5
 
@@ -80,6 +82,13 @@ function HUD({
         </span>
       )}
       {endlessMode && <span className="hud-endless-badge">ENDLESS</span>}
+      <span className="hud-prestige-stars" aria-label={`Prestige stars: ${prestigeStars} of 5`}>
+        {Array.from({ length: 5 }, (_, i) => (
+          <span key={i} className={i < prestigeStars ? 'prestige-star prestige-star--filled' : 'prestige-star prestige-star--hollow'}>
+            {i < prestigeStars ? '⭐' : '☆'}
+          </span>
+        ))}
+      </span>
       {comboVisible && comboCount >= 2 && (
         <span className={`combo-banner${isRampage ? ' combo-banner--rampage' : ''}`}>
           {comboCount}× {comboLabel} +{comboBonus}g

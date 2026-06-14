@@ -63,6 +63,18 @@ export function getDifficultyConfig(mode) {
         flavour: 'For veterans who want a real fight.',
         color: '#e94560',
       }
+    case 'veteran':
+      return {
+        startingGold: 60,
+        startingLives: 12,
+        enemyHpMult: 1.5,
+        enemySpeedMult: 1.3,
+        goldPerKillMult: 0.85,
+        scoreMultiplier: 2.0,
+        label: 'Veteran',
+        flavour: 'Prestige unlocked — prove your mastery.',
+        color: '#c084fc',
+      }
     case 'nightmare':
       return {
         startingGold: 50,

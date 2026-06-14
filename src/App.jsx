@@ -19,6 +19,8 @@ import { getDifficultyConfig, applyDifficultyToScore } from './game/difficulty'
 import { saveLeaderboardEntry } from './utils/leaderboard'
 import { checkAchievements, ACHIEVEMENTS } from './game/achievements'
 import { loadUnlockedAchievements, persistNewAchievements } from './utils/achievements'
+import { getPrestigeBonus, MAX_PRESTIGE_STARS } from './game/prestige'
+import { loadPrestigeStars, savePrestigeStars } from './utils/prestige'
 
 const INITIAL_MAP = createDefaultMap()
 const PATH_WAYPOINTS = getPathWaypoints()
@@ -100,6 +102,13 @@ function App() {
   const achievementToastsRef = useRef([])
   // Achievement modal visibility
   const [achievementModalOpen, setAchievementModalOpen] = useState(false)
+
+  // Prestige system
+  // prestigeStars: current star count loaded from localStorage; drives HUD display and run bonuses
+  const [prestigeStars, setPrestigeStars] = useState(() => loadPrestigeStars())
+  // wavesReachedRef: highest wave completed in the current run (used by Game Over to gate prestige button)
+  const wavesReachedRef = useRef(0)
+  const [wavesReached, setWavesReached] = useState(0)
   // Per-run tracking refs for achievement conditions
   const totalTowersPlacedRef = useRef(0)
   const maxComboReachedRef = useRef(0)
@@ -219,9 +228,10 @@ function App() {
     const cfg = getDifficultyConfig(mode)
     difficultyModeRef.current = mode
     setDifficultyMode(mode)
-    // Apply starting gold and lives
-    setGold(cfg.startingGold)
-    syncLives(cfg.startingLives)
+    // Apply starting gold and lives — prestige bonuses stack on top of difficulty base values
+    const prestige = getPrestigeBonus(loadPrestigeStars())
+    setGold(cfg.startingGold + prestige.bonusGold)
+    syncLives(cfg.startingLives + prestige.bonusLives)
   }
 
   // Keep towersRef in sync with towers state so onTick always sees the latest tower list.
@@ -280,7 +290,8 @@ function App() {
 
       if (interestRealTimeRef.current >= INTEREST_INTERVAL_MS) {
         interestRealTimeRef.current -= INTEREST_INTERVAL_MS
-        const amount = computeInterest(goldRef.current)
+        const prestigeBonus = getPrestigeBonus(loadPrestigeStars())
+        const amount = Math.round(computeInterest(goldRef.current) * prestigeBonus.interestRateMult)
         if (amount > 0) {
           setGold(g => g + amount)
           totalGoldEarnedRef.current += amount
@@ -636,6 +647,12 @@ function App() {
         activeSynergyPairs: activeSynergyPairsRef.current,
       })
 
+      // Track highest wave reached for prestige eligibility
+      if (currentWaveNum > wavesReachedRef.current) {
+        wavesReachedRef.current = currentWaveNum
+        setWavesReached(currentWaveNum)
+      }
+
       // In endless mode the game never ends on wave 10 — keep going
       if (currentWaveNum >= TOTAL_WAVES && !endlessModeRef.current) {
         const rawScore = computeScore({
@@ -730,8 +747,11 @@ function App() {
   function handleUpgrade(row, col) {
     const tower = towers.find(t => t.row === row && t.col === col)
     if (!tower) return
-    const cost = getUpgradeCost(tower)
-    if (cost === null || gold < cost) return
+    const baseCost = getUpgradeCost(tower)
+    if (baseCost === null) return
+    const prestige = getPrestigeBonus(prestigeStars)
+    const cost = Math.round(baseCost * prestige.upgradeCostMult)
+    if (gold < cost) return
     setGold(g => g - cost)
     setTowers(ts =>
       ts.map(t => (t.row === row && t.col === col ? upgradeTower(t) : t))
@@ -772,6 +792,15 @@ function App() {
     const next = !endlessModeRef.current
     endlessModeRef.current = next
     setEndlessMode(next)
+  }
+
+  function handlePrestige() {
+    // Award one prestige star (capped at MAX_PRESTIGE_STARS) and return to the main menu
+    const current = loadPrestigeStars()
+    const next = Math.min(current + 1, MAX_PRESTIGE_STARS)
+    savePrestigeStars(next)
+    setPrestigeStars(next)
+    handleRestart()
   }
 
   function handleRestart() {
@@ -839,6 +868,10 @@ function App() {
     livesAtWaveStartRef.current = INITIAL_STATE.lives
     speedWasOneRef.current = false
     activeSynergyPairsRef.current = 0
+    wavesReachedRef.current = 0
+    setWavesReached(0)
+    // Re-read prestige stars in case they changed
+    setPrestigeStars(loadPrestigeStars())
     syncPhase('between-waves')
   }
 
@@ -987,6 +1020,7 @@ function App() {
         difficultyColor={difficultyMode ? getDifficultyConfig(difficultyMode).color : '#e0e0e0'}
         interestCountdown={gamePhase === 'playing' ? interestCountdown : null}
         interestFlash={interestFlash}
+        prestigeStars={prestigeStars}
       />
       <TowerPicker
         selectedType={selectedTowerType}
@@ -1031,14 +1065,36 @@ function App() {
         onCountdownStart={handleNextWaveStart}
       />
       {gamePhase === 'lose' && (
-        <GameOver result="lose" score={finalScore} onRestart={handleRestart} />
+        <GameOver
+          result="lose"
+          score={finalScore}
+          onRestart={handleRestart}
+          endlessMode={endlessMode}
+          wavesReached={wavesReached}
+          prestigeStars={prestigeStars}
+          onPrestige={handlePrestige}
+        />
       )}
       {gamePhase === 'win' && (
-        <GameOver result="win" score={finalScore} onRestart={handleRestart} />
+        <GameOver
+          result="win"
+          score={finalScore}
+          onRestart={handleRestart}
+          endlessMode={endlessMode}
+          wavesReached={wavesReached}
+          prestigeStars={prestigeStars}
+          onPrestige={handlePrestige}
+        />
       )}
       {/* Difficulty selector: shown before the player picks a mode (fresh game or after restart) */}
       {difficultyMode === null && (
-        <DifficultySelector onSelect={handleSelectDifficulty} />
+        <DifficultySelector
+          onSelect={handleSelectDifficulty}
+          availableModes={getPrestigeBonus(prestigeStars).unlockVeteran
+            ? [...DIFFICULTY_MODES.slice(0, 3), 'veteran', DIFFICULTY_MODES[3]]
+            : DIFFICULTY_MODES
+          }
+        />
       )}
       {gamePhase === 'between-waves' && wave === 1 && difficultyMode !== null && (
         <NextWave
