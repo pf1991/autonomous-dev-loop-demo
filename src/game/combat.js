@@ -24,6 +24,11 @@ function tileDistance(tower, pos) {
  * processCombat applies one combat tick: each tower fires at the nearest enemy in range.
  *
  * Special tower mechanics:
+ *   - MortarTower (type === 'MortarTower'): targets the tile with the highest enemy density
+ *     in range instead of the nearest enemy. Deals center damage (tower.damage) to the enemy
+ *     at the target tile, then splash damage (tower.splashDamage) to ALL enemies within
+ *     splashRadius of the blast point — including the center enemy, who can take both hits.
+ *     Projectiles carry a splashRadius field and are rendered as expanding orange circles.
  *   - CannonTower (splashRadius > 0): deals damage to ALL enemies within splashRadius tiles
  *     of the primary target, in addition to the target itself.
  *   - SlowTower (slowFactor, slowDuration): applies a slow debuff to the primary target.
@@ -80,7 +85,84 @@ export function processCombat(towers, enemies, nowMs, adjacencySynergies) {
       return { ...tower }
     }
 
-    // Find nearest enemy within range
+    // MortarTower: find the tile with highest enemy density in range, then AoE blast
+    if (tower.type === 'MortarTower') {
+      // Collect all enemies in range
+      const enemiesInRange = []
+      for (const [id, enemy] of enemyMap) {
+        if (tileDistance(tower, enemy.pos) <= effectiveRange) {
+          enemiesInRange.push(enemy)
+        }
+      }
+      if (enemiesInRange.length === 0) {
+        return { ...tower }
+      }
+
+      // Find the candidate position (each in-range enemy's tile) with the most enemies
+      // within splashRadius of it — this is the density-optimal blast point
+      const splashRadius = tower.splashRadius ?? 1.5
+      let bestTargetPos = null
+      let bestDensity = -1
+      let bestTargetId = null
+      for (const candidate of enemiesInRange) {
+        let density = 0
+        for (const other of enemiesInRange) {
+          if (tileDistance(candidate.pos, other.pos) <= splashRadius) density++
+        }
+        if (density > bestDensity) {
+          bestDensity = density
+          bestTargetPos = candidate.pos
+          bestTargetId = candidate.id
+        }
+      }
+
+      // Apply center damage to the enemy at the target tile
+      const centerTarget = enemyMap.get(bestTargetId)
+      const centerResist = centerTarget.damageResist?.[tower.type] ?? 1
+      const centerDamage = tower.damage * effectiveDamageMultiplier * centerResist
+      const centerNewHp = centerTarget.hp - centerDamage
+      const centerKilled = centerNewHp <= 0
+      enemyMap.set(bestTargetId, {
+        ...centerTarget,
+        hp: centerNewHp,
+        ...(centerKilled ? { _killedByTowerIndex: towerIndex } : {}),
+      })
+
+      // Apply splash damage to ALL enemies within splashRadius of blast point
+      // (includes the center enemy — they take both center + splash damage)
+      const splashDmg = tower.splashDamage ?? tower.damage
+      for (const [id, enemy] of enemyMap) {
+        const dist = tileDistance(bestTargetPos, enemy.pos)
+        if (dist > splashRadius) continue
+        const splashResist = enemy.damageResist?.[tower.type] ?? 1
+        const splashHit = splashDmg * splashResist
+        const current = enemyMap.get(id)
+        const newHp = current.hp - splashHit
+        const killed = newHp <= 0
+        enemyMap.set(id, {
+          ...current,
+          hp: newHp,
+          ...(killed && current._killedByTowerIndex == null ? { _killedByTowerIndex: towerIndex } : {}),
+        })
+      }
+
+      // Record the mortar projectile (rendered as an expanding orange circle)
+      projectiles.push({
+        id: `${tower.row}-${tower.col}-${nowMs}`,
+        fromRow: tower.row,
+        fromCol: tower.col,
+        toRow: bestTargetPos.row,
+        toCol: bestTargetPos.col,
+        createdAt: nowMs,
+        towerType: tower.type,
+        upgradeLevel: tower.upgradeLevel ?? 0,
+        splashRadius,
+      })
+
+      return { ...tower, lastFiredAt: nowMs }
+    }
+
+    // Find nearest enemy within range (all non-Mortar towers)
     let nearestId = null
     let nearestDist = Infinity
 

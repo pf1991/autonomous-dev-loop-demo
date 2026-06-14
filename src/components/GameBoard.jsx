@@ -105,6 +105,31 @@ function TowerSVG({ type, upgradeLevel }) {
     )
   }
 
+  if (type === 'MortarTower') {
+    // Dark-grey octagon — represents the mortar barrel opening viewed from above
+    // An octagon has 8 sides; points computed for a 30×30 viewBox centred at (15,15)
+    // with radius 12: offset corners at ±5 and ±12 from centre.
+    return (
+      <span className="tower-icon">
+        <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
+          <polygon
+            className="tower-mortar"
+            points="10,3 20,3 27,10 27,20 20,27 10,27 3,20 3,10"
+          />
+          {upgradeLevel >= 1 && (
+            <polygon
+              className="tower-mortar-ring"
+              points="10,1 20,1 29,10 29,20 20,29 10,29 1,20 1,10"
+            />
+          )}
+          {upgradeLevel >= 2 && (
+            <circle className="tower-mortar-core" cx="15" cy="15" r="4" />
+          )}
+        </svg>
+      </span>
+    )
+  }
+
   if (type === 'PoisonTower') {
     // Rounded pentagon shape — conveys a biological/poison effect
     // Pentagon points at top, slight rounding via rx/ry on the polygon container
@@ -342,6 +367,23 @@ function GameBoard({
                 : 'basic'
               const lvl = p.upgradeLevel ?? 0
               const levelSuffix = lvl >= 2 ? '-lv2' : lvl >= 1 ? '-lv1' : ''
+
+              // MortarTower: render as an orange filled circle that expands to the splash radius
+              if (p.towerType === 'MortarTower') {
+                const cx = (p.toCol + 0.5) * TILE_PX
+                const cy = (p.toRow + 0.5) * TILE_PX
+                const splashPx = (p.splashRadius ?? 1.5) * TILE_PX
+                return (
+                  <circle
+                    key={p.id}
+                    className={`projectile-mortar-shell${levelSuffix}`}
+                    cx={cx}
+                    cy={cy}
+                    r={splashPx}
+                  />
+                )
+              }
+
               const className = `projectile projectile-${typeSlug}${levelSuffix}`
               return (
                 <line

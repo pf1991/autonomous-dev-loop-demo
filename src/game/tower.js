@@ -77,6 +77,27 @@ export const TOWER_TYPES = {
     ],
   },
   /**
+   * MortarTower — slow, deliberate AoE artillery tower.
+   * Lobs explosive shells at the tile with the highest enemy density in range.
+   * Center hit deals full damage; enemies within splashRadius take splash damage.
+   * Splash damage is separate: enemies at the center can take both center + splash.
+   * Synergises well with SlowTower (enemies bunch up, maximising blast value).
+   * L1 upgrade: higher damage, larger splash radius.
+   * L2 upgrade: even higher damage, larger splash radius, +1 range.
+   */
+  MortarTower: {
+    cost: 125,
+    range: 5,
+    damage: 40,
+    fireRate: 0.4,
+    splashDamage: 20,
+    splashRadius: 1.5,
+    upgrades: [
+      { cost: 80, range: 5, damage: 55, fireRate: 0.4, splashDamage: 28, splashRadius: 2.0 },
+      { cost: 120, range: 6, damage: 80, fireRate: 0.4, splashDamage: 40, splashRadius: 2.5 },
+    ],
+  },
+  /**
    * PoisonTower — medium range, applies a damage-over-time (DoT) poison on hit.
    * Initial hit deals direct damage; then the poison ticks for additional damage.
    * DoT continues even if the tower is sold. DoT kills award gold normally.
@@ -108,6 +129,7 @@ export function createTower(type, row, col) {
   const tower = { type, row, col, range, damage, fireRate, lastFiredAt: 0, upgradeLevel: 0, kills: 0 }
   // Include special properties for towers that have unique mechanics
   if (typeDef.splashRadius      != null) tower.splashRadius      = typeDef.splashRadius
+  if (typeDef.splashDamage      != null) tower.splashDamage      = typeDef.splashDamage
   if (typeDef.slowFactor        != null) tower.slowFactor        = typeDef.slowFactor
   if (typeDef.slowDuration      != null) tower.slowDuration      = typeDef.slowDuration
   if (typeDef.aoeSlowRadius     != null) tower.aoeSlowRadius     = typeDef.aoeSlowRadius
@@ -153,6 +175,7 @@ export function upgradeTower(tower) {
   }
   // Carry over special properties from the upgrade level definition when present
   if (upgrade.splashRadius      != null) updated.splashRadius      = upgrade.splashRadius
+  if (upgrade.splashDamage      != null) updated.splashDamage      = upgrade.splashDamage
   if (upgrade.slowFactor        != null) updated.slowFactor        = upgrade.slowFactor
   if (upgrade.slowDuration      != null) updated.slowDuration      = upgrade.slowDuration
   if (upgrade.aoeSlowRadius     != null) updated.aoeSlowRadius     = upgrade.aoeSlowRadius
