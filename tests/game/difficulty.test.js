@@ -58,11 +58,12 @@ describe('getDifficultyConfig', () => {
     }
   })
 
-  it('DIFFICULTY_MODES contains exactly 4 entries', () => {
-    expect(DIFFICULTY_MODES).toHaveLength(4)
+  it('DIFFICULTY_MODES contains exactly 5 entries including veteran', () => {
+    expect(DIFFICULTY_MODES).toHaveLength(5)
     expect(DIFFICULTY_MODES).toContain('easy')
     expect(DIFFICULTY_MODES).toContain('normal')
     expect(DIFFICULTY_MODES).toContain('hard')
+    expect(DIFFICULTY_MODES).toContain('veteran')
     expect(DIFFICULTY_MODES).toContain('nightmare')
   })
 })

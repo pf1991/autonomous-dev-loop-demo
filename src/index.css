@@ -1664,3 +1664,67 @@ body {
   filter: drop-shadow(0 0 4px #ff8c00);
   animation: mortar-shell-explode 700ms ease-out forwards;
 }
+
+/* ===== Prestige stars (HUD) ===== */
+.hud-prestige-stars {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+
+.prestige-star {
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.prestige-star--filled {
+  color: #f5a623;
+}
+
+.prestige-star--hollow {
+  color: #555;
+}
+
+/* ===== Prestige offer (Game Over screen) ===== */
+.prestige-offer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  background: rgba(245, 166, 35, 0.08);
+  border: 2px solid #f5a623;
+  border-radius: 8px;
+  padding: 16px 24px;
+}
+
+.prestige-offer-text {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #f5a623;
+}
+
+.prestige-offer-hint {
+  font-size: 0.8rem;
+  color: #aaa;
+}
+
+.prestige-btn {
+  background: #f5a623;
+  color: #1a1a2e;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 28px;
+  font-size: 1.05rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.prestige-btn:hover {
+  background: #e09420;
+}
+
+/* ===== Veteran difficulty button ===== */
+.difficulty-btn--veteran {
+  border-color: #c084fc;
+}

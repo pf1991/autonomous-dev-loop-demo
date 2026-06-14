@@ -5,15 +5,17 @@ import { getDifficultyConfig, DIFFICULTY_MODES } from '../game/difficulty'
  * to let the player choose a difficulty mode.
  *
  * Props:
- *   onSelect — callback(mode: string) invoked when the player picks a difficulty
+ *   onSelect        — callback(mode: string) invoked when the player picks a difficulty
+ *   availableModes  — optional array of mode strings to show (defaults to DIFFICULTY_MODES)
  */
-function DifficultySelector({ onSelect }) {
+function DifficultySelector({ onSelect, availableModes }) {
+  const modes = availableModes ?? DIFFICULTY_MODES
   return (
     <div className="difficulty-overlay">
       <div className="difficulty-box">
         <h2 className="difficulty-title">Choose Your Difficulty</h2>
         <div className="difficulty-grid">
-          {DIFFICULTY_MODES.map(mode => {
+          {modes.map(mode => {
             const cfg = getDifficultyConfig(mode)
             return (
               <button

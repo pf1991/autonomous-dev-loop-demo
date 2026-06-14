@@ -6,7 +6,7 @@
 /**
  * All supported difficulty modes.
  */
-export const DIFFICULTY_MODES = ['easy', 'normal', 'hard', 'nightmare']
+export const DIFFICULTY_MODES = ['easy', 'normal', 'hard', 'veteran', 'nightmare']
 
 /**
  * getDifficultyConfig returns the modifier object for a given difficulty mode.
@@ -62,6 +62,18 @@ export function getDifficultyConfig(mode) {
         label: 'Hard',
         flavour: 'For veterans who want a real fight.',
         color: '#e94560',
+      }
+    case 'veteran':
+      return {
+        startingGold: 60,
+        startingLives: 12,
+        enemyHpMult: 1.5,
+        enemySpeedMult: 1.3,
+        goldPerKillMult: 0.85,
+        scoreMultiplier: 2.0,
+        label: 'Veteran',
+        flavour: 'Prestige unlocked — prove your mastery.',
+        color: '#c084fc',
       }
     case 'nightmare':
       return {
