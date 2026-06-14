@@ -1,3 +1,5 @@
+import { computeInterest } from '../game/score.js'
+
 /**
  * HUD — Heads-up display showing live game stats, a speed toggle button,
  * and a persistent Restart button.
@@ -21,6 +23,8 @@
  *   onAchievementClick   — callback when the trophy button is clicked
  *   difficultyLabel      — display label of the selected difficulty (string)
  *   difficultyColor      — CSS colour for the difficulty pill (string)
+ *   interestCountdown    — seconds until next interest payout (number | null; null = not playing)
+ *   interestFlash        — { amount, key } | null — triggers a brief "+Xg interest" flash
  */
 function HUD({
   lives,
@@ -42,13 +46,30 @@ function HUD({
   onAchievementClick,
   difficultyLabel = '',
   difficultyColor = '#e0e0e0',
+  interestCountdown = null,
+  interestFlash = null,
 }) {
   const isRampage = comboCount >= 5
 
   return (
     <div className="hud">
       <span className="hud-lives">Lives: {lives}</span>
-      <span className="hud-gold">Gold: {gold}</span>
+      <div className="hud-gold-group">
+        <span className="hud-gold">Gold: {gold}</span>
+        {interestFlash && (
+          <span
+            key={interestFlash.key}
+            className="hud-interest-flash"
+          >
+            +{interestFlash.amount}g interest
+          </span>
+        )}
+        {interestCountdown !== null && gold > 0 && (
+          <span className="hud-interest-ticker">
+            +{computeInterest(gold)}g interest in {interestCountdown}s
+          </span>
+        )}
+      </div>
       <span className="hud-wave">Wave: {wave}</span>
       {difficultyLabel && (
         <span

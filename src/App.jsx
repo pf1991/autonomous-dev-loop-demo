@@ -14,7 +14,7 @@ import { processCombat, processEffectTick } from './game/combat'
 import { getWaveEnemyHp, getWaveEnemyCount, getWaveComposition, getEarlyWaveBonus, getEndlessWaveEnemyHp, getEndlessWaveEnemyCount, getEndlessWaveComposition, isBossWave, getWaveEventType, WAVE_EVENT_CONFIG } from './game/wave'
 import { createPowerCrate, selectCrateReward } from './game/powerCrate'
 import { useGameLoop } from './hooks/useGameLoop'
-import { computeScore, computeComboBonus, getComboLabel } from './game/score'
+import { computeScore, computeComboBonus, getComboLabel, computeInterest } from './game/score'
 import { getDifficultyConfig, applyDifficultyToScore } from './game/difficulty'
 import { saveLeaderboardEntry } from './utils/leaderboard'
 import { checkAchievements, ACHIEVEMENTS } from './game/achievements'
@@ -75,6 +75,21 @@ function App() {
   const [overchargeActive, setOverchargeActive] = useState(false)
   const overchargeUntilRef = useRef(0)
   const overchargeActiveRef = useRef(false)
+
+  // Interest timer — real-time (wall-clock), not scaled by speed multiplier.
+  // interestRealTimeRef: accumulated real-time ms since last interest payout
+  // Interest fires every 10 s of real time, but not in the first 30 s of the game.
+  // gameStartRealTimeRef: Date.now() captured when the first wave starts.
+  const interestRealTimeRef = useRef(0)
+  const gameStartRealTimeRef = useRef(0)
+  const lastInterestWallRef = useRef(0) // Date.now() at the previous tick (for delta calculation)
+  // interestFlash: { amount, key } | null — triggers a brief "+Xg interest" flash in the HUD
+  const [interestFlash, setInterestFlash] = useState(null)
+  // interestCountdown: seconds until next interest payout (shown in HUD ticker)
+  const [interestCountdown, setInterestCountdown] = useState(10)
+  const interestCountdownRef = useRef(10)
+  // goldRef: mirror of gold state so the interest timer (real-time) can read it without stale closure
+  const goldRef = useRef(INITIAL_STATE.gold)
 
   // Achievement tracking
   // unlockedAchievements: array of unlocked achievement IDs, loaded from localStorage on mount
@@ -217,6 +232,71 @@ function App() {
     adjacencySynergiesRef.current = synergies
     setAdjacencySynergies(synergies)
   }, [towers])
+
+  // Mirror gold state into goldRef so the interest real-time interval can read it without
+  // a stale closure — the interval callback captures goldRef, not gold.
+  useEffect(() => {
+    goldRef.current = gold
+  }, [gold])
+
+  // Real-time interest ticker — fires independent of speed multiplier.
+  // Runs a 250 ms interval while 'playing'; accumulates wall-clock ms and pays
+  // interest every 10 000 ms, but only after the first 30 000 ms of the run.
+  useEffect(() => {
+    if (gamePhase !== 'playing') return
+
+    const INTEREST_INTERVAL_MS = 10000   // 10 real-time seconds
+    const WARMUP_MS = 30000              // no interest in first 30 s
+    const TICK_MS = 250                  // poll every 250 ms
+
+    lastInterestWallRef.current = Date.now()
+
+    const id = setInterval(() => {
+      const now = Date.now()
+      const wallDelta = now - lastInterestWallRef.current
+      lastInterestWallRef.current = now
+
+      // Only accumulate time after the 30-second warmup has elapsed
+      const elapsed = now - gameStartRealTimeRef.current
+      if (elapsed < WARMUP_MS) {
+        // Still in warmup — snap countdown to remaining warmup + 10s
+        const warmupRemaining = WARMUP_MS - elapsed
+        const nextPayout = warmupRemaining + INTEREST_INTERVAL_MS
+        const secs = Math.ceil(nextPayout / 1000)
+        if (secs !== interestCountdownRef.current) {
+          interestCountdownRef.current = secs
+          setInterestCountdown(secs)
+        }
+        return
+      }
+
+      interestRealTimeRef.current += wallDelta
+      const secs = Math.ceil((INTEREST_INTERVAL_MS - interestRealTimeRef.current) / 1000)
+      const clampedSecs = Math.max(0, secs)
+      if (clampedSecs !== interestCountdownRef.current) {
+        interestCountdownRef.current = clampedSecs
+        setInterestCountdown(clampedSecs)
+      }
+
+      if (interestRealTimeRef.current >= INTEREST_INTERVAL_MS) {
+        interestRealTimeRef.current -= INTEREST_INTERVAL_MS
+        const amount = computeInterest(goldRef.current)
+        if (amount > 0) {
+          setGold(g => g + amount)
+          totalGoldEarnedRef.current += amount
+          // Trigger flash animation in HUD
+          setInterestFlash({ amount, key: now })
+          // Auto-clear flash after 1.8s (slightly longer than the 1.5s animation)
+          setTimeout(() => setInterestFlash(null), 1800)
+          // Reset countdown display
+          interestCountdownRef.current = 10
+          setInterestCountdown(10)
+        }
+      }
+    }, TICK_MS)
+
+    return () => clearInterval(id)
+  }, [gamePhase])
 
   // Transition to 'lose' when lives hit 0 — scheduled outside setEnemies callback
   useEffect(() => {
@@ -741,6 +821,13 @@ function App() {
     stealthRevealAtRef.current = 0
     eventGoldMultiplierRef.current = 1
     waveEventSeedRef.current = Math.floor(Math.random() * 100000)
+    // Reset interest timer
+    interestRealTimeRef.current = 0
+    gameStartRealTimeRef.current = 0
+    lastInterestWallRef.current = 0
+    interestCountdownRef.current = 10
+    setInterestCountdown(10)
+    setInterestFlash(null)
     comboCountRef.current = 0
     comboWindowExpiryRef.current = 0
     comboBannerUntilRef.current = 0
@@ -832,6 +919,19 @@ function App() {
     const queue = buildSpawnQueue(waveRef.current, eventType)
     spawnQueueRef.current = queue
     totalEnemiesToSpawnRef.current = queue.length
+
+    // Record the wall-clock start of this run on the first wave start (wave 1).
+    // This anchors the 30-second warmup window for the interest system.
+    if (waveRef.current === 1 && gameStartRealTimeRef.current === 0) {
+      gameStartRealTimeRef.current = Date.now()
+    }
+    // Reset the real-time interest accumulator each time a wave starts so the 10-second
+    // clock is fresh and countdown is accurate.
+    interestRealTimeRef.current = 0
+    interestCountdownRef.current = 10
+    setInterestCountdown(10)
+    lastInterestWallRef.current = Date.now()
+
     syncPhase('playing')
   }
 
@@ -885,6 +985,8 @@ function App() {
         onAchievementClick={() => setAchievementModalOpen(true)}
         difficultyLabel={difficultyMode ? getDifficultyConfig(difficultyMode).label : ''}
         difficultyColor={difficultyMode ? getDifficultyConfig(difficultyMode).color : '#e0e0e0'}
+        interestCountdown={gamePhase === 'playing' ? interestCountdown : null}
+        interestFlash={interestFlash}
       />
       <TowerPicker
         selectedType={selectedTowerType}
