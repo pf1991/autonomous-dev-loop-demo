@@ -2725,9 +2725,12 @@ test.describe('Tower Defense - smoke tests', () => {
     await expect(slot).toBeVisible();
     await slot.click();
     await expect(page.locator('.tower-icon').first()).toBeVisible();
-    // The cooldown bar must be rendered inside the tower tile
-    // It is always present (fraction = 0 → width = 0%, but element is in the DOM and visible)
-    await expect(page.locator('.tower-cooldown-bar').first()).toBeVisible({ timeout: 2000 });
+    // The cooldown bar must be rendered inside the tower tile.
+    // lastFiredAt initialises to 0, so Date.now() - 0 >> fireInterval and fraction is clamped
+    // to 1 → width = 80% and the idle class is applied immediately on first render.
+    const bar = page.locator('.tower-cooldown-bar').first();
+    await expect(bar).toBeAttached({ timeout: 2000 });
+    await expect(bar).toHaveCSS('width', /[1-9]/);
   });
 
 });

@@ -475,7 +475,7 @@ describe('GameBoard', () => {
 
     act(() => {
       createRoot(container).render(
-        createElement(GameBoard, { tiles, onTileClick, towers, nowMs: 1000 })
+        createElement(GameBoard, { tiles, onTileClick, towers })
       )
     })
 
@@ -491,7 +491,7 @@ describe('GameBoard', () => {
 
     act(() => {
       createRoot(container).render(
-        createElement(GameBoard, { tiles, onTileClick, towers, nowMs: 1000 })
+        createElement(GameBoard, { tiles, onTileClick, towers })
       )
     })
 
@@ -507,7 +507,7 @@ describe('GameBoard', () => {
 
     act(() => {
       createRoot(container).render(
-        createElement(GameBoard, { tiles, onTileClick, towers, nowMs: 1000 })
+        createElement(GameBoard, { tiles, onTileClick, towers })
       )
     })
 
@@ -515,16 +515,16 @@ describe('GameBoard', () => {
     expect(bar.classList.contains('tower-cooldown-bar--sniper')).toBe(true)
   })
 
-  it('cooldown bar shows idle class when nowMs is far past lastFiredAt (bar full)', () => {
+  it('cooldown bar shows idle class when tower fired long ago (bar full)', () => {
     const tiles = createDefaultMap()
     const onTileClick = vi.fn()
-    // lastFiredAt=0, nowMs=5000 — well past the fire interval (1000ms for BasicTower)
+    // lastFiredAt=0 — Date.now() is always far past the fire interval (1000ms for BasicTower)
     const tower = { ...createTower('BasicTower', 3, 7), lastFiredAt: 0 }
     const towers = [tower]
 
     act(() => {
       createRoot(container).render(
-        createElement(GameBoard, { tiles, onTileClick, towers, nowMs: 5000 })
+        createElement(GameBoard, { tiles, onTileClick, towers })
       )
     })
 
@@ -536,15 +536,20 @@ describe('GameBoard', () => {
   it('cooldown bar does not have idle class when tower just fired (fraction < 1)', () => {
     const tiles = createDefaultMap()
     const onTileClick = vi.fn()
-    // BasicTower fireRate=1 => interval=1000ms; lastFiredAt=4900, nowMs=5000 => fraction=0.1
+    // Pin Date.now() so lastFiredAt = now - 100ms => fraction = 0.1 (interval = 1000ms)
+    const fakeNow = 5000
+    vi.spyOn(Date, 'now').mockReturnValue(fakeNow)
+    // BasicTower fireRate=1 => interval=1000ms; lastFiredAt=4900 => fraction=0.1
     const tower = { ...createTower('BasicTower', 3, 7), lastFiredAt: 4900 }
     const towers = [tower]
 
     act(() => {
       createRoot(container).render(
-        createElement(GameBoard, { tiles, onTileClick, towers, nowMs: 5000 })
+        createElement(GameBoard, { tiles, onTileClick, towers })
       )
     })
+
+    vi.restoreAllMocks()
 
     const bar = container.querySelector('.tower-cooldown-bar')
     expect(bar).not.toBeNull()
@@ -554,15 +559,20 @@ describe('GameBoard', () => {
   it('cooldown bar width reflects fraction of fire interval elapsed', () => {
     const tiles = createDefaultMap()
     const onTileClick = vi.fn()
-    // BasicTower fireRate=1 => interval=1000ms; lastFiredAt=4500, nowMs=5000 => fraction=0.5
+    // Pin Date.now() so fraction = 0.5 => width = 40%
+    const fakeNow = 5000
+    vi.spyOn(Date, 'now').mockReturnValue(fakeNow)
+    // BasicTower fireRate=1 => interval=1000ms; lastFiredAt=4500 => fraction=0.5
     const tower = { ...createTower('BasicTower', 3, 7), lastFiredAt: 4500 }
     const towers = [tower]
 
     act(() => {
       createRoot(container).render(
-        createElement(GameBoard, { tiles, onTileClick, towers, nowMs: 5000 })
+        createElement(GameBoard, { tiles, onTileClick, towers })
       )
     })
+
+    vi.restoreAllMocks()
 
     const bar = container.querySelector('.tower-cooldown-bar')
     expect(bar).not.toBeNull()

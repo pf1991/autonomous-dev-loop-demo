@@ -50,8 +50,6 @@ function App() {
   const [speed, setSpeed] = useState(INITIAL_STATE.speed)
   const [towers, setTowers] = useState(INITIAL_STATE.towers)
   const [enemies, setEnemies] = useState(INITIAL_STATE.enemies)
-  // nowMs: game clock (ms) exposed to GameBoard so cooldown bars render correctly each tick
-  const [nowMs, setNowMs] = useState(0)
   const [projectiles, setProjectiles] = useState([])
   // Death animations: list of { id, row, col, gold, createdAt } for floating "+N gold" labels
   const [deathAnimations, setDeathAnimations] = useState([])
@@ -608,7 +606,6 @@ function App() {
 
     enemiesRef.current = afterCombat
     setEnemies(afterCombat)
-    setNowMs(nowMs)
 
     // Check wave completion: all enemies spawned and none remaining
     if (
@@ -1003,7 +1000,6 @@ function App() {
         onDeselect={() => setSelectedTower(null)}
         towers={towers}
         enemies={enemies}
-        nowMs={nowMs}
         projectiles={projectiles}
         deathAnimations={deathAnimations}
         selectedTower={selectedTower}

@@ -201,7 +201,6 @@ function cooldownBarClass(type) {
  *   powerCrates    — array of { id, row, col } crate objects dropped by boss enemies
  *   onCrateClick   — callback(crateId) invoked when a power crate is clicked
  *   countdownIsBossWave — boolean: true when the upcoming wave is a boss wave
- *   nowMs          — current game clock in ms; used to compute per-tower cooldown bar fill
  */
 function GameBoard({
   tiles,
@@ -233,7 +232,6 @@ function GameBoard({
   countdownIsBossWave = false,
   countdownEventType = 'normal',
   onCountdownStart,
-  nowMs = 0,
 }) {
   // Build a map from "row-col" key to tower object for O(1) lookup
   const towerMap = {}
@@ -309,7 +307,7 @@ function GameBoard({
                 })()}
                 {hasTower && (() => {
                   const fireInterval = 1000 / tower.fireRate
-                  const fraction = Math.min(1, (nowMs - tower.lastFiredAt) / fireInterval)
+                  const fraction = Math.min(1, (Date.now() - tower.lastFiredAt) / fireInterval)
                   const isIdle = fraction >= 1
                   const colourClass = cooldownBarClass(tower.type)
                   const idleClass = isIdle ? ' tower-cooldown-bar--idle' : ''
