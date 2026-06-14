@@ -1,3 +1,5 @@
+import { computeInterest } from '../game/score.js'
+
 /**
  * HUD — Heads-up display showing live game stats, a speed toggle button,
  * and a persistent Restart button.
@@ -64,7 +66,7 @@ function HUD({
         )}
         {interestCountdown !== null && gold > 0 && (
           <span className="hud-interest-ticker">
-            +{Math.min(50, Math.max(1, Math.floor(gold * 0.05)))}g interest in {interestCountdown}s
+            +{computeInterest(gold)}g interest in {interestCountdown}s
           </span>
         )}
       </div>
