@@ -492,6 +492,32 @@ body {
   to   { box-shadow: 0 0 8px #ffd600, 0 0 14px #ff6f00; }
 }
 
+/* ===== Tower cooldown bar — 4px bar pinned to the bottom of each placed tower tile ===== */
+.tower-cooldown-bar {
+  position: absolute;
+  bottom: 0;
+  left: 10%;
+  width: 80%;
+  height: 4px;
+  border-radius: 2px;
+  pointer-events: none;
+  user-select: none;
+  z-index: 4;
+  transition: width 0.05s linear;
+}
+
+/* Colour variants per tower type */
+.tower-cooldown-bar--basic   { background-color: #00bcd4; }
+.tower-cooldown-bar--sniper  { background-color: #e94560; }
+.tower-cooldown-bar--rapid   { background-color: #f5a623; }
+.tower-cooldown-bar--cannon  { background-color: #9a9abb; }
+.tower-cooldown-bar--slow    { background-color: #44a8d8; }
+.tower-cooldown-bar--mortar  { background-color: #ff9800; }
+.tower-cooldown-bar--poison  { background-color: #4caf50; }
+
+/* Idle state (bar at 100%): 25% opacity to indicate readiness without distraction */
+.tower-cooldown-bar--idle { opacity: 0.25; }
+
 /* ===== Synergy descriptions inside UpgradePanel ===== */
 .upgrade-panel-synergies {
   display: flex;
