@@ -234,6 +234,7 @@ export function tickHealerAbilities(enemies, nowMs) {
     let nearestDist = Infinity
     for (const [id, candidate] of enemyMap) {
       if (id === healer.id) continue
+      if (candidate.type === 'healer') continue  // healers do not heal other healers
       const dr = healer.pos.row - candidate.pos.row
       const dc = healer.pos.col - candidate.pos.col
       const dist = Math.sqrt(dr * dr + dc * dc)

@@ -135,6 +135,63 @@ describe('tickHealerAbilities', () => {
     expect(healEvents[0].targetId).toBe('g1')
     expect(healEvents[0].healerId).toBe('h1')
   })
+
+  it('healer does NOT heal another healer (healers only heal non-healer allies)', () => {
+    // Two healers within range of each other — neither should be healed by the other
+    const healer1 = {
+      ...createEnemy('h1', WAYPOINTS, 'healer'),
+      pos: { row: 0, col: 0 },
+      hp: 80,  // damaged
+    }
+    const healer2 = {
+      ...createEnemy('h2', WAYPOINTS, 'healer'),
+      pos: { row: 0, col: 1 },
+      hp: 70,  // damaged
+    }
+
+    const { enemies, healEvents } = tickHealerAbilities([healer1, healer2], 3000)
+
+    const updatedH1 = enemies.find(e => e.id === 'h1')
+    const updatedH2 = enemies.find(e => e.id === 'h2')
+    // Neither healer should have healed the other
+    expect(updatedH1.hp).toBe(80)  // unchanged
+    expect(updatedH2.hp).toBe(70)  // unchanged
+    // No heal events should have been emitted
+    expect(healEvents).toHaveLength(0)
+  })
+
+  it('healer heals a nearby grunt but ignores a nearby healer when both are in range', () => {
+    // healer1 and healer2 are adjacent; grunt is within range of both healers.
+    // Both healers should independently skip the other healer as a target and instead
+    // heal the grunt — so the grunt receives TWO heals (one from each healer).
+    // With grunt hp=30 and maxHp=80: 30 + 25 (from h1) + 25 (from h2) = 80 (capped at maxHp).
+    const healer1 = {
+      ...createEnemy('h1', WAYPOINTS, 'healer'),
+      pos: { row: 0, col: 0 },
+    }
+    const healer2 = {
+      ...createEnemy('h2', WAYPOINTS, 'healer'),
+      pos: { row: 0, col: 1 },  // 1 tile away from h1 — within range but must be skipped as target
+      hp: 80,
+    }
+    const grunt = {
+      ...createEnemy('g1', WAYPOINTS, 'grunt'),
+      pos: { row: 0, col: 1.5 },  // 1.5 tiles from h1, 0.5 tiles from h2 — valid target for both
+      hp: 30,
+    }
+
+    const { enemies, healEvents } = tickHealerAbilities([healer1, healer2, grunt], 3000)
+
+    const updatedHealer2 = enemies.find(e => e.id === 'h2')
+    const updatedGrunt = enemies.find(e => e.id === 'g1')
+    // The other healer must NOT have been healed by healer1 (it is skipped as a target)
+    expect(updatedHealer2.hp).toBe(80)
+    // The grunt receives heals from both healers: 30 + 25 + 25 = 80, capped at maxHp (80)
+    expect(updatedGrunt.hp).toBe(80)
+    // Two heal events — one per healer, both targeting the grunt
+    expect(healEvents).toHaveLength(2)
+    expect(healEvents.every(e => e.targetId === 'g1')).toBe(true)
+  })
 })
 
 // ===== SPLITTER DEATH SPAWNING =====
