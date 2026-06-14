@@ -1610,9 +1610,9 @@ test.describe('Tower Defense - smoke tests', () => {
             }
             hookNode = hookNode.next;
           }
-          // comboDisplay = dispatch index 20 (after PR #97 difficultyMode prepended)
-          if (stateHooks[20]) {
-            stateHooks[20].queue.dispatch({ count: 3, label: 'TRIPLE KILL', bonus: 5, visible: true });
+          // comboDisplay = dispatch index 22 (after PR #100 interestFlash+interestCountdown inserted)
+          if (stateHooks[22]) {
+            stateHooks[22].queue.dispatch({ count: 3, label: 'TRIPLE KILL', bonus: 5, visible: true });
           }
           return;
         }
@@ -1645,9 +1645,9 @@ test.describe('Tower Defense - smoke tests', () => {
             }
             hookNode = hookNode.next;
           }
-          // comboDisplay = dispatch index 20 (after PR #97 difficultyMode prepended)
-          if (stateHooks[20]) {
-            stateHooks[20].queue.dispatch({ count: 5, label: 'RAMPAGE', bonus: 20, visible: true });
+          // comboDisplay = dispatch index 22 (after PR #100 interestFlash+interestCountdown inserted)
+          if (stateHooks[22]) {
+            stateHooks[22].queue.dispatch({ count: 5, label: 'RAMPAGE', bonus: 20, visible: true });
           }
           return;
         }
@@ -1681,9 +1681,9 @@ test.describe('Tower Defense - smoke tests', () => {
             }
             hookNode = hookNode.next;
           }
-          // comboDisplay = dispatch index 20 (after PR #97 difficultyMode prepended)
-          if (stateHooks[20]) {
-            stateHooks[20].queue.dispatch({ count: 4, label: 'QUAD KILL', bonus: 10, visible: true });
+          // comboDisplay = dispatch index 22 (after PR #100 interestFlash+interestCountdown inserted)
+          if (stateHooks[22]) {
+            stateHooks[22].queue.dispatch({ count: 4, label: 'QUAD KILL', bonus: 10, visible: true });
           }
           return;
         }
@@ -1716,9 +1716,9 @@ test.describe('Tower Defense - smoke tests', () => {
             }
             hookNode = hookNode.next;
           }
-          // comboDisplay = dispatch index 20 (after PR #97 difficultyMode prepended)
-          if (stateHooks[20]) {
-            stateHooks[20].queue.dispatch({ count: 0, label: '', bonus: 0, visible: false });
+          // comboDisplay = dispatch index 22 (after PR #100 interestFlash+interestCountdown inserted)
+          if (stateHooks[22]) {
+            stateHooks[22].queue.dispatch({ count: 0, label: '', bonus: 0, visible: false });
           }
           return;
         }
@@ -2026,21 +2026,23 @@ test.describe('Tower Defense - smoke tests', () => {
   test('WaveCountdownBanner shows .wave-countdown-event-label when next wave is a special event (elite)', async ({ page }) => {
     // Strategy: force waveEventSeedRef.current = 0 so that getWaveEventType(4, 0) = 'elite' (deterministic).
     // Then set wave=3 and gamePhase='between-waves' so countdownWave = wave+1 = 4.
-    // App.jsx hook order (all hooks, 0-indexed) after PR #97 (difficultyMode+difficultyModeRef prepended):
+    // App.jsx hook order (all hooks, 0-indexed) after PR #100 (interest hooks inserted at 24-30):
     //   0=difficultyMode(S), 1=difficultyModeRef(R), 2=gold(S), 3=lives(S), 4=wave(S), 5=speed(S),
     //   6=towers(S), 7=enemies(S), 8=projectiles(S), 9=deathAnimations(S), 10=deathAnimationsRef(R),
     //   11=selectedTowerType(S), 12=selectedTower(S), 13=hoveredSlot(S), 14=gamePhase(S),
     //   15=endlessMode(S), 16=endlessModeRef(R), 17=finalScore(S),
     //   18=powerCrates(S), 19=powerCratesRef(R), 20=nextCrateIdRef(R),
     //   21=overchargeActive(S), 22=overchargeUntilRef(R), 23=overchargeActiveRef(R),
-    //   24=unlockedAchievements(S), 25=unlockedAchievementsRef(R), 26=achievementToasts(S),
-    //   27=achievementToastsRef(R), 28=achievementModalOpen(S),
-    //   (per-run refs...) 29..35=various tracking Refs,
-    //   36=comboCountRef(R), 37=comboWindowExpiryRef(R), 38=comboBannerUntilRef(R),
-    //   39=comboDisplay(S), 40=adjacencySynergies(S), 41=adjacencySynergiesRef(R),
-    //   42=nextEnemyIdRef(R), 43=spawnTimerRef(R), 44=waveEventSeedRef(R),
+    //   24=interestRealTimeRef(R), 25=gameStartRealTimeRef(R), 26=lastInterestWallRef(R),
+    //   27=interestFlash(S), 28=interestCountdown(S), 29=interestCountdownRef(R), 30=goldRef(R),
+    //   31=unlockedAchievements(S), 32=unlockedAchievementsRef(R), 33=achievementToasts(S),
+    //   34=achievementToastsRef(R), 35=achievementModalOpen(S),
+    //   (per-run refs...) 36..42=various tracking Refs,
+    //   43=comboCountRef(R), 44=comboWindowExpiryRef(R), 45=comboBannerUntilRef(R),
+    //   46=comboDisplay(S), 47=adjacencySynergies(S), 48=adjacencySynergiesRef(R),
+    //   49=nextEnemyIdRef(R), 50=spawnTimerRef(R), 51=waveEventSeedRef(R),
     //   (S=useState, R=useRef)
-    // NOTE: waveEventSeedRef is now at all-hooks index 44 (+2 shift from PR #97).
+    // NOTE: waveEventSeedRef is now at all-hooks index 51 (+7 shift from PR #100).
     await page.evaluate(() => {
       const gameEl = document.querySelector('#game');
       const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
@@ -2051,8 +2053,8 @@ test.describe('Tower Defense - smoke tests', () => {
           // Walk all hooks until we find waveEventSeedRef — look for a useRef whose
           // memoizedState has a numeric 'current' and appears after earlyWaveCalledRef.
           // Walk to waveEventSeedRef. Strategy: collect all useState dispatch hooks first,
-          // then find the useRef that comes IMMEDIATELY after pendingWaveAdvance (stateHooks[23]).
-          // After PR #97, pendingWaveAdvance is dispatch stateHook index 23.
+          // then find the useRef that comes IMMEDIATELY after pendingWaveAdvance (stateHooks[25]).
+          // After PR #100, pendingWaveAdvance is dispatch stateHook index 25.
           // waveEventSeedRef is the very next hook node (it's a useRef, so no queue.dispatch).
           const stateHooksForSeed = [];
           let hookNode = fiber.memoizedState;
@@ -2063,8 +2065,8 @@ test.describe('Tower Defense - smoke tests', () => {
             }
             hookNode = hookNode.next;
           }
-          // stateHooks[23] = pendingWaveAdvance; walk all hooks to find the node after it
-          const pendingWaveHook = stateHooksForSeed[23];
+          // stateHooks[25] = pendingWaveAdvance; walk all hooks to find the node after it
+          const pendingWaveHook = stateHooksForSeed[25];
           if (pendingWaveHook) {
             // Walk all hooks to find pendingWaveHook and grab the next one
             let hNode = fiber.memoizedState;
@@ -2090,7 +2092,7 @@ test.describe('Tower Defense - smoke tests', () => {
             }
             hookNode = hookNode.next;
           }
-          // Dispatch indices (useState only, 0-indexed) after PR #97: wave=3, gamePhase=12
+          // Dispatch indices (useState only, 0-indexed) after PR #100: wave=3, gamePhase=12
           if (stateHooks[3]) stateHooks[3].queue.dispatch(3);           // wave → 3
           if (stateHooks[12]) stateHooks[12].queue.dispatch('between-waves');
           return;
@@ -2150,36 +2152,43 @@ test.describe('Tower Defense - smoke tests', () => {
   // --- Achievement System (issue #72 / PR #96) ---
 
   /**
-   * Hook index map (App.jsx, all hooks in declaration order) after PR #97 (difficultyMode prepended):
-   *   0  difficultyMode   useState  ← PR #97
-   *   1  difficultyModeRef useRef   ← PR #97
-   *   2  gold             useState
-   *   3  lives            useState
-   *   4  wave             useState
-   *   5  speed            useState
-   *   6  towers           useState
-   *   7  enemies          useState
-   *   8  projectiles      useState
-   *   9  deathAnimations  useState
-   *  10  deathAnimationsRef useRef
-   *  11  selectedTowerType useState
-   *  12  selectedTower    useState
-   *  13  hoveredSlot      useState
-   *  14  gamePhase        useState
-   *  15  endlessMode      useState
-   *  16  endlessModeRef   useRef
-   *  17  finalScore       useState
-   *  18  powerCrates      useState
-   *  19  powerCratesRef   useRef
-   *  20  nextCrateIdRef   useRef
-   *  21  overchargeActive useState
-   *  22  overchargeUntilRef useRef
-   *  23  overchargeActiveRef useRef
-   *  24  unlockedAchievements useState  ← was 22
-   *  25  unlockedAchievementsRef useRef ← was 23
-   *  26  achievementToasts useState     ← was 24
-   *  27  achievementToastsRef useRef    ← was 25
-   *  28  achievementModalOpen useState  ← was 26
+   * Hook index map (App.jsx, all hooks in declaration order) after PR #100 (gold-interest hooks inserted):
+   *   0  difficultyMode        useState  ← PR #97
+   *   1  difficultyModeRef     useRef    ← PR #97
+   *   2  gold                  useState
+   *   3  lives                 useState
+   *   4  wave                  useState
+   *   5  speed                 useState
+   *   6  towers                useState
+   *   7  enemies               useState
+   *   8  projectiles           useState
+   *   9  deathAnimations       useState
+   *  10  deathAnimationsRef    useRef
+   *  11  selectedTowerType     useState
+   *  12  selectedTower         useState
+   *  13  hoveredSlot           useState
+   *  14  gamePhase             useState
+   *  15  endlessMode           useState
+   *  16  endlessModeRef        useRef
+   *  17  finalScore            useState
+   *  18  powerCrates           useState
+   *  19  powerCratesRef        useRef
+   *  20  nextCrateIdRef        useRef
+   *  21  overchargeActive      useState
+   *  22  overchargeUntilRef    useRef
+   *  23  overchargeActiveRef   useRef
+   *  24  interestRealTimeRef   useRef    ← PR #100
+   *  25  gameStartRealTimeRef  useRef    ← PR #100
+   *  26  lastInterestWallRef   useRef    ← PR #100
+   *  27  interestFlash         useState  ← PR #100
+   *  28  interestCountdown     useState  ← PR #100
+   *  29  interestCountdownRef  useRef    ← PR #100
+   *  30  goldRef               useRef    ← PR #100
+   *  31  unlockedAchievements  useState  ← was 24
+   *  32  unlockedAchievementsRef useRef  ← was 25
+   *  33  achievementToasts     useState  ← was 26
+   *  34  achievementToastsRef  useRef    ← was 27
+   *  35  achievementModalOpen  useState  ← was 28
    */
 
   /**
@@ -2329,8 +2338,8 @@ test.describe('Tower Defense - smoke tests', () => {
     if (await startBtn.isVisible()) {
       await startBtn.click();
     }
-    // Inject unlockedAchievements = ['first_blood'] via React fiber (hook index 22)
-    await dispatchAppHook(page, 24, ['first_blood']);
+    // Inject unlockedAchievements = ['first_blood'] via React fiber (hook index 31)
+    await dispatchAppHook(page, 31, ['first_blood']);
     // Open modal
     await page.locator('.hud-achievement-btn').click();
     await expect(page.locator('.achievement-modal')).toBeVisible({ timeout: 2000 });
@@ -2354,7 +2363,7 @@ test.describe('Tower Defense - smoke tests', () => {
       await startBtn.click();
     }
     // Inject 3 unlocked achievements
-    await dispatchAppHook(page, 24, ['first_blood', 'boss_slayer', 'combo_king']);
+    await dispatchAppHook(page, 31, ['first_blood', 'boss_slayer', 'combo_king']);
     // Open modal
     await page.locator('.hud-achievement-btn').click();
     await expect(page.locator('.achievement-modal')).toBeVisible({ timeout: 2000 });
@@ -2399,7 +2408,7 @@ test.describe('Tower Defense - smoke tests', () => {
     const btn = page.locator('.hud-achievement-btn');
     await expect(btn).toBeVisible();
     // Inject 5 achievements
-    await dispatchAppHook(page, 24, ['first_blood', 'boss_slayer', 'combo_king', 'tower_builder', 'golden_hoard']);
+    await dispatchAppHook(page, 31, ['first_blood', 'boss_slayer', 'combo_king', 'tower_builder', 'golden_hoard']);
     // Button text should update to 5/12
     await expect(btn).toContainText('5/12');
   });
@@ -2407,8 +2416,8 @@ test.describe('Tower Defense - smoke tests', () => {
   test('AchievementToast appears when an achievement toast is injected', async ({ page }) => {
     // Toast container must not be visible when no toasts are active
     await expect(page.locator('.achievement-toast-container')).not.toBeAttached();
-    // Inject a toast via hook index 26 (achievementToasts, after PR #97 difficultyMode prepended)
-    await dispatchAppHook(page, 26, [{ id: 'first_blood', name: 'First Blood', dismissAt: Date.now() + 5000 }]);
+    // Inject a toast via hook index 33 (achievementToasts, after PR #100 interest hooks inserted)
+    await dispatchAppHook(page, 33, [{ id: 'first_blood', name: 'First Blood', dismissAt: Date.now() + 5000 }]);
     // Toast container and toast must appear
     await expect(page.locator('.achievement-toast-container')).toBeVisible({ timeout: 2000 });
     await expect(page.locator('.achievement-toast').first()).toBeVisible();
@@ -2419,8 +2428,8 @@ test.describe('Tower Defense - smoke tests', () => {
   });
 
   test('AchievementToast shows trophy icon', async ({ page }) => {
-    // Inject a toast via hook index 26 (achievementToasts, after PR #97 difficultyMode prepended)
-    await dispatchAppHook(page, 26, [{ id: 'boss_slayer', name: 'Boss Slayer', dismissAt: Date.now() + 5000 }]);
+    // Inject a toast via hook index 33 (achievementToasts, after PR #100 interest hooks inserted)
+    await dispatchAppHook(page, 33, [{ id: 'boss_slayer', name: 'Boss Slayer', dismissAt: Date.now() + 5000 }]);
     await expect(page.locator('.achievement-toast').first()).toBeVisible({ timeout: 2000 });
     const icon = page.locator('.achievement-toast-icon').first();
     const iconText = await icon.textContent();
