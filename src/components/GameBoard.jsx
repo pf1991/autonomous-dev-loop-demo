@@ -449,6 +449,9 @@ function GameBoard({
               speeder: 'enemy-speeder',
               armored: 'enemy-armored',
               phantom: 'enemy-phantom',
+              healer: 'enemy-healer',
+              splitter: 'enemy-splitter',
+              shielded: 'enemy-shielded',
             }
             const typeClass = typeClassMap[enemy.type] ?? 'enemy-grunt'
             const isSlowed = enemy.slowUntil != null
@@ -465,6 +468,21 @@ function GameBoard({
                   className={isPoisoned ? 'enemy-hp-bar enemy-hp-bar--poisoned' : 'enemy-hp-bar'}
                   style={{ width: `${Math.max(0, (enemy.hp / enemy.maxHp) * 100)}%` }}
                 />
+                {enemy.type === 'healer' && (
+                  <svg className="enemy-ability-overlay" width={diameter} height={diameter} viewBox={`0 0 ${diameter} ${diameter}`} aria-hidden="true">
+                    <text className="enemy-healer-cross" x={diameter / 2} y={diameter / 2 - diameter * 0.35} textAnchor="middle" dominantBaseline="central" fontSize={diameter * 0.45} fontWeight="bold">+</text>
+                  </svg>
+                )}
+                {enemy.type === 'splitter' && (
+                  <svg className="enemy-ability-overlay" width={diameter} height={diameter} viewBox={`0 0 ${diameter} ${diameter}`} aria-hidden="true">
+                    <line className="enemy-splitter-line" x1={diameter * 0.25} y1={diameter * 0.25} x2={diameter * 0.75} y2={diameter * 0.75} />
+                  </svg>
+                )}
+                {enemy.type === 'shielded' && (
+                  <svg className="enemy-ability-overlay" width={diameter} height={diameter} viewBox={`0 0 ${diameter} ${diameter}`} aria-hidden="true">
+                    <path className="enemy-shielded-icon" d={`M${diameter/2},${diameter*0.15} L${diameter*0.75},${diameter*0.3} L${diameter*0.75},${diameter*0.55} Q${diameter/2},${diameter*0.85} ${diameter*0.25},${diameter*0.55} L${diameter*0.25},${diameter*0.3} Z`} />
+                  </svg>
+                )}
               </div>
             )
           })}

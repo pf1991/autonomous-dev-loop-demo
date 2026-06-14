@@ -568,6 +568,54 @@ body {
   box-shadow: 0 0 6px 2px rgba(160, 80, 220, 0.5);
 }
 
+/* Healer: soft green — restores HP to nearby allies */
+.enemy-healer {
+  background: #2ecc71;
+  border: 1px solid #27ae60;
+  box-shadow: 0 0 5px 2px rgba(46, 204, 113, 0.5);
+}
+
+/* Splitter: orange with split-line overlay — splits into 2 grunts on death */
+.enemy-splitter {
+  background: #e67e22;
+  border: 1px solid #d35400;
+}
+
+/* Shielded: dark silver — takes 60% of incoming direct damage */
+.enemy-shielded {
+  background: #7f8c8d;
+  border: 2px solid #2c3e50;
+  box-shadow: 0 0 5px 2px rgba(44, 62, 80, 0.6);
+}
+
+/* SVG overlay container (healer cross, splitter line, shielded icon) */
+.enemy-ability-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+/* Healer green + cross */
+.enemy-healer-cross {
+  fill: #fff;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.5);
+}
+
+/* Splitter diagonal split line */
+.enemy-splitter-line {
+  stroke: #fff;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+/* Shielded shield icon */
+.enemy-shielded-icon {
+  fill: rgba(255, 255, 255, 0.3);
+  stroke: #ecf0f1;
+  stroke-width: 1;
+}
+
 .enemy-hp-bar {
   position: absolute;
   bottom: -6px;

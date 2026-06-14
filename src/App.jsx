@@ -9,7 +9,7 @@ import AchievementModal from './components/AchievementModal'
 import DifficultySelector from './components/DifficultySelector'
 import { createDefaultMap, getPathWaypoints } from './game/map'
 import { TOWER_TYPES, createTower, canAfford, canUpgrade, upgradeTower, getUpgradeCost, getNextUpgradeStats, sellTower, getAdjacentSynergies } from './game/tower'
-import { createEnemy, moveEnemy, getEnemyHpForWave } from './game/enemy'
+import { createEnemy, moveEnemy, getEnemyHpForWave, tickHealerAbilities } from './game/enemy'
 import { processCombat, processEffectTick } from './game/combat'
 import { getWaveEnemyHp, getWaveEnemyCount, getWaveComposition, getEarlyWaveBonus, getEndlessWaveEnemyHp, getEndlessWaveEnemyCount, getEndlessWaveComposition, isBossWave, getWaveEventType, WAVE_EVENT_CONFIG } from './game/wave'
 import { createPowerCrate, selectCrateReward } from './game/powerCrate'
@@ -336,11 +336,33 @@ function App() {
       ? towersRef.current.map(t => ({ ...t, fireRate: t.fireRate * 1.5 }))
       : towersRef.current
     const combatResult = processCombat(combatTowers, surviving, nowMs, adjacencySynergiesRef.current)
+
+    // Splitter death: spawn 2 grunts (50% HP, 0 gold) at the splitter's last position
+    let afterSplitter = combatResult.enemies
+    if (combatResult.splitterSpawns && combatResult.splitterSpawns.length > 0) {
+      const spawnedGrunts = []
+      for (const spawn of combatResult.splitterSpawns) {
+        for (let i = 0; i < 2; i++) {
+          const gruntId = `sp-${nextEnemyIdRef.current++}`
+          const grunt = {
+            ...createEnemy(gruntId, PATH_WAYPOINTS, 'grunt', spawn.hp),
+            pos: { row: spawn.row, col: spawn.col },
+            waypointIndex: spawn.waypointIndex,
+            goldReward: 0,
+          }
+          spawnedGrunts.push(grunt)
+        }
+      }
+      afterSplitter = [...combatResult.enemies, ...spawnedGrunts]
+    }
+
     // Process DoT effect ticks (poison) — pure function, runs after combat each tick
-    const effectResult = processEffectTick(combatResult.enemies, nowMs)
-    const afterCombat = effectResult.enemies
-    killedNow += surviving.length - combatResult.enemies.length  // killed by towers
-    killedNow += combatResult.enemies.length - afterCombat.length // killed by DoT
+    const effectResult = processEffectTick(afterSplitter, nowMs)
+    // Process healer abilities — healers restore HP to nearby allies every 3s
+    const healerResult = tickHealerAbilities(effectResult.enemies, nowMs)
+    const afterCombat = healerResult.enemies
+    killedNow += surviving.length - combatResult.enemies.length  // killed by towers (includes splitters)
+    killedNow += afterSplitter.length - effectResult.enemies.length // killed by DoT
 
     // Merge killedEnemies from both combat and effect ticks
     const allKilledEnemies = [
