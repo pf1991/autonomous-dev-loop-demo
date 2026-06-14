@@ -49,10 +49,11 @@ export function getWaveEnemyCount(waveNumber) {
  * Wave composition rules:
  *   Waves 1–2:  Grunts only
  *   Wave  3:    70% Grunts, 30% Speeders  (introduces speeders)
- *   Waves 4–5:  50% Grunts, 30% Speeders, 20% Tanks
- *   Wave  6:    30% Grunts, 30% Speeders, 20% Tanks, 20% Armored  (introduces armored)
- *   Wave  7:    20% Grunts, 20% Speeders, 20% Tanks, 20% Armored, 20% Phantoms (introduces phantoms)
- *   Waves 8–10: 10% Grunts, 20% Speeders, 20% Tanks, 25% Armored, 25% Phantoms
+ *   Wave  4:    50% Grunts, 30% Speeders, 20% Tanks
+ *   Wave  5:    40% Grunts, 25% Speeders, 20% Tanks, 15% Splitters  (introduces splitters)
+ *   Wave  6:    25% Grunts, 25% Speeders, 20% Tanks, 15% Splitters, 15% Healers  (introduces healers)
+ *   Wave  7:    15% Grunts, 20% Speeders, 15% Tanks, 15% Armored, 20% Phantoms, 15% Shielded (introduces phantoms, shielded)
+ *   Waves 8–10: 10% Grunts, 15% Speeders, 15% Tanks, 15% Armored, 15% Phantoms, 10% Splitters, 10% Healers, 10% Shielded
  *
  * @param {number} waveNumber - 1-based wave number
  * @returns {Array<{ type: string, count: number }>}
@@ -87,22 +88,27 @@ export function getWaveComposition(waveNumber) {
     return [...distribute([['grunt', 0.7], ['speeder', 0.3]]), ...bossEntry]
   }
 
-  if (waveNumber <= 5) {
+  if (waveNumber === 4) {
     return [...distribute([['grunt', 0.5], ['speeder', 0.3], ['tank', 0.2]]), ...bossEntry]
   }
 
+  if (waveNumber === 5) {
+    // Introduces splitters
+    return [...distribute([['grunt', 0.4], ['speeder', 0.25], ['tank', 0.2], ['splitter', 0.15]]), ...bossEntry]
+  }
+
   if (waveNumber === 6) {
-    return [...distribute([['grunt', 0.3], ['speeder', 0.3], ['tank', 0.2], ['armored', 0.2]]), ...bossEntry]
+    // Introduces healers; armored enemies also appear from wave 6 (pre-existing rule)
+    return [...distribute([['grunt', 0.2], ['speeder', 0.2], ['tank', 0.15], ['armored', 0.2], ['splitter', 0.1], ['healer', 0.15]]), ...bossEntry]
   }
 
   if (waveNumber === 7) {
-    // Five equal parts — use explicit proportions that round cleanly to guarantee each type appears.
-    // Wave 7 total = 8; 2 grunts, 2 speeders, 2 tanks, 1 armored, 1 phantom.
-    return [...distribute([['grunt', 0.25], ['speeder', 0.25], ['tank', 0.25], ['armored', 0.125], ['phantom', 0.125]]), ...bossEntry]
+    // Introduces phantoms and shielded
+    return [...distribute([['grunt', 0.15], ['speeder', 0.2], ['tank', 0.15], ['armored', 0.15], ['phantom', 0.2], ['shielded', 0.15]]), ...bossEntry]
   }
 
-  // Waves 8–10
-  return [...distribute([['grunt', 0.1], ['speeder', 0.2], ['tank', 0.2], ['armored', 0.25], ['phantom', 0.25]]), ...bossEntry]
+  // Waves 8–10: full mix
+  return [...distribute([['grunt', 0.1], ['speeder', 0.15], ['tank', 0.15], ['armored', 0.15], ['phantom', 0.15], ['splitter', 0.1], ['healer', 0.1], ['shielded', 0.1]]), ...bossEntry]
 }
 
 /**

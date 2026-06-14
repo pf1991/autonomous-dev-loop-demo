@@ -2553,6 +2553,116 @@ test.describe('Tower Defense - smoke tests', () => {
     expect(fillColor).not.toBe('none');
   });
 
+  // --- Enemy special abilities: Healer, Splitter, Shielded overlays (issue #75) ---
+
+  /**
+   * Helper: inject a single enemy of the given type into App's enemies state so
+   * GameBoard renders it without starting a live wave.  The game loop is paused
+   * (gamePhaseRef !== 'playing' in between-waves) so the injected enemy persists
+   * long enough for the assertion.
+   * enemies = dispatch stateHook index 6 (after PR #97 difficultyMode prepended).
+   */
+  async function injectEnemy(page, enemyObj) {
+    // Wait for #game to be in the DOM with the React fiber attached before injecting
+    await page.waitForFunction(() => {
+      const el = document.querySelector('#game');
+      if (!el) return false;
+      return Object.keys(el).some(k => k.startsWith('__reactFiber'));
+    }, { timeout: 5000 });
+    await page.evaluate((enemy) => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          const stateHooks = [];
+          let hookNode = fiber.memoizedState;
+          while (hookNode) {
+            if (hookNode.queue && typeof hookNode.queue.dispatch === 'function') {
+              stateHooks.push(hookNode);
+            }
+            hookNode = hookNode.next;
+          }
+          // enemies = dispatch stateHook index 6 (after PR #97 difficultyMode prepended)
+          if (stateHooks[6]) {
+            stateHooks[6].queue.dispatch([enemy]);
+          }
+          return;
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find enemies hook dispatcher');
+    }, enemyObj);
+  }
+
+  test('healer enemy renders .enemy-healer class and .enemy-healer-cross overlay when injected', async ({ page }) => {
+    // Inject a healer enemy while in between-waves so the game loop does not clear it
+    await injectEnemy(page, {
+      id: 'test-healer-1',
+      hp: 120,
+      maxHp: 120,
+      pos: { row: 2, col: 3 },
+      waypointIndex: 1,
+      speed: 2.0,
+      type: 'healer',
+      goldReward: 20,
+      effects: [],
+    });
+
+    // Enemy layer must be rendered
+    await expect(page.locator('.enemy-layer').first()).toBeAttached({ timeout: 2000 });
+    // Healer must have the .enemy-healer class
+    const healerEl = page.locator('.enemy-layer .enemy-healer').first();
+    await expect(healerEl).toBeAttached({ timeout: 2000 });
+    // Healer SVG overlay must contain the green-cross text element
+    const crossEl = healerEl.locator('.enemy-ability-overlay .enemy-healer-cross');
+    await expect(crossEl).toBeAttached({ timeout: 1000 });
+  });
+
+  test('splitter enemy renders .enemy-splitter class and .enemy-splitter-line overlay when injected', async ({ page }) => {
+    await injectEnemy(page, {
+      id: 'test-splitter-1',
+      hp: 200,
+      maxHp: 200,
+      pos: { row: 2, col: 4 },
+      waypointIndex: 1,
+      speed: 1.5,
+      type: 'splitter',
+      goldReward: 15,
+      effects: [],
+    });
+
+    await expect(page.locator('.enemy-layer').first()).toBeAttached({ timeout: 2000 });
+    const splitterEl = page.locator('.enemy-layer .enemy-splitter').first();
+    await expect(splitterEl).toBeAttached({ timeout: 2000 });
+    // Splitter SVG overlay must contain the diagonal-line element
+    const lineEl = splitterEl.locator('.enemy-ability-overlay .enemy-splitter-line');
+    await expect(lineEl).toBeAttached({ timeout: 1000 });
+  });
+
+  test('shielded enemy renders .enemy-shielded class and .enemy-shielded-icon overlay when injected', async ({ page }) => {
+    await injectEnemy(page, {
+      id: 'test-shielded-1',
+      hp: 250,
+      maxHp: 250,
+      pos: { row: 2, col: 5 },
+      waypointIndex: 1,
+      speed: 1.2,
+      type: 'shielded',
+      goldReward: 30,
+      shieldedDamageReduction: 0.6,
+      effects: [],
+    });
+
+    await expect(page.locator('.enemy-layer').first()).toBeAttached({ timeout: 2000 });
+    const shieldedEl = page.locator('.enemy-layer .enemy-shielded').first();
+    await expect(shieldedEl).toBeAttached({ timeout: 2000 });
+    // Shielded SVG overlay must contain the shield-icon path element
+    const shieldIconEl = shieldedEl.locator('.enemy-ability-overlay .enemy-shielded-icon');
+    await expect(shieldIconEl).toBeAttached({ timeout: 1000 });
+  });
+
 });
 
 // --- DifficultySelector component (issue #73) ---

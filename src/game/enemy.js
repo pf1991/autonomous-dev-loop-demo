@@ -69,6 +69,41 @@ export const ENEMY_TYPES = {
     goldReward: 30,
     damageResist: { BasicTower: 0.05, RapidTower: 0.05 },
   },
+
+  /**
+   * healer — restores 25 HP to the nearest ally enemy within 2 tiles every 3 seconds.
+   * Priority target: players should kill healers first.
+   * SVG overlay: green + cross floats above the enemy.
+   */
+  healer: {
+    hp: 120,
+    speed: 2.0,
+    goldReward: 20,
+  },
+
+  /**
+   * splitter — on death, splits into 2 Grunts with 50% HP each.
+   * Spawned grunts award no gold (prevent farming).
+   * SVG overlay: orange circle with diagonal split line.
+   */
+  splitter: {
+    hp: 200,
+    speed: 1.5,
+    goldReward: 15,
+  },
+
+  /**
+   * shielded — takes only 60% of all incoming damage (before other modifiers).
+   * Exception: Poison DoT bypasses the shield (full DoT damage).
+   * SVG overlay: dark-silver circle with small shield icon.
+   * The shield reduction is applied in processCombat via the shieldedDamageReduction flag.
+   */
+  shielded: {
+    hp: 250,
+    speed: 1.2,
+    goldReward: 30,
+    shieldedDamageReduction: 0.6,
+  },
 }
 
 /**
@@ -132,8 +167,9 @@ export function createEnemy(id, pathWaypoints, type = 'grunt', hpOverride) {
   }
 
   // Carry over resistance fields when present
-  if (stats.slowResist != null)    enemy.slowResist    = stats.slowResist
-  if (stats.damageResist != null)  enemy.damageResist  = { ...stats.damageResist }
+  if (stats.slowResist != null)              enemy.slowResist              = stats.slowResist
+  if (stats.damageResist != null)            enemy.damageResist            = { ...stats.damageResist }
+  if (stats.shieldedDamageReduction != null) enemy.shieldedDamageReduction = stats.shieldedDamageReduction
 
   return enemy
 }
@@ -155,11 +191,71 @@ export function getEnemyRadius(hp, maxHp, type) {
   if (type === 'armored')  return 18  // largest — lumbering behemoth
   if (type === 'phantom')  return 12  // mid-size
   if (type === 'colossus') return 28  // boss — visually dominant
+  if (type === 'healer')   return 11  // slightly smaller than grunt
+  if (type === 'splitter') return 14  // mid-size, splits on death
+  if (type === 'shielded') return 15  // medium — shielded variant
   // Legacy fallback — hp-ratio sizing
   const ratio = maxHp > 0 ? hp / maxHp : 0
   if (ratio >= 0.5) return 14
   if (ratio >= 0.25) return 11
   return 8
+}
+
+/**
+ * tickHealerAbilities processes all healer enemies and heals nearby allies.
+ *
+ * Rules:
+ *   - Each healer with type === 'healer' heals every 3 seconds (healIntervalMs).
+ *   - Heals the nearest non-healer ally enemy within 2 tiles by 25 HP (capped at maxHp).
+ *   - The healer's nextHealAt timestamp is tracked in enemy.nextHealAt.
+ *   - Returns an updated enemies array and a list of heal events for animation.
+ *
+ * @param {Array<object>} enemies
+ * @param {number} nowMs - current game clock ms
+ * @returns {{ enemies: Array<object>, healEvents: Array<{ healerId: string|number, targetId: string|number, row: number, col: number }> }}
+ */
+export function tickHealerAbilities(enemies, nowMs) {
+  const HEAL_INTERVAL_MS = 3000
+  const HEAL_AMOUNT = 25
+  const HEAL_RANGE = 2
+
+  // Build a mutable map for quick updates
+  const enemyMap = new Map(enemies.map(e => [e.id, { ...e }]))
+  const healEvents = []
+
+  for (const [, healer] of enemyMap) {
+    if (healer.type !== 'healer') continue
+
+    const nextHealAt = healer.nextHealAt ?? 0
+    if (nowMs < nextHealAt) continue
+
+    // Find nearest non-healer enemy within HEAL_RANGE tiles
+    let nearestId = null
+    let nearestDist = Infinity
+    for (const [id, candidate] of enemyMap) {
+      if (id === healer.id) continue
+      if (candidate.type === 'healer') continue  // healers do not heal other healers
+      const dr = healer.pos.row - candidate.pos.row
+      const dc = healer.pos.col - candidate.pos.col
+      const dist = Math.sqrt(dr * dr + dc * dc)
+      if (dist <= HEAL_RANGE && dist < nearestDist) {
+        nearestDist = dist
+        nearestId = id
+      }
+    }
+
+    // Update healer's nextHealAt regardless of whether a target was found
+    enemyMap.set(healer.id, { ...healer, nextHealAt: nowMs + HEAL_INTERVAL_MS })
+
+    if (nearestId !== null) {
+      const target = enemyMap.get(nearestId)
+      const newHp = Math.min(target.hp + HEAL_AMOUNT, target.maxHp)
+      enemyMap.set(nearestId, { ...target, hp: newHp })
+      healEvents.push({ healerId: healer.id, targetId: nearestId, row: target.pos.row, col: target.pos.col })
+    }
+  }
+
+  return { enemies: [...enemyMap.values()], healEvents }
 }
 
 /**

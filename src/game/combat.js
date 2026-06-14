@@ -119,7 +119,8 @@ export function processCombat(towers, enemies, nowMs, adjacencySynergies) {
       // Apply center damage to the enemy at the target tile
       const centerTarget = enemyMap.get(bestTargetId)
       const centerResist = centerTarget.damageResist?.[tower.type] ?? 1
-      const centerDamage = tower.damage * effectiveDamageMultiplier * centerResist
+      const centerShieldMult = centerTarget.shieldedDamageReduction ?? 1
+      const centerDamage = tower.damage * effectiveDamageMultiplier * centerResist * centerShieldMult
       const centerNewHp = centerTarget.hp - centerDamage
       const centerKilled = centerNewHp <= 0
       enemyMap.set(bestTargetId, {
@@ -135,7 +136,8 @@ export function processCombat(towers, enemies, nowMs, adjacencySynergies) {
         const dist = tileDistance(bestTargetPos, enemy.pos)
         if (dist > splashRadius) continue
         const splashResist = enemy.damageResist?.[tower.type] ?? 1
-        const splashHit = splashDmg * splashResist
+        const splashShieldMult = enemy.shieldedDamageReduction ?? 1
+        const splashHit = splashDmg * splashResist * splashShieldMult
         const current = enemyMap.get(id)
         const newHp = current.hp - splashHit
         const killed = newHp <= 0
@@ -182,7 +184,9 @@ export function processCombat(towers, enemies, nowMs, adjacencySynergies) {
     // Fire: deal damage to primary target (respect enemy's damageResist for this tower type)
     const target = enemyMap.get(nearestId)
     const resistMultiplier = target.damageResist?.[tower.type] ?? 1
-    const effectiveDamage = tower.damage * effectiveDamageMultiplier * resistMultiplier
+    // Shielded enemies take only 60% of all direct tower damage (before other modifiers)
+    const shieldMult = target.shieldedDamageReduction ?? 1
+    const effectiveDamage = tower.damage * effectiveDamageMultiplier * resistMultiplier * shieldMult
     const newHp = target.hp - effectiveDamage
     // Track which tower index delivered the killing blow
     const killedByThis = newHp <= 0
@@ -196,7 +200,8 @@ export function processCombat(towers, enemies, nowMs, adjacencySynergies) {
         const dist = tileDistance({ row: target.pos.row, col: target.pos.col }, enemy.pos)
         if (dist <= splashRadius) {
           const splashResist = enemy.damageResist?.[tower.type] ?? 1
-          enemyMap.set(id, { ...enemy, hp: enemy.hp - tower.damage * splashResist })
+          const splashShieldMult = enemy.shieldedDamageReduction ?? 1
+          enemyMap.set(id, { ...enemy, hp: enemy.hp - tower.damage * splashResist * splashShieldMult })
         }
       }
     }
@@ -315,6 +320,13 @@ export function processCombat(towers, enemies, nowMs, adjacencySynergies) {
   const updatedEnemies = []
   /** @type {Array<{ id: string|number, row: number, col: number, gold: number }>} */
   const killedEnemies = []
+  /**
+   * splitterSpawns: positions where a splitter died, so the caller can spawn 2 grunts.
+   * Each entry: { row, col, waypointIndex } from the dead splitter.
+   * Spawned grunts have 50% HP and 0 goldReward (no farming).
+   * @type {Array<{ row: number, col: number, waypointIndex: number, hp: number }>}
+   */
+  const splitterSpawns = []
 
   for (const enemy of enemyMap.values()) {
     if (enemy.hp <= 0) {
@@ -324,6 +336,15 @@ export function processCombat(towers, enemies, nowMs, adjacencySynergies) {
       // Credit kill to the tower that dealt the killing blow
       if (enemy._killedByTowerIndex != null) {
         killCredits.set(enemy._killedByTowerIndex, (killCredits.get(enemy._killedByTowerIndex) ?? 0) + 1)
+      }
+      // Splitter: record spawn info so the caller can create 2 grunts at the splitter's last position
+      if (enemy.type === 'splitter') {
+        splitterSpawns.push({
+          row: enemy.pos.row,
+          col: enemy.pos.col,
+          waypointIndex: enemy.waypointIndex,
+          hp: Math.round((enemy.maxHp ?? enemy.hp) * 0.5),
+        })
       }
     } else {
       updatedEnemies.push(enemy)
@@ -337,7 +358,7 @@ export function processCombat(towers, enemies, nowMs, adjacencySynergies) {
     return { ...t, kills: (t.kills ?? 0) + credits }
   })
 
-  return { enemies: updatedEnemies, towers: towersWithKills, goldEarned, projectiles, killedEnemies }
+  return { enemies: updatedEnemies, towers: towersWithKills, goldEarned, projectiles, killedEnemies, splitterSpawns }
 }
 
 /**
