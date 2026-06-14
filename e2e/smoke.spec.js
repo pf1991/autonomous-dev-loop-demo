@@ -2672,6 +2672,41 @@ test.describe('Tower Defense - smoke tests', () => {
     await expect(shieldIconEl).toBeAttached({ timeout: 1000 });
   });
 
+  // --- Gold interest ticker in HUD (issue #76 / PR #100) ---
+  // Note: App.jsx passes interestCountdown={gamePhase === 'playing' ? interestCountdown : null}
+  // so we must also set gamePhase='playing' (overall hook index 14) for the ticker to render.
+
+  test('.hud-interest-ticker is visible in the HUD after injecting a non-null interestCountdown with playing phase', async ({ page }) => {
+    // Set gamePhase='playing' (overall index 14) and interestCountdown=7 (overall index 28).
+    // Gold starts at 100 (Normal); the HUD renders .hud-interest-ticker when
+    // interestCountdown !== null && gold > 0.
+    await dispatchAppHook(page, 14, 'playing');
+    await dispatchAppHook(page, 28, 7);
+    // The ticker must be attached and visible in the HUD
+    await expect(page.locator('.hud .hud-interest-ticker')).toBeVisible({ timeout: 2000 });
+    // Ticker text must mention interest and a countdown in seconds
+    const tickerText = await page.locator('.hud-interest-ticker').textContent();
+    expect(tickerText).toContain('interest');
+    expect(tickerText).toMatch(/\d+s/);
+  });
+
+  test('.hud-interest-ticker shows correct interest amount based on current gold', async ({ page }) => {
+    // Gold starts at 100 (Normal); computeInterest(100) = floor(100 * 0.05) = 5
+    await dispatchAppHook(page, 14, 'playing');
+    await dispatchAppHook(page, 28, 5);
+    const ticker = page.locator('.hud-interest-ticker');
+    await expect(ticker).toBeVisible({ timeout: 2000 });
+    // Ticker must show "+5g interest" (computeInterest(100) = 5)
+    const text = await ticker.textContent();
+    expect(text).toContain('+5g');
+  });
+
+  test('.hud-interest-ticker is absent when game is not in playing phase', async ({ page }) => {
+    // When gamePhase !== 'playing', App passes null for interestCountdown → ticker must not appear.
+    // The beforeEach leaves us in 'between-waves' phase, so no injection needed.
+    await expect(page.locator('.hud-interest-ticker')).not.toBeAttached({ timeout: 2000 });
+  });
+
 });
 
 // --- DifficultySelector component (issue #73) ---
