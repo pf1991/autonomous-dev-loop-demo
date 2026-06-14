@@ -1728,3 +1728,49 @@ body {
 .difficulty-btn--veteran {
   border-color: #c084fc;
 }
+
+/* ===== Critical hit — projectile ===== */
+/* Crit projectile: bright yellow line, 2× stroke width compared to base projectiles */
+.projectile-crit {
+  stroke: #ffe000;
+  stroke-width: 6;
+  stroke-linecap: round;
+  opacity: 1;
+  filter: drop-shadow(0 0 4px #ffe000);
+}
+
+/* ===== Critical hit — enemy flash ===== */
+/* Applied to enemy div for 80ms on crit hit via React state */
+@keyframes crit-flash {
+  0%   { filter: brightness(4) saturate(0); }
+  100% { filter: brightness(1) saturate(1); }
+}
+
+.enemy-crit-flash {
+  animation: crit-flash 80ms ease-out forwards;
+}
+
+/* ===== Critical hit — floating damage number ===== */
+/* Layer that holds damage number labels (positioned absolutely over the game board) */
+.damage-number-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 35;
+}
+
+@keyframes damage-number-rise {
+  0%   { transform: translate(-50%, -50%); opacity: 1; }
+  100% { transform: translate(-50%, calc(-50% - 20px)); opacity: 0; }
+}
+
+.damage-number-crit {
+  position: absolute;
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #ffe000;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+  animation: damage-number-rise 700ms ease-out forwards;
+  white-space: nowrap;
+}

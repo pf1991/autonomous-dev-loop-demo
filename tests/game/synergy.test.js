@@ -148,14 +148,16 @@ describe('processCombat — synergy buff integration', () => {
     const enemy = makeEnemy('e1', 0, 2, 1000)
     const synergies = getAdjacentSynergies([b1, b2])
 
+    // Inject rng that always misses crits so damage is deterministic
+    const noRng = () => 1.0
+
     // Without synergy
-    const withoutResult = processCombat([b1, b2], [enemy], 1000, null)
-    const hpAfterWithout = withoutResult.enemies[0]?.hp ?? (1000 - withoutResult.goldEarned * 10)
+    const withoutResult = processCombat([b1, b2], [enemy], 1000, null, noRng)
     const totalDamageWithout = 1000 - (withoutResult.enemies[0]?.hp ?? 1000 - 999)
 
     // Reset enemy and run with synergy
     const freshEnemy = makeEnemy('e1', 0, 2, 1000)
-    const withResult = processCombat([b1, b2], [freshEnemy], 1000, synergies)
+    const withResult = processCombat([b1, b2], [freshEnemy], 1000, synergies, noRng)
     const hpAfterWith = withResult.enemies[0]?.hp ?? 0
     const totalDamageWith = 1000 - hpAfterWith
 
@@ -218,7 +220,8 @@ describe('processCombat — synergy buff integration', () => {
   it('no synergies passed: normal combat behaviour unchanged', () => {
     const basic = { ...makeTower('BasicTower', 0, 0), lastFiredAt: 0 }
     const enemy = makeEnemy('e1', 0, 2, 1000)
-    const result = processCombat([basic], [enemy], 1000, null)
+    // Inject rng that never crits so damage is deterministic
+    const result = processCombat([basic], [enemy], 1000, null, () => 1.0)
     const dmg = 1000 - (result.enemies[0]?.hp ?? 0)
     expect(dmg).toBe(25) // base damage
   })

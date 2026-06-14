@@ -4,6 +4,19 @@
  */
 
 /**
+ * rollCrit determines whether an attack is a critical hit.
+ *
+ * Accepts an injected rng function (for deterministic unit tests) — defaults to Math.random.
+ *
+ * @param {number} critChance - probability in [0, 1] (e.g. 0.10 for 10%)
+ * @param {() => number} [rng] - injected random-number generator; defaults to Math.random
+ * @returns {boolean} true if the roll lands a critical hit
+ */
+export function rollCrit(critChance, rng = Math.random) {
+  return rng() < critChance
+}
+
+/**
  * tileDistance calculates the Euclidean distance in tiles between a tower and an enemy position.
  * @param {{ row: number, col: number }} tower
  * @param {{ row: number, col: number }} pos - enemy position
@@ -47,13 +60,16 @@ function tileDistance(tower, pos) {
  * @param {Array<{ id: string|number, hp: number, pos: { row: number, col: number }, slowUntil?: number, speedMult?: number, effects?: Array }>} enemies
  * @param {number} nowMs - current timestamp in milliseconds
  * @param {Map<string, Array<object>>} [adjacencySynergies] - optional map from towerKey to synergy effects
- * @returns {{ enemies: Array, towers: Array, goldEarned: number, projectiles: Projectile[] }}
+ * @param {() => number} [rng] - injected random-number generator for testability; defaults to Math.random
+ * @returns {{ enemies: Array, towers: Array, goldEarned: number, projectiles: Projectile[], damageNumbers: Array }}
  */
-export function processCombat(towers, enemies, nowMs, adjacencySynergies) {
+export function processCombat(towers, enemies, nowMs, adjacencySynergies, rng = Math.random) {
   // Work with mutable copies so multiple towers can hit different enemies in the same tick
   const enemyMap = new Map(enemies.map(e => [e.id, { ...e, pos: { ...e.pos } }]))
 
   const projectiles = []
+  // Floating damage numbers for crit hits: { id, value, row, col, expiresAt }
+  const damageNumbers = []
   // Track kill credits: Map from tower index → kill count increment for this tick
   const killCredits = new Map()
 
@@ -186,11 +202,33 @@ export function processCombat(towers, enemies, nowMs, adjacencySynergies) {
     const resistMultiplier = target.damageResist?.[tower.type] ?? 1
     // Shielded enemies take only 60% of all direct tower damage (before other modifiers)
     const shieldMult = target.shieldedDamageReduction ?? 1
-    const effectiveDamage = tower.damage * effectiveDamageMultiplier * resistMultiplier * shieldMult
+
+    // Critical hit roll — uses tower.critChance (set by createTower/upgradeTower); default 0 means no crits
+    const critChance = tower.critChance ?? 0
+    const isCrit = critChance > 0 && rollCrit(critChance, rng)
+    const critDamageMultiplier = isCrit ? 2.0 : 1.0
+
+    const effectiveDamage = tower.damage * effectiveDamageMultiplier * resistMultiplier * shieldMult * critDamageMultiplier
     const newHp = target.hp - effectiveDamage
-    // Track which tower index delivered the killing blow
+    // Track which tower index delivered the killing blow (and whether it was a crit)
     const killedByThis = newHp <= 0
-    enemyMap.set(nearestId, { ...target, hp: newHp, ...(killedByThis ? { _killedByTowerIndex: towerIndex } : {}) })
+    enemyMap.set(nearestId, {
+      ...target,
+      hp: newHp,
+      ...(killedByThis ? { _killedByTowerIndex: towerIndex, _critKill: isCrit } : {}),
+      ...(isCrit && !killedByThis ? { _critFlashAt: nowMs } : {}),
+    })
+
+    // Floating damage number on crit
+    if (isCrit) {
+      damageNumbers.push({
+        id: `dn-${nearestId}-${nowMs}`,
+        value: Math.round(effectiveDamage),
+        row: target.pos.row,
+        col: target.pos.col,
+        expiresAt: nowMs + 700,
+      })
+    }
 
     // Splash damage — CannonTower damages all enemies within splashRadius of the primary target
     const splashRadius = tower.splashRadius ?? 0
@@ -310,6 +348,7 @@ export function processCombat(towers, enemies, nowMs, adjacencySynergies) {
       createdAt: nowMs,
       towerType: tower.type,
       upgradeLevel: tower.upgradeLevel ?? 0,
+      isCrit,
     })
 
     return { ...tower, lastFiredAt: nowMs }
@@ -330,7 +369,9 @@ export function processCombat(towers, enemies, nowMs, adjacencySynergies) {
 
   for (const enemy of enemyMap.values()) {
     if (enemy.hp <= 0) {
-      const reward = enemy.goldReward ?? 10
+      const baseReward = enemy.goldReward ?? 10
+      // Crit kill bonus: +50% gold when the killing blow was a critical hit
+      const reward = enemy._critKill ? Math.round(baseReward * 1.5) : baseReward
       goldEarned += reward
       killedEnemies.push({ id: enemy.id, row: enemy.pos.row, col: enemy.pos.col, gold: reward, type: enemy.type })
       // Credit kill to the tower that dealt the killing blow
@@ -358,7 +399,7 @@ export function processCombat(towers, enemies, nowMs, adjacencySynergies) {
     return { ...t, kills: (t.kills ?? 0) + credits }
   })
 
-  return { enemies: updatedEnemies, towers: towersWithKills, goldEarned, projectiles, killedEnemies, splitterSpawns }
+  return { enemies: updatedEnemies, towers: towersWithKills, goldEarned, projectiles, killedEnemies, splitterSpawns, damageNumbers }
 }
 
 /**
