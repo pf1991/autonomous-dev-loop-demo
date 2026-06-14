@@ -1377,6 +1377,213 @@ test.describe('Tower Defense - smoke tests', () => {
     expect(basicStroke).not.toBe(sniperStroke);
   });
 
+  // --- Critical hit visuals (issue #79 / PR #104) ---
+  // Inject damageNumbers and projectiles directly via React fiber to avoid relying
+  // on natural gameplay crits (10% chance is unreliable in short headless test windows).
+  //
+  // Hook order (all hooks, 0-indexed) after PR #104 (damageNumbers inserted at 11-12):
+  //   0  difficultyMode (useState)    1  difficultyModeRef (useRef)
+  //   2  gold            3  lives     4  wave       5  speed
+  //   6  towers          7  enemies   8  projectiles
+  //   9  deathAnimations             10  deathAnimationsRef (useRef)
+  //  11  damageNumbers (useState)    12  damageNumbersRef (useRef)  ← PR #104 NEW
+  //  13  selectedTowerType  14  selectedTower  15  hoveredSlot
+  //  16  gamePhase (useState)  ...
+  //
+  // stateHooks (dispatch-capable, 0-indexed) after PR #104:
+  //   stateHooks[9] = damageNumbers  ← PR #104 NEW (shifts everything after by +1)
+
+  test('.damage-number-crit element appears when damageNumbers state is populated', async ({ page }) => {
+    // Inject a damageNumbers entry directly via React fiber.
+    // damageNumbers = all-hooks index 11 (PR #104 added it between deathAnimationsRef and selectedTowerType).
+    // The game loop is paused (between-waves) so the injected entry persists long enough to assert.
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          let hookNode = fiber.memoizedState;
+          let i = 0;
+          // damageNumbers is all-hooks index 11
+          while (hookNode && i < 11) {
+            hookNode = hookNode.next;
+            i++;
+          }
+          if (hookNode && hookNode.queue && hookNode.queue.dispatch) {
+            hookNode.queue.dispatch([
+              { id: 'test-dn-1', value: 50, row: 2, col: 3, expiresAt: Date.now() + 5000 }
+            ]);
+            return;
+          }
+          throw new Error('damageNumbers hook (index 11) has no dispatch');
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find App fiber');
+    });
+    // The .damage-number-crit element must appear in the damage-number-layer
+    await expect(page.locator('.damage-number-layer').first()).toBeAttached({ timeout: 2000 });
+    await expect(page.locator('.damage-number-crit').first()).toBeAttached({ timeout: 2000 });
+    // Must show the injected damage value with a trailing '!'
+    const text = await page.locator('.damage-number-crit').first().textContent();
+    expect(text).toContain('50');
+    expect(text).toContain('!');
+  });
+
+  test('.projectile-crit yellow line appears in the SVG layer when a crit projectile is injected', async ({ page }) => {
+    // Inject a projectile with isCrit=true directly via React fiber.
+    // projectiles = all-hooks index 8.
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          let hookNode = fiber.memoizedState;
+          let i = 0;
+          // projectiles = all-hooks index 8
+          while (hookNode && i < 8) {
+            hookNode = hookNode.next;
+            i++;
+          }
+          if (hookNode && hookNode.queue && hookNode.queue.dispatch) {
+            hookNode.queue.dispatch([
+              {
+                id: 'test-crit-proj-1',
+                fromRow: 1, fromCol: 1,
+                toRow: 2,   toCol: 1,
+                createdAt: Date.now(),
+                towerType: 'BasicTower',
+                upgradeLevel: 0,
+                isCrit: true,
+              }
+            ]);
+            return;
+          }
+          throw new Error('projectiles hook (index 8) has no dispatch');
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find App fiber');
+    });
+    // The projectile SVG layer must be rendered (projectiles array is non-empty)
+    await expect(page.locator('.projectile-layer')).toBeAttached({ timeout: 2000 });
+    // The crit projectile line must carry the .projectile-crit class
+    await expect(page.locator('.projectile-layer .projectile-crit').first()).toBeAttached({ timeout: 2000 });
+  });
+
+  test('.projectile-crit CSS class has a non-default stroke colour (yellow, not black)', async ({ page }) => {
+    // Verify that the .projectile-crit CSS rule from index.css is loaded and applied.
+    const strokeColor = await page.evaluate(() => {
+      const ns = 'http://www.w3.org/2000/svg';
+      const svg = document.createElementNS(ns, 'svg');
+      svg.style.position = 'absolute';
+      svg.style.top = '-9999px';
+      document.body.appendChild(svg);
+      const line = document.createElementNS(ns, 'line');
+      line.setAttribute('class', 'projectile-crit');
+      svg.appendChild(line);
+      const computed = getComputedStyle(line).stroke;
+      document.body.removeChild(svg);
+      return computed;
+    });
+    // The CSS rule for .projectile-crit must set a bright/yellow stroke — not black or empty
+    expect(strokeColor).not.toBe('');
+    expect(strokeColor).not.toBe('rgb(0, 0, 0)');
+    expect(strokeColor).not.toBe('none');
+  });
+
+  test('.enemy-crit-flash class is applied to an enemy when _critFlashAt is set via state injection', async ({ page }) => {
+    // Inject an enemy with _critFlashAt set (non-null) so the crit flash class is applied.
+    // enemies = stateHooks[6] (dispatch index 6, unchanged by PR #104).
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          const stateHooks = [];
+          let hookNode = fiber.memoizedState;
+          while (hookNode) {
+            if (hookNode.queue && typeof hookNode.queue.dispatch === 'function') {
+              stateHooks.push(hookNode);
+            }
+            hookNode = hookNode.next;
+          }
+          // enemies = stateHooks[6]
+          if (stateHooks[6]) {
+            stateHooks[6].queue.dispatch([{
+              id: 'test-crit-flash-1',
+              hp: 80,
+              maxHp: 100,
+              pos: { row: 2, col: 3 },
+              waypointIndex: 1,
+              speed: 1.0,
+              type: 'grunt',
+              goldReward: 8,
+              _critFlashAt: Date.now(),   // flash is active
+            }]);
+          }
+          return;
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find App fiber');
+    });
+    // Enemy layer must render
+    await expect(page.locator('.enemy-layer').first()).toBeAttached({ timeout: 2000 });
+    // The enemy must carry the .enemy-crit-flash class
+    const enemyEl = page.locator('.enemy-layer .enemy-crit-flash').first();
+    await expect(enemyEl).toBeAttached({ timeout: 2000 });
+  });
+
+  test('.enemy-crit-flash class is absent when _critFlashAt is null (no active flash)', async ({ page }) => {
+    // Inject an enemy WITHOUT _critFlashAt so the flash class is NOT applied.
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          const stateHooks = [];
+          let hookNode = fiber.memoizedState;
+          while (hookNode) {
+            if (hookNode.queue && typeof hookNode.queue.dispatch === 'function') {
+              stateHooks.push(hookNode);
+            }
+            hookNode = hookNode.next;
+          }
+          // enemies = stateHooks[6]
+          if (stateHooks[6]) {
+            stateHooks[6].queue.dispatch([{
+              id: 'test-no-crit-flash-1',
+              hp: 80,
+              maxHp: 100,
+              pos: { row: 2, col: 4 },
+              waypointIndex: 1,
+              speed: 1.0,
+              type: 'grunt',
+              goldReward: 8,
+              _critFlashAt: null,         // flash cleared — no class expected
+            }]);
+          }
+          return;
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find App fiber');
+    });
+    // Enemy layer must render
+    await expect(page.locator('.enemy-layer').first()).toBeAttached({ timeout: 2000 });
+    // No enemy should have the crit-flash class
+    await expect(page.locator('.enemy-layer .enemy-crit-flash')).toHaveCount(0);
+  });
+
   // --- Money animation: floating "+N gold" labels on enemy kill (issue #64) ---
   // These tests inject deathAnimations state directly via React fiber to avoid
   // relying on natural gameplay kills (BasicTower does only 25 damage/shot on

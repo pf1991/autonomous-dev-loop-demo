@@ -65,7 +65,13 @@ function tileDistance(tower, pos) {
  */
 export function processCombat(towers, enemies, nowMs, adjacencySynergies, rng = Math.random) {
   // Work with mutable copies so multiple towers can hit different enemies in the same tick
-  const enemyMap = new Map(enemies.map(e => [e.id, { ...e, pos: { ...e.pos } }]))
+  // Also clear _critFlashAt for enemies whose 80ms flash animation has already completed,
+  // so that subsequent crits on the same enemy can re-trigger the CSS animation.
+  const enemyMap = new Map(enemies.map(e => [e.id, {
+    ...e,
+    pos: { ...e.pos },
+    ...(e._critFlashAt != null && nowMs - e._critFlashAt >= 80 ? { _critFlashAt: null } : {}),
+  }]))
 
   const projectiles = []
   // Floating damage numbers for crit hits: { id, value, row, col, expiresAt }
