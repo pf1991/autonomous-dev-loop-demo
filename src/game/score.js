@@ -37,6 +37,23 @@ export function computeComboBonus(comboCount) {
 }
 
 /**
+ * Compute gold earned from the passive interest tick.
+ *
+ * Rules:
+ *   - interest = floor(gold × 0.05)
+ *   - Minimum payout: 1 gold (only if gold > 0)
+ *   - Maximum payout per tick: 50 gold
+ *   - Returns 0 if gold ≤ 0 (no interest on empty wallet)
+ *
+ * @param {number} gold — current gold held by the player
+ * @returns {number} Interest gold to award this tick
+ */
+export function computeInterest(gold) {
+  if (gold <= 0) return 0
+  return Math.min(50, Math.max(1, Math.floor(gold * 0.05)))
+}
+
+/**
  * Return the label string for a given combo count.
  *
  * @param {number} comboCount
