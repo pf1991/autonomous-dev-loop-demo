@@ -2707,6 +2707,29 @@ test.describe('Tower Defense - smoke tests', () => {
     await expect(page.locator('.hud-interest-ticker')).not.toBeAttached({ timeout: 2000 });
   });
 
+  // --- Tower cooldown bar (issue #77 / PR #102) ---
+
+  test('tower-cooldown-bar is visible after placing a tower on the board', async ({ page }) => {
+    // Dismiss the NextWave overlay so the board is interactive
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Ensure BasicTower is selected (default)
+    const basicBtn = page.locator('.tower-picker button').filter({ hasText: 'BasicTower' });
+    if (await basicBtn.isVisible() && (await basicBtn.getAttribute('disabled')) === null) {
+      await basicBtn.click();
+    }
+    // Place a BasicTower on the first available slot
+    const slot = page.locator('.tower-slot').first();
+    await expect(slot).toBeVisible();
+    await slot.click();
+    await expect(page.locator('.tower-icon').first()).toBeVisible();
+    // The cooldown bar must be rendered inside the tower tile
+    // It is always present (fraction = 0 → width = 0%, but element is in the DOM and visible)
+    await expect(page.locator('.tower-cooldown-bar').first()).toBeVisible({ timeout: 2000 });
+  });
+
 });
 
 // --- DifficultySelector component (issue #73) ---
