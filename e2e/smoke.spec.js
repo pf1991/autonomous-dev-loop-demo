@@ -2563,6 +2563,12 @@ test.describe('Tower Defense - smoke tests', () => {
    * enemies = dispatch stateHook index 6 (after PR #97 difficultyMode prepended).
    */
   async function injectEnemy(page, enemyObj) {
+    // Wait for #game to be in the DOM with the React fiber attached before injecting
+    await page.waitForFunction(() => {
+      const el = document.querySelector('#game');
+      if (!el) return false;
+      return Object.keys(el).some(k => k.startsWith('__reactFiber'));
+    }, { timeout: 5000 });
     await page.evaluate((enemy) => {
       const gameEl = document.querySelector('#game');
       const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
