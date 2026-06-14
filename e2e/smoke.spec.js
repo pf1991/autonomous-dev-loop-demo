@@ -2755,7 +2755,7 @@ test.describe('Tower Defense - smoke tests', () => {
 
   test('.hud-prestige-stars shows hollow stars when prestigeStars=0', async ({ page }) => {
     // Ensure localStorage has no prestige stars (default state)
-    await page.evaluate(() => localStorage.removeItem('prestigeStars'));
+    await page.evaluate(() => localStorage.removeItem('towerDefense_prestigeStars'));
     await page.reload();
     // After reload, dismiss difficulty selector
     const diffOverlay = page.locator('.difficulty-overlay');
@@ -2935,7 +2935,7 @@ test.describe('Tower Defense - smoke tests', () => {
 
   test('clicking .prestige-btn increments prestigeStars in localStorage and persists on reload', async ({ page }) => {
     // Ensure clean state: 0 prestige stars
-    await page.evaluate(() => localStorage.removeItem('prestigeStars'));
+    await page.evaluate(() => localStorage.removeItem('towerDefense_prestigeStars'));
     await page.reload();
     await page.waitForSelector('.game-board', { state: 'visible' });
     // Inject conditions that show the prestige button via fiber
@@ -2966,7 +2966,7 @@ test.describe('Tower Defense - smoke tests', () => {
     // Click the prestige button
     await page.locator('.prestige-btn').click();
     // localStorage must now have prestigeStars = '1'
-    const stored = await page.evaluate(() => localStorage.getItem('prestigeStars'));
+    const stored = await page.evaluate(() => localStorage.getItem('towerDefense_prestigeStars'));
     expect(stored).toBe('1');
     // Reload and verify the star persists in the HUD
     await page.reload();
