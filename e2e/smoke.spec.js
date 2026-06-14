@@ -2443,6 +2443,116 @@ test.describe('Tower Defense - smoke tests', () => {
     const count = await listItems.count();
     expect(count).toBe(12);
   });
+
+  // --- MortarTower (issue #74 / PR #98) ---
+
+  test('TowerPicker shows MortarTower button', async ({ page }) => {
+    await expect(page.locator('.tower-picker')).toBeVisible();
+    await expect(page.locator('.tower-picker button').filter({ hasText: 'MortarTower' })).toBeAttached();
+  });
+
+  test('MortarTower button is disabled when player cannot afford it (Normal start: 100g, cost: 125g)', async ({ page }) => {
+    // On Normal difficulty player starts with 100g; MortarTower costs 125g → must be disabled
+    const mortarBtn = page.locator('.tower-picker button').filter({ hasText: 'MortarTower' });
+    await expect(mortarBtn).toBeAttached();
+    const disabled = await mortarBtn.getAttribute('disabled');
+    expect(disabled).not.toBeNull();
+  });
+
+  test('MortarTower renders SVG with polygon.tower-mortar when placed (via gold injection)', async ({ page }) => {
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // MortarTower costs 125g; player starts with 100g on Normal → inject gold = 200 first
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          const stateHooks = [];
+          let hookNode = fiber.memoizedState;
+          while (hookNode) {
+            if (hookNode.queue && typeof hookNode.queue.dispatch === 'function') {
+              stateHooks.push(hookNode);
+            }
+            hookNode = hookNode.next;
+          }
+          // gold = dispatch index 1 (after PR #97 difficultyMode prepended)
+          if (stateHooks[1]) stateHooks[1].queue.dispatch(200);
+          return;
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find App fiber hooks');
+    });
+
+    // Wait for button to become enabled after gold injection
+    const mortarBtn = page.locator('.tower-picker button').filter({ hasText: 'MortarTower' });
+    await expect(mortarBtn).not.toBeDisabled({ timeout: 2000 });
+    await mortarBtn.click();
+    await expect(mortarBtn).toHaveClass(/selected/);
+
+    // Place on first available tower slot
+    const slot = page.locator('.tower-slot').first();
+    await slot.click();
+    const towerIcon = page.locator('.tower-icon').first();
+    await expect(towerIcon).toBeVisible();
+
+    // SVG must be present with the octagon polygon carrying class tower-mortar
+    const svgEl = towerIcon.locator('svg');
+    await expect(svgEl).toBeAttached();
+    await expect(svgEl.locator('polygon.tower-mortar').first()).toBeAttached();
+
+    // The icon must not contain raw emoji text
+    const innerText = await towerIcon.evaluate(el => el.innerText.trim());
+    expect(innerText).toBe('');
+  });
+
+  test('projectile-mortar-shell CSS class has a non-default fill colour (orange, not black)', async ({ page }) => {
+    // Verify that the .projectile-mortar-shell CSS rule from index.css is loaded and applied.
+    const fillColor = await page.evaluate(() => {
+      const ns = 'http://www.w3.org/2000/svg';
+      const svg = document.createElementNS(ns, 'svg');
+      svg.style.position = 'absolute';
+      svg.style.top = '-9999px';
+      document.body.appendChild(svg);
+      const circle = document.createElementNS(ns, 'circle');
+      circle.setAttribute('class', 'projectile-mortar-shell');
+      svg.appendChild(circle);
+      const computed = getComputedStyle(circle).fill;
+      document.body.removeChild(svg);
+      return computed;
+    });
+    // CSS rule sets fill: #ff8c00 — any non-black, non-empty value confirms the rule applied
+    expect(fillColor).not.toBe('');
+    expect(fillColor).not.toBe('rgb(0, 0, 0)');
+    expect(fillColor).not.toBe('none');
+  });
+
+  test('tower-mortar SVG fill is a dark grey colour (not transparent or black)', async ({ page }) => {
+    // Verify the .tower-mortar CSS rule (fill: #4a4a5e) is loaded from index.css
+    const fillColor = await page.evaluate(() => {
+      const ns = 'http://www.w3.org/2000/svg';
+      const svg = document.createElementNS(ns, 'svg');
+      svg.style.position = 'absolute';
+      svg.style.top = '-9999px';
+      document.body.appendChild(svg);
+      const polygon = document.createElementNS(ns, 'polygon');
+      polygon.setAttribute('class', 'tower-mortar');
+      svg.appendChild(polygon);
+      const computed = getComputedStyle(polygon).fill;
+      document.body.removeChild(svg);
+      return computed;
+    });
+    expect(fillColor).not.toBe('');
+    expect(fillColor).not.toBe('rgb(0, 0, 0)');
+    expect(fillColor).not.toBe('rgba(0, 0, 0, 0)');
+    expect(fillColor).not.toBe('none');
+  });
+
 });
 
 // --- DifficultySelector component (issue #73) ---

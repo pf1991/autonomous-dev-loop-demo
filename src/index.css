@@ -1489,3 +1489,68 @@ body {
   text-transform: uppercase;
   color: #fff;
 }
+
+/* ===== MortarTower SVG icon ===== */
+
+/* Dark-grey octagon body */
+.tower-mortar {
+  fill: #4a4a5e;
+  stroke: #7a7a9a;
+  stroke-width: 1.5;
+}
+
+/* Outer ring for upgraded MortarTower */
+.tower-mortar-ring {
+  fill: none;
+  stroke: #9a9abb;
+  stroke-width: 1.5;
+}
+
+/* Inner glowing core for L2 upgrade */
+.tower-mortar-core {
+  fill: #ff8c00;
+  opacity: 0.85;
+}
+
+/* ===== MortarTower projectile (expanding orange circle) ===== */
+@keyframes mortar-shell-explode {
+  0% {
+    r: 6px;
+    opacity: 0.9;
+  }
+  60% {
+    opacity: 0.75;
+  }
+  100% {
+    r: var(--mortar-r, 60px);
+    opacity: 0;
+  }
+}
+
+/* Base level mortar shell — orange circle, expand-then-fade */
+.projectile-mortar-shell {
+  fill: #ff8c00;
+  stroke: #ffbe00;
+  stroke-width: 2;
+  opacity: 0.9;
+  animation: mortar-shell-explode 700ms ease-out forwards;
+}
+
+/* L1 upgrade — slightly brighter orange */
+.projectile-mortar-shell-lv1 {
+  fill: #ff9f22;
+  stroke: #ffcc33;
+  stroke-width: 2.5;
+  opacity: 0.9;
+  animation: mortar-shell-explode 700ms ease-out forwards;
+}
+
+/* L2 upgrade — vivid orange-red, slight glow */
+.projectile-mortar-shell-lv2 {
+  fill: #ffaa00;
+  stroke: #ffdd55;
+  stroke-width: 3;
+  opacity: 0.95;
+  filter: drop-shadow(0 0 4px #ff8c00);
+  animation: mortar-shell-explode 700ms ease-out forwards;
+}
