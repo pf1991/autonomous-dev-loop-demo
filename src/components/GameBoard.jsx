@@ -165,13 +165,31 @@ function TowerSVG({ type, upgradeLevel }) {
 }
 
 /**
+ * cooldownBarClass — returns the CSS colour modifier for a tower's cooldown bar.
+ * @param {string} type - tower type string
+ * @returns {string}
+ */
+function cooldownBarClass(type) {
+  const map = {
+    BasicTower:  'tower-cooldown-bar--basic',
+    SniperTower: 'tower-cooldown-bar--sniper',
+    RapidTower:  'tower-cooldown-bar--rapid',
+    CannonTower: 'tower-cooldown-bar--cannon',
+    SlowTower:   'tower-cooldown-bar--slow',
+    MortarTower: 'tower-cooldown-bar--mortar',
+    PoisonTower: 'tower-cooldown-bar--poison',
+  }
+  return map[type] ?? 'tower-cooldown-bar--basic'
+}
+
+/**
  * GameBoard — CSS-grid tile map component.
  * Renders a 20×15 grid of <div> tiles.
  * Accepts:
  *   tiles          — 2D array (15 rows × 20 cols) of tile-type strings
  *   onTileClick    — callback(row, col) invoked when an empty tower-slot tile is clicked
  *   onTowerClick   — callback(row, col) invoked when a tile with a tower is clicked
- *   towers         — array of tower objects { row, col, type, upgradeLevel, range, damage, fireRate } to render as overlays
+ *   towers         — array of tower objects { row, col, type, upgradeLevel, range, damage, fireRate, lastFiredAt } to render as overlays
  *   enemies        — array of enemy objects { pos: { row, col }, hp, maxHp } to render as overlays
  *   projectiles    — array of projectile objects { id, fromRow, fromCol, toRow, toCol } to render as shot lines
  *   selectedTower  — { row, col } | null — the currently-selected tower for upgrade panel
@@ -286,6 +304,19 @@ function GameBoard({
                       &#x26A1;
                     </span>
                   ) : null
+                })()}
+                {hasTower && (() => {
+                  const fireInterval = 1000 / tower.fireRate
+                  const fraction = Math.min(1, (Date.now() - tower.lastFiredAt) / fireInterval)
+                  const isIdle = fraction >= 1
+                  const colourClass = cooldownBarClass(tower.type)
+                  const idleClass = isIdle ? ' tower-cooldown-bar--idle' : ''
+                  return (
+                    <div
+                      className={`tower-cooldown-bar ${colourClass}${idleClass}`}
+                      style={{ width: `${fraction * 80}%` }}
+                    />
+                  )
                 })()}
                 {showPanel && (
                   <UpgradePanel

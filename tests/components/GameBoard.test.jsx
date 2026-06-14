@@ -466,4 +466,117 @@ describe('GameBoard', () => {
     expect(badge).not.toBeNull()
     expect(badge.classList.contains('tower-kill-badge--gold')).toBe(true)
   })
+
+  it('renders .tower-cooldown-bar for each placed tower', () => {
+    const tiles = createDefaultMap()
+    const onTileClick = vi.fn()
+    const tower = createTower('BasicTower', 3, 7)
+    const towers = [tower]
+
+    act(() => {
+      createRoot(container).render(
+        createElement(GameBoard, { tiles, onTileClick, towers })
+      )
+    })
+
+    const bar = container.querySelector('.tower-cooldown-bar')
+    expect(bar).not.toBeNull()
+  })
+
+  it('cooldown bar has the type-specific colour class for BasicTower', () => {
+    const tiles = createDefaultMap()
+    const onTileClick = vi.fn()
+    const tower = createTower('BasicTower', 3, 7)
+    const towers = [tower]
+
+    act(() => {
+      createRoot(container).render(
+        createElement(GameBoard, { tiles, onTileClick, towers })
+      )
+    })
+
+    const bar = container.querySelector('.tower-cooldown-bar')
+    expect(bar.classList.contains('tower-cooldown-bar--basic')).toBe(true)
+  })
+
+  it('cooldown bar has the type-specific colour class for SniperTower', () => {
+    const tiles = createDefaultMap()
+    const onTileClick = vi.fn()
+    const tower = createTower('SniperTower', 3, 7)
+    const towers = [tower]
+
+    act(() => {
+      createRoot(container).render(
+        createElement(GameBoard, { tiles, onTileClick, towers })
+      )
+    })
+
+    const bar = container.querySelector('.tower-cooldown-bar')
+    expect(bar.classList.contains('tower-cooldown-bar--sniper')).toBe(true)
+  })
+
+  it('cooldown bar shows idle class when tower fired long ago (bar full)', () => {
+    const tiles = createDefaultMap()
+    const onTileClick = vi.fn()
+    // lastFiredAt=0 — Date.now() is always far past the fire interval (1000ms for BasicTower)
+    const tower = { ...createTower('BasicTower', 3, 7), lastFiredAt: 0 }
+    const towers = [tower]
+
+    act(() => {
+      createRoot(container).render(
+        createElement(GameBoard, { tiles, onTileClick, towers })
+      )
+    })
+
+    const bar = container.querySelector('.tower-cooldown-bar')
+    expect(bar).not.toBeNull()
+    expect(bar.classList.contains('tower-cooldown-bar--idle')).toBe(true)
+  })
+
+  it('cooldown bar does not have idle class when tower just fired (fraction < 1)', () => {
+    const tiles = createDefaultMap()
+    const onTileClick = vi.fn()
+    // Pin Date.now() so lastFiredAt = now - 100ms => fraction = 0.1 (interval = 1000ms)
+    const fakeNow = 5000
+    vi.spyOn(Date, 'now').mockReturnValue(fakeNow)
+    // BasicTower fireRate=1 => interval=1000ms; lastFiredAt=4900 => fraction=0.1
+    const tower = { ...createTower('BasicTower', 3, 7), lastFiredAt: 4900 }
+    const towers = [tower]
+
+    act(() => {
+      createRoot(container).render(
+        createElement(GameBoard, { tiles, onTileClick, towers })
+      )
+    })
+
+    vi.restoreAllMocks()
+
+    const bar = container.querySelector('.tower-cooldown-bar')
+    expect(bar).not.toBeNull()
+    expect(bar.classList.contains('tower-cooldown-bar--idle')).toBe(false)
+  })
+
+  it('cooldown bar width reflects fraction of fire interval elapsed', () => {
+    const tiles = createDefaultMap()
+    const onTileClick = vi.fn()
+    // Pin Date.now() so fraction = 0.5 => width = 40%
+    const fakeNow = 5000
+    vi.spyOn(Date, 'now').mockReturnValue(fakeNow)
+    // BasicTower fireRate=1 => interval=1000ms; lastFiredAt=4500 => fraction=0.5
+    const tower = { ...createTower('BasicTower', 3, 7), lastFiredAt: 4500 }
+    const towers = [tower]
+
+    act(() => {
+      createRoot(container).render(
+        createElement(GameBoard, { tiles, onTileClick, towers })
+      )
+    })
+
+    vi.restoreAllMocks()
+
+    const bar = container.querySelector('.tower-cooldown-bar')
+    expect(bar).not.toBeNull()
+    // 50% fraction × 80% max-width = 40%
+    expect(bar.style.width).toBe('40%')
+  })
 })
