@@ -526,8 +526,8 @@ function GameBoard({
                 const my2 = y1 + (y2 - y1) * 0.66
                 return (
                   <g key={p.id}>
-                    <line className="projectile-trail projectile-trail-crit" x1={x1} y1={y1} x2={mx1} y2={my1} stroke="#ffe000" strokeWidth={6} strokeLinecap="round" strokeOpacity={0.15} />
-                    <line className="projectile-trail projectile-trail-crit" x1={mx1} y1={my1} x2={mx2} y2={my2} stroke="#ffe000" strokeWidth={6} strokeLinecap="round" strokeOpacity={0.35} />
+                    <line className="projectile-trail projectile-trail-crit projectile-trail--far" x1={x1} y1={y1} x2={mx1} y2={my1} />
+                    <line className="projectile-trail projectile-trail-crit projectile-trail--mid" x1={mx1} y1={my1} x2={mx2} y2={my2} />
                     <line className="projectile-crit" x1={mx2} y1={my2} x2={x2} y2={y2} />
                   </g>
                 )
@@ -547,8 +547,8 @@ function GameBoard({
               const my2 = y1 + (y2 - y1) * 0.66
               return (
                 <g key={p.id}>
-                  <line className={`projectile-trail projectile-trail-${typeSlug}${levelSuffix}`} x1={x1} y1={y1} x2={mx1} y2={my1} strokeOpacity={0.15} />
-                  <line className={`projectile-trail projectile-trail-${typeSlug}${levelSuffix}`} x1={mx1} y1={my1} x2={mx2} y2={my2} strokeOpacity={0.4} />
+                  <line className={`projectile-trail projectile-trail-${typeSlug}${levelSuffix} projectile-trail--far`} x1={x1} y1={y1} x2={mx1} y2={my1} />
+                  <line className={`projectile-trail projectile-trail-${typeSlug}${levelSuffix} projectile-trail--mid`} x1={mx1} y1={my1} x2={mx2} y2={my2} />
                   <line className={className} x1={mx2} y1={my2} x2={x2} y2={y2} />
                 </g>
               )

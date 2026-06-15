@@ -384,8 +384,14 @@ body {
 /* Crit trail — bright yellow */
 .projectile-trail-crit {
   stroke: #ffe000;
-  stroke-width: 4;
+  stroke-width: 6;
 }
+
+/* Trail opacity modifier classes — applied per segment position */
+.projectile-trail--far  { stroke-opacity: 0.15; }
+.projectile-trail--mid  { stroke-opacity: 0.4; }
+/* Crit mid segment is slightly more faded than non-crit */
+.projectile-trail-crit.projectile-trail--mid { stroke-opacity: 0.35; }
 
 /* ===== Range preview ring (hover over empty tower-slot) ===== */
 .range-preview-ring {
