@@ -484,15 +484,15 @@ test.describe('Tower Defense - smoke tests', () => {
     await expect(towerIcon).toBeVisible();
     const svgEl = towerIcon.locator('svg');
     await expect(svgEl).toBeAttached();
-    // The SVG must contain a rect with class tower-basic (the diamond shape)
-    const diamond = svgEl.locator('rect.tower-basic');
+    // The SVG must contain a rect with class tower-basic (cannon body + barrel — PR #121 redesign)
+    const diamond = svgEl.locator('rect.tower-basic').first();
     await expect(diamond).toBeAttached();
     // Verify no emoji text remains — the icon element should contain an SVG, not raw text
     const innerText = await towerIcon.evaluate(el => el.innerText.trim());
     expect(innerText).toBe('');
   });
 
-  test('SniperTower renders an SVG with a red triangle (polygon.tower-sniper)', async ({ page }) => {
+  test('SniperTower renders an SVG with a rifle barrel (rect.tower-sniper)', async ({ page }) => {
     const startBtn = page.locator('.next-wave-start');
     if (await startBtn.isVisible()) {
       await startBtn.click();
@@ -509,13 +509,13 @@ test.describe('Tower Defense - smoke tests', () => {
     // Place a SniperTower on the first available slot
     const slot = page.locator('.tower-slot').first();
     await slot.click();
-    // .tower-icon should now contain an SVG with a polygon.tower-sniper
+    // .tower-icon should now contain an SVG with a rect.tower-sniper (rifle barrel — PR #121 redesign)
     const towerIcon = page.locator('.tower-icon').first();
     await expect(towerIcon).toBeVisible();
     const svgEl = towerIcon.locator('svg');
     await expect(svgEl).toBeAttached();
-    const triangle = svgEl.locator('polygon.tower-sniper');
-    await expect(triangle).toBeAttached();
+    const barrel = svgEl.locator('rect.tower-sniper').first();
+    await expect(barrel).toBeAttached();
   });
 
   test('enemy circle size reflects HP ratio via inline width/height styles', async ({ page }) => {
@@ -1181,24 +1181,20 @@ test.describe('Tower Defense - smoke tests', () => {
     await expect(page.locator('.tower-picker button').filter({ hasText: 'SlowTower' })).toBeAttached();
   });
 
-  test('TowerPicker shows Splash special-ability label for CannonTower', async ({ page }) => {
-    const cannonBtn = page.locator('.tower-picker button').filter({ hasText: 'CannonTower' });
+  test('TowerPicker shows Splash special-ability tooltip for CannonTower', async ({ page }) => {
+    const cannonBtn = page.locator('.tower-picker-btn').filter({ hasText: 'CannonTower' });
     await expect(cannonBtn).toBeAttached();
-    // The special label should show a Splash indicator
-    const specialLabel = cannonBtn.locator('.tower-picker-special');
-    await expect(specialLabel).toBeAttached();
-    const labelText = await specialLabel.textContent();
-    expect(labelText).toMatch(/Splash/);
+    // PR #121: special ability moved from inline .tower-picker-special span to native title tooltip
+    const title = await cannonBtn.getAttribute('title');
+    expect(title).toMatch(/Splash/);
   });
 
-  test('TowerPicker shows Slow special-ability label for SlowTower', async ({ page }) => {
-    const slowBtn = page.locator('.tower-picker button').filter({ hasText: 'SlowTower' });
+  test('TowerPicker shows Slow special-ability tooltip for SlowTower', async ({ page }) => {
+    const slowBtn = page.locator('.tower-picker-btn').filter({ hasText: 'SlowTower' });
     await expect(slowBtn).toBeAttached();
-    // The special label should show a Slow indicator
-    const specialLabel = slowBtn.locator('.tower-picker-special');
-    await expect(specialLabel).toBeAttached();
-    const labelText = await specialLabel.textContent();
-    expect(labelText).toMatch(/Slow/);
+    // PR #121: special ability moved from inline .tower-picker-special span to native title tooltip
+    const title = await slowBtn.getAttribute('title');
+    expect(title).toMatch(/Slow/);
   });
 
   test('RapidTower renders SVG with rect.tower-rapid when placed', async ({ page }) => {
@@ -1240,7 +1236,7 @@ test.describe('Tower Defense - smoke tests', () => {
     await expect(svgEl.locator('circle.tower-cannon')).toBeAttached();
   });
 
-  test('SlowTower renders SVG with polygon.tower-slow when placed', async ({ page }) => {
+  test('SlowTower renders SVG with circle.tower-slow when placed', async ({ page }) => {
     const startBtn = page.locator('.next-wave-start');
     if (await startBtn.isVisible()) {
       await startBtn.click();
@@ -1256,7 +1252,8 @@ test.describe('Tower Defense - smoke tests', () => {
     await expect(towerIcon).toBeVisible();
     const svgEl = towerIcon.locator('svg');
     await expect(svgEl).toBeAttached();
-    await expect(svgEl.locator('polygon.tower-slow')).toBeAttached();
+    // PR #121: SlowTower is now a snowflake/ice-crystal — central circle + radiating arms
+    await expect(svgEl.locator('circle.tower-slow')).toBeAttached();
   });
 
   // --- Status-effect towers: PoisonTower (issue #67) ---
@@ -1266,16 +1263,15 @@ test.describe('Tower Defense - smoke tests', () => {
     await expect(page.locator('.tower-picker button').filter({ hasText: 'PoisonTower' })).toBeAttached();
   });
 
-  test('TowerPicker shows Poison special-ability label for PoisonTower', async ({ page }) => {
-    const poisonBtn = page.locator('.tower-picker button').filter({ hasText: 'PoisonTower' });
+  test('TowerPicker shows Poison special-ability tooltip for PoisonTower', async ({ page }) => {
+    const poisonBtn = page.locator('.tower-picker-btn').filter({ hasText: 'PoisonTower' });
     await expect(poisonBtn).toBeAttached();
-    const specialLabel = poisonBtn.locator('.tower-picker-special');
-    await expect(specialLabel).toBeAttached();
-    const labelText = await specialLabel.textContent();
-    expect(labelText).toMatch(/Poison/);
+    // PR #121: special ability moved from inline .tower-picker-special span to native title tooltip
+    const title = await poisonBtn.getAttribute('title');
+    expect(title).toMatch(/Poison/);
   });
 
-  test('PoisonTower renders SVG with polygon.tower-poison when placed', async ({ page }) => {
+  test('PoisonTower renders SVG with ellipse.tower-poison when placed', async ({ page }) => {
     const startBtn = page.locator('.next-wave-start');
     if (await startBtn.isVisible()) {
       await startBtn.click();
@@ -1292,7 +1288,8 @@ test.describe('Tower Defense - smoke tests', () => {
     await expect(towerIcon).toBeVisible();
     const svgEl = towerIcon.locator('svg');
     await expect(svgEl).toBeAttached();
-    await expect(svgEl.locator('polygon.tower-poison').first()).toBeAttached();
+    // PR #121: PoisonTower is now a flask/beaker silhouette — ellipse body
+    await expect(svgEl.locator('ellipse.tower-poison').first()).toBeAttached();
   });
 
   // --- Per-tower-type projectile fire animations (issue #65) ---
@@ -2713,7 +2710,7 @@ test.describe('Tower Defense - smoke tests', () => {
     expect(disabled).not.toBeNull();
   });
 
-  test('MortarTower renders SVG with polygon.tower-mortar when placed (via gold injection)', async ({ page }) => {
+  test('MortarTower renders SVG with rect.tower-mortar when placed (via gold injection)', async ({ page }) => {
     const startBtn = page.locator('.next-wave-start');
     if (await startBtn.isVisible()) {
       await startBtn.click();
@@ -2755,10 +2752,10 @@ test.describe('Tower Defense - smoke tests', () => {
     const towerIcon = page.locator('.tower-icon').first();
     await expect(towerIcon).toBeVisible();
 
-    // SVG must be present with the octagon polygon carrying class tower-mortar
+    // SVG must be present with a rect carrying class tower-mortar (PR #121 angled-mortar redesign)
     const svgEl = towerIcon.locator('svg');
     await expect(svgEl).toBeAttached();
-    await expect(svgEl.locator('polygon.tower-mortar').first()).toBeAttached();
+    await expect(svgEl.locator('rect.tower-mortar').first()).toBeAttached();
 
     // The icon must not contain raw emoji text
     const innerText = await towerIcon.evaluate(el => el.innerText.trim());
@@ -3435,6 +3432,78 @@ test.describe('Tower Defense - smoke tests', () => {
     await expect(page.locator('.hud-wave')).toBeVisible();
     // The HUD must no longer show 'between-waves' UI (the overlay is gone)
     await expect(page.locator('.wave-preview-panel')).not.toBeAttached({ timeout: 1000 });
+  });
+
+  // --- Distinct tower silhouettes in TowerPicker (issue #108) ---
+
+  test('each .tower-picker-btn contains an SVG silhouette icon', async ({ page }) => {
+    await expect(page.locator('.tower-picker')).toBeVisible();
+    const buttons = page.locator('.tower-picker-btn');
+    const count = await buttons.count();
+    expect(count).toBeGreaterThanOrEqual(7);
+    for (let i = 0; i < count; i++) {
+      const btn = buttons.nth(i);
+      const svg = btn.locator('svg');
+      await expect(svg).toBeAttached();
+    }
+  });
+
+  test('all 7 tower types are present in the TowerPicker grid', async ({ page }) => {
+    await expect(page.locator('.tower-picker')).toBeVisible();
+    const towerTypes = [
+      'BasicTower', 'SniperTower', 'RapidTower', 'CannonTower',
+      'SlowTower', 'MortarTower', 'PoisonTower',
+    ];
+    for (const type of towerTypes) {
+      await expect(
+        page.locator('.tower-picker-btn').filter({ hasText: type })
+      ).toBeAttached();
+    }
+  });
+
+  test('BasicTower picker button SVG contains a rect.tower-basic silhouette', async ({ page }) => {
+    const basicBtn = page.locator('.tower-picker-btn').filter({ hasText: 'BasicTower' });
+    await expect(basicBtn).toBeAttached();
+    // cannon body has multiple rect.tower-basic elements — use .first() to avoid strict-mode violation
+    await expect(basicBtn.locator('svg rect.tower-basic').first()).toBeAttached();
+  });
+
+  test('SniperTower picker button SVG contains a circle.tower-sniper silhouette', async ({ page }) => {
+    const sniperBtn = page.locator('.tower-picker-btn').filter({ hasText: 'SniperTower' });
+    await expect(sniperBtn).toBeAttached();
+    await expect(sniperBtn.locator('svg circle.tower-sniper')).toBeAttached();
+  });
+
+  test('RapidTower picker button SVG contains a rect.tower-rapid silhouette', async ({ page }) => {
+    const rapidBtn = page.locator('.tower-picker-btn').filter({ hasText: 'RapidTower' });
+    await expect(rapidBtn).toBeAttached();
+    // gatling has three rect.tower-rapid barrels — use .first() to avoid strict-mode violation
+    await expect(rapidBtn.locator('svg rect.tower-rapid').first()).toBeAttached();
+  });
+
+  test('CannonTower picker button SVG contains a circle.tower-cannon silhouette', async ({ page }) => {
+    const cannonBtn = page.locator('.tower-picker-btn').filter({ hasText: 'CannonTower' });
+    await expect(cannonBtn).toBeAttached();
+    await expect(cannonBtn.locator('svg circle.tower-cannon')).toBeAttached();
+  });
+
+  test('SlowTower picker button SVG contains a circle.tower-slow silhouette', async ({ page }) => {
+    const slowBtn = page.locator('.tower-picker-btn').filter({ hasText: 'SlowTower' });
+    await expect(slowBtn).toBeAttached();
+    await expect(slowBtn.locator('svg circle.tower-slow')).toBeAttached();
+  });
+
+  test('MortarTower picker button SVG contains a rect.tower-mortar silhouette', async ({ page }) => {
+    const mortarBtn = page.locator('.tower-picker-btn').filter({ hasText: 'MortarTower' });
+    await expect(mortarBtn).toBeAttached();
+    // mortar has base plate + barrel — both rect.tower-mortar — use .first() to avoid strict-mode
+    await expect(mortarBtn.locator('svg rect.tower-mortar').first()).toBeAttached();
+  });
+
+  test('PoisonTower picker button SVG contains an ellipse.tower-poison silhouette', async ({ page }) => {
+    const poisonBtn = page.locator('.tower-picker-btn').filter({ hasText: 'PoisonTower' });
+    await expect(poisonBtn).toBeAttached();
+    await expect(poisonBtn.locator('svg ellipse.tower-poison')).toBeAttached();
   });
 
 });

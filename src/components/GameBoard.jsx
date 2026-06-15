@@ -40,51 +40,116 @@ function hexPoints(cx, cy, r) {
 /**
  * Render an SVG tower icon based on tower type and upgrade level.
  *
- * BasicTower:  teal diamond; rings added at upgrade levels 1 and 2.
- * SniperTower: red upward-pointing triangle.
- * RapidTower:  orange star/burst — four small diamonds arranged in a cross.
- * CannonTower: dark-grey filled circle with a lighter outer ring at upgrade levels.
- * SlowTower:   blue/cyan hexagon (six-sided polygon).
+ * Each tower has a unique, recognisable silhouette — identifiable without colour:
+ *
+ * BasicTower:  short cannon barrel pointing right (rect body + wider muzzle)
+ * SniperTower: long thin rifle barrel with a circular scope
+ * RapidTower:  three parallel barrels in a gatling configuration
+ * CannonTower: wide-mouthed artillery piece — squat body + wide flared muzzle
+ * SlowTower:   snowflake / ice crystal (six radiating arms)
+ * MortarTower: angled mortar tube with a rectangular base plate
+ * PoisonTower: flask / beaker with dripping liquid (rounded body, narrow neck)
  *
  * The container keeps .tower-icon for E2E selector compatibility.
+ * Upgrade level indicators (rings/highlights) remain to show progression.
  */
 function TowerSVG({ type, upgradeLevel }) {
-  if (type === 'SniperTower') {
+  if (type === 'BasicTower') {
+    // Short cannon: square base + barrel pointing right
     return (
       <span className="tower-icon">
         <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
-          <polygon className="tower-sniper" points="15,2 28,28 2,28" />
+          {/* Base / body */}
+          <rect className="tower-basic" x="6" y="11" width="12" height="8" rx="1" />
+          {/* Barrel pointing right */}
+          <rect className="tower-basic" x="16" y="13" width="9" height="4" rx="1" />
+          {/* Muzzle tip */}
+          <rect className="tower-basic-muzzle" x="24" y="12" width="2" height="6" rx="1" />
+          {/* Upgrade ring — glowing outline at L1 */}
+          {upgradeLevel >= 1 && (
+            <rect className="tower-basic-ring" x="5" y="10" width="21" height="10" rx="2" />
+          )}
+          {/* Second upgrade ring at L2 */}
+          {upgradeLevel >= 2 && (
+            <circle className="tower-basic-ring" cx="15" cy="15" r="13" />
+          )}
+        </svg>
+      </span>
+    )
+  }
+
+  if (type === 'SniperTower') {
+    // Long thin rifle: narrow barrel + circular scope + small stock
+    return (
+      <span className="tower-icon">
+        <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
+          {/* Long barrel */}
+          <rect className="tower-sniper" x="4" y="14" width="22" height="2" rx="1" />
+          {/* Scope circle (sits above barrel) */}
+          <circle className="tower-sniper" cx="18" cy="11" r="4" />
+          <circle className="tower-sniper-lens" cx="18" cy="11" r="2" />
+          {/* Stock / grip below barrel */}
+          <rect className="tower-sniper" x="6" y="16" width="5" height="5" rx="1" />
+          {/* Upgrade: cross-hairs inside scope at L1+ */}
+          {upgradeLevel >= 1 && (
+            <>
+              <line className="tower-sniper-crosshair" x1="18" y1="8" x2="18" y2="14" />
+              <line className="tower-sniper-crosshair" x1="15" y1="11" x2="21" y2="11" />
+            </>
+          )}
+          {upgradeLevel >= 2 && (
+            <circle className="tower-sniper-ring" cx="18" cy="11" r="5.5" />
+          )}
         </svg>
       </span>
     )
   }
 
   if (type === 'RapidTower') {
-    // Four small rotated squares in a cross pattern — conveying rapid-fire speed
+    // Gatling: three thin parallel barrels pointing right from a central hub
     return (
       <span className="tower-icon">
         <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
-          <rect className="tower-rapid" x="12" y="2"  width="6" height="6"  transform="rotate(45 15 5)"  />
-          <rect className="tower-rapid" x="12" y="22" width="6" height="6"  transform="rotate(45 15 25)" />
-          <rect className="tower-rapid" x="2"  y="12" width="6" height="6"  transform="rotate(45 5  15)" />
-          <rect className="tower-rapid" x="22" y="12" width="6" height="6"  transform="rotate(45 25 15)" />
-          <rect className="tower-rapid" x="11" y="11" width="8" height="8"  transform="rotate(45 15 15)" />
+          {/* Hub */}
+          <circle className="tower-rapid-hub" cx="10" cy="15" r="5" />
+          {/* Top barrel */}
+          <rect className="tower-rapid" x="10" y="8"  width="16" height="3" rx="1" />
+          {/* Middle barrel */}
+          <rect className="tower-rapid" x="10" y="13" width="18" height="3" rx="1" />
+          {/* Bottom barrel */}
+          <rect className="tower-rapid" x="10" y="18" width="16" height="3" rx="1" />
+          {/* Upgrade: muzzle highlights at L1+ */}
+          {upgradeLevel >= 1 && (
+            <>
+              <rect className="tower-rapid-muzzle" x="25" y="8"  width="2" height="3" rx="1" />
+              <rect className="tower-rapid-muzzle" x="27" y="13" width="2" height="3" rx="1" />
+              <rect className="tower-rapid-muzzle" x="25" y="18" width="2" height="3" rx="1" />
+            </>
+          )}
+          {upgradeLevel >= 2 && (
+            <circle className="tower-rapid-ring" cx="10" cy="15" r="7" />
+          )}
         </svg>
       </span>
     )
   }
 
   if (type === 'CannonTower') {
-    // Filled dark circle with optional upgrade rings
+    // Wide-mouthed artillery: squat round body + very wide flared muzzle
     return (
       <span className="tower-icon">
         <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
-          <circle className="tower-cannon" cx="15" cy="15" r="9" />
+          {/* Round body */}
+          <circle className="tower-cannon" cx="12" cy="15" r="8" />
+          {/* Barrel */}
+          <rect className="tower-cannon" x="17" y="13" width="7" height="4" rx="1" />
+          {/* Wide flared muzzle */}
+          <path className="tower-cannon-muzzle" d="M23,11 L27,11 L28,19 L23,19 Z" />
           {upgradeLevel >= 1 && (
-            <circle className="tower-cannon-ring" cx="15" cy="15" r="12" />
+            <circle className="tower-cannon-ring" cx="12" cy="15" r="10" />
           )}
           {upgradeLevel >= 2 && (
-            <circle className="tower-cannon-ring" cx="15" cy="15" r="14" />
+            <circle className="tower-cannon-ring" cx="12" cy="15" r="12" />
           )}
         </svg>
       </span>
@@ -92,13 +157,31 @@ function TowerSVG({ type, upgradeLevel }) {
   }
 
   if (type === 'SlowTower') {
-    // Hexagon shape — conveys an area/aura effect
+    // Snowflake / ice crystal: six radiating arms with small tips
     return (
       <span className="tower-icon">
         <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
-          <polygon className="tower-slow" points="15,2 26,8 26,22 15,28 4,22 4,8" />
+          {/* Central circle */}
+          <circle className="tower-slow" cx="15" cy="15" r="3" />
+          {/* Six arms at 0°, 60°, 120°, 180°, 240°, 300° */}
+          <line className="tower-slow-arm" x1="15" y1="15" x2="15" y2="4" />
+          <line className="tower-slow-arm" x1="15" y1="15" x2="15" y2="26" />
+          <line className="tower-slow-arm" x1="15" y1="15" x2="24.5" y2="9.5" />
+          <line className="tower-slow-arm" x1="15" y1="15" x2="5.5" y2="20.5" />
+          <line className="tower-slow-arm" x1="15" y1="15" x2="5.5" y2="9.5" />
+          <line className="tower-slow-arm" x1="15" y1="15" x2="24.5" y2="20.5" />
+          {/* Tip diamonds */}
+          <rect className="tower-slow" x="13.5" y="2.5" width="3" height="3" transform="rotate(45 15 4)" />
+          <rect className="tower-slow" x="13.5" y="24.5" width="3" height="3" transform="rotate(45 15 26)" />
+          <rect className="tower-slow" x="22.5" y="7.5" width="3" height="3" transform="rotate(45 24 9.5)" />
+          <rect className="tower-slow" x="3.5" y="18.5" width="3" height="3" transform="rotate(45 5 20.5)" />
+          <rect className="tower-slow" x="3.5" y="7.5" width="3" height="3" transform="rotate(45 5 9.5)" />
+          <rect className="tower-slow" x="22.5" y="18.5" width="3" height="3" transform="rotate(45 24 20.5)" />
           {upgradeLevel >= 1 && (
-            <polygon className="tower-slow-ring" points="15,0 28,7 28,23 15,30 2,23 2,7" />
+            <circle className="tower-slow-ring" cx="15" cy="15" r="13" />
+          )}
+          {upgradeLevel >= 2 && (
+            <circle className="tower-slow-ring" cx="15" cy="15" r="14.5" />
           )}
         </svg>
       </span>
@@ -106,24 +189,21 @@ function TowerSVG({ type, upgradeLevel }) {
   }
 
   if (type === 'MortarTower') {
-    // Dark-grey octagon — represents the mortar barrel opening viewed from above
-    // An octagon has 8 sides; points computed for a 30×30 viewBox centred at (15,15)
-    // with radius 12: offset corners at ±5 and ±12 from centre.
+    // Angled mortar tube: rectangular base plate + angled barrel tube
     return (
       <span className="tower-icon">
         <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
-          <polygon
-            className="tower-mortar"
-            points="10,3 20,3 27,10 27,20 20,27 10,27 3,20 3,10"
-          />
+          {/* Base plate */}
+          <rect className="tower-mortar" x="4" y="22" width="22" height="5" rx="1" />
+          {/* Angled barrel (rotated ~45° pointing upper-right) */}
+          <rect className="tower-mortar" x="12" y="7" width="5" height="16" rx="2" transform="rotate(-30 14 15)" />
+          {/* Barrel opening circle */}
+          <circle className="tower-mortar-opening" cx="20" cy="7" r="3" />
           {upgradeLevel >= 1 && (
-            <polygon
-              className="tower-mortar-ring"
-              points="10,1 20,1 29,10 29,20 20,29 10,29 1,20 1,10"
-            />
+            <circle className="tower-mortar-ring" cx="20" cy="7" r="5" />
           )}
           {upgradeLevel >= 2 && (
-            <circle className="tower-mortar-core" cx="15" cy="15" r="4" />
+            <circle className="tower-mortar-core" cx="14" cy="21" r="3" />
           )}
         </svg>
       </span>
@@ -131,34 +211,37 @@ function TowerSVG({ type, upgradeLevel }) {
   }
 
   if (type === 'PoisonTower') {
-    // Rounded pentagon shape — conveys a biological/poison effect
-    // Pentagon points at top, slight rounding via rx/ry on the polygon container
+    // Flask / beaker: rounded body, narrow neck, drip drops
     return (
       <span className="tower-icon">
         <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
-          <polygon className="tower-poison" points="15,2 27,11 22,26 8,26 3,11" />
+          {/* Flask body */}
+          <ellipse className="tower-poison" cx="15" cy="20" rx="9" ry="8" />
+          {/* Neck */}
+          <rect className="tower-poison" x="12" y="8" width="6" height="8" rx="1" />
+          {/* Stopper / rim */}
+          <rect className="tower-poison-stopper" x="10" y="6" width="10" height="3" rx="1" />
+          {/* Drip drop */}
+          <ellipse className="tower-poison-drop" cx="15" cy="28" rx="2" ry="2.5" />
           {upgradeLevel >= 1 && (
-            <circle className="tower-poison-ring" cx="15" cy="16" r="5" />
+            <>
+              <ellipse className="tower-poison-drop" cx="9" cy="27" rx="1.5" ry="2" />
+              <ellipse className="tower-poison-drop" cx="21" cy="27" rx="1.5" ry="2" />
+            </>
           )}
           {upgradeLevel >= 2 && (
-            <polygon className="tower-poison-ring-outer" points="15,0 29,10 24,28 6,28 1,10" />
+            <ellipse className="tower-poison-ring" cx="15" cy="20" rx="11" ry="10" />
           )}
         </svg>
       </span>
     )
   }
 
-  // BasicTower — teal diamond with optional inner rings for upgrade levels
+  // Fallback — should never reach here
   return (
     <span className="tower-icon">
       <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
-        <rect className="tower-basic" x="7" y="7" width="16" height="16" transform="rotate(45 15 15)" />
-        {upgradeLevel >= 1 && (
-          <rect className="tower-basic-ring" x="4" y="4" width="22" height="22" transform="rotate(45 15 15)" />
-        )}
-        {upgradeLevel >= 2 && (
-          <rect className="tower-basic-ring" x="1" y="1" width="28" height="28" transform="rotate(45 15 15)" />
-        )}
+        <rect className="tower-basic" x="7" y="7" width="16" height="16" rx="2" />
       </svg>
     </span>
   )

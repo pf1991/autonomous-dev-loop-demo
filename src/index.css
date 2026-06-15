@@ -349,35 +349,91 @@ body {
   justify-content: center;
 }
 
-/* BasicTower — teal filled diamond */
+/* ===== Tower icon SVG styles ===== */
+/* Each tower type has a unique silhouette identifiable without colour. */
+
+/* BasicTower — teal cannon barrel + body */
 .tower-basic {
   fill: #4ecca3;
+  stroke: #2a9a78;
+  stroke-width: 0.5;
+}
+
+.tower-basic-muzzle {
+  fill: #2a9a78;
   stroke: none;
 }
 
-/* Inner rings for upgraded BasicTower (level 1 and level 2) */
+/* Upgrade rings for BasicTower */
 .tower-basic-ring {
   fill: none;
   stroke: #4ecca3;
   stroke-width: 1.5;
+  opacity: 0.7;
 }
 
-/* SniperTower — red upward-pointing triangle */
+/* SniperTower — red rifle silhouette */
 .tower-sniper {
   fill: #e94560;
+  stroke: #a0102a;
+  stroke-width: 0.5;
+}
+
+.tower-sniper-lens {
+  fill: #1a1a2e;
   stroke: none;
 }
 
-/* RapidTower — orange burst (five small diamonds in a cross) */
+.tower-sniper-crosshair {
+  stroke: #fff;
+  stroke-width: 0.8;
+  opacity: 0.85;
+}
+
+.tower-sniper-ring {
+  fill: none;
+  stroke: #e94560;
+  stroke-width: 1.5;
+  stroke-dasharray: 3 2;
+  opacity: 0.7;
+}
+
+/* RapidTower — orange gatling barrels */
 .tower-rapid {
   fill: #f5a623;
+  stroke: #b07010;
+  stroke-width: 0.5;
+}
+
+.tower-rapid-hub {
+  fill: #b07010;
+  stroke: #f5a623;
+  stroke-width: 1;
+}
+
+.tower-rapid-muzzle {
+  fill: #ffe066;
   stroke: none;
 }
 
-/* CannonTower — dark grey filled circle */
+.tower-rapid-ring {
+  fill: none;
+  stroke: #f5a623;
+  stroke-width: 1.5;
+  opacity: 0.7;
+}
+
+/* CannonTower — dark grey artillery with wide muzzle */
 .tower-cannon {
   fill: #5a5a7a;
-  stroke: none;
+  stroke: #3a3a5a;
+  stroke-width: 0.5;
+}
+
+.tower-cannon-muzzle {
+  fill: #3a3a5a;
+  stroke: #9a9abb;
+  stroke-width: 1;
 }
 
 /* Outer rings for upgraded CannonTower */
@@ -385,12 +441,20 @@ body {
   fill: none;
   stroke: #9a9abb;
   stroke-width: 1.5;
+  opacity: 0.7;
 }
 
-/* SlowTower — icy blue hexagon */
+/* SlowTower — icy blue snowflake */
 .tower-slow {
   fill: #44a8d8;
-  stroke: none;
+  stroke: #1a78aa;
+  stroke-width: 0.5;
+}
+
+.tower-slow-arm {
+  stroke: #44a8d8;
+  stroke-width: 2;
+  stroke-linecap: round;
 }
 
 /* Outer ring for upgraded SlowTower */
@@ -398,26 +462,59 @@ body {
   fill: none;
   stroke: #88d4f5;
   stroke-width: 1.5;
+  opacity: 0.7;
 }
 
-/* PoisonTower — green rounded pentagon */
+/* MortarTower — dark-grey angled mortar tube */
+.tower-mortar {
+  fill: #4a4a5e;
+  stroke: #7a7a9a;
+  stroke-width: 1;
+}
+
+.tower-mortar-opening {
+  fill: #2a2a3e;
+  stroke: #9a9abb;
+  stroke-width: 1.5;
+}
+
+/* Outer ring for upgraded MortarTower */
+.tower-mortar-ring {
+  fill: none;
+  stroke: #9a9abb;
+  stroke-width: 1.5;
+  opacity: 0.7;
+}
+
+/* Inner glowing core for L2 upgrade */
+.tower-mortar-core {
+  fill: #ff8c00;
+  opacity: 0.85;
+}
+
+/* PoisonTower — green flask with drips */
 .tower-poison {
   fill: #4caf50;
   stroke: #2e7d32;
-  stroke-width: 1.5;
+  stroke-width: 1;
 }
 
-/* Inner circle accent for PoisonTower L1 upgrade */
-.tower-poison-ring {
+.tower-poison-stopper {
+  fill: #2e7d32;
+  stroke: none;
+}
+
+.tower-poison-drop {
   fill: #a5d6a7;
-  opacity: 0.6;
+  opacity: 0.85;
 }
 
-/* Outer ring for PoisonTower L2 upgrade */
-.tower-poison-ring-outer {
+/* Outer upgrade ring */
+.tower-poison-ring {
   fill: none;
   stroke: #a5d6a7;
   stroke-width: 1.5;
+  opacity: 0.6;
 }
 
 /* ===== Tower level badge — top-right corner of a placed tower tile ===== */
@@ -809,62 +906,91 @@ body {
   color: #16213e;
 }
 
-/* ===== Tower Picker ===== */
+/* ===== Tower Picker — 2-column icon grid ===== */
 .tower-picker {
-  display: flex;
-  flex-direction: row;
-  gap: 10px;
+  display: grid;
+  /* 2 columns: icons stack vertically in pairs, fits screens ≥ 768px without scrolling */
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
   background: #16213e;
   border: 2px solid #0f3460;
   border-radius: 8px;
-  padding: 8px 16px;
-  width: 800px;
+  padding: 8px 12px;
+  width: 160px;
+  align-items: stretch;
 }
 
-.tower-picker button {
+/* Each tower button: icon on top, short name below */
+.tower-picker-btn {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
   background: #0f3460;
   color: #eee;
   border: 2px solid transparent;
   border-radius: 6px;
-  padding: 6px 14px;
-  font-size: 0.82rem;
+  padding: 6px 4px 5px;
+  font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
+  position: relative;
+  min-width: 0;
 }
 
-.tower-picker button:hover:not(:disabled) {
+.tower-picker-btn:hover:not(:disabled) {
   background: #1a4a8a;
 }
 
-.tower-picker button.selected {
+.tower-picker-btn.selected {
   border-color: #4ecca3;
   background: #0f4a3a;
 }
 
-.tower-picker button:disabled {
+.tower-picker-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 
+/* Icon wrapper — holds the SVG + cost badge overlay */
+.tower-picker-icon-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+}
+
+/* Cost badge — bottom-right corner of the icon */
+.tower-picker-cost-badge {
+  position: absolute;
+  bottom: -2px;
+  right: -4px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  line-height: 1;
+  background: #f5a623;
+  color: #1a1a2e;
+  border-radius: 3px;
+  padding: 1px 3px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Short name label below the icon */
 .tower-picker-name {
-  font-size: 0.9rem;
+  font-size: 0.72rem;
   font-weight: 700;
-  color: #f5a623;
-}
-
-.tower-picker-stat {
-  font-size: 0.75rem;
-  color: #aaa;
-}
-
-.tower-picker-special {
-  color: #4ecca3;
-  font-weight: 700;
+  color: #ccc;
+  text-align: center;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 /* ===== Upgrade Panel ===== */
@@ -1598,28 +1724,6 @@ body {
   border-radius: 4px;
   text-transform: uppercase;
   color: #fff;
-}
-
-/* ===== MortarTower SVG icon ===== */
-
-/* Dark-grey octagon body */
-.tower-mortar {
-  fill: #4a4a5e;
-  stroke: #7a7a9a;
-  stroke-width: 1.5;
-}
-
-/* Outer ring for upgraded MortarTower */
-.tower-mortar-ring {
-  fill: none;
-  stroke: #9a9abb;
-  stroke-width: 1.5;
-}
-
-/* Inner glowing core for L2 upgrade */
-.tower-mortar-core {
-  fill: #ff8c00;
-  opacity: 0.85;
 }
 
 /* ===== MortarTower projectile (expanding orange circle) ===== */

@@ -1,7 +1,10 @@
 import { TOWER_TYPES } from '../game/tower'
+import TowerPickerIcon from './TowerPickerIcon'
 
 /**
- * TowerPicker — renders one button per tower type.
+ * TowerPicker — 2-column icon grid of tower types.
+ * Stats are shown on hover via the native title attribute (tooltip).
+ *
  * Props:
  *   selectedType  — the currently selected tower type key (string)
  *   gold          — current player gold (number)
@@ -13,37 +16,47 @@ function TowerPicker({ selectedType, gold, onSelect }) {
       {Object.entries(TOWER_TYPES).map(([type, config]) => {
         const affordable = gold >= config.cost
         const isSelected = type === selectedType
+
+        // Build tooltip text with stats + special ability
+        let specialLine = ''
+        if (config.splashRadius != null) {
+          specialLine = `Splash: ${config.splashRadius}t`
+        } else if (config.slowFactor != null) {
+          specialLine = `Slow: ${Math.round((1 - config.slowFactor) * 100)}%`
+        } else if (config.poisonTickDamage != null) {
+          specialLine = `Poison: ${config.poisonTicks}×${config.poisonTickDamage} DoT`
+        }
+        const tooltip = [
+          type,
+          `Cost: ${config.cost}`,
+          `Range: ${config.range}  Dmg: ${config.damage}  Rate: ${config.fireRate}`,
+          specialLine,
+        ]
+          .filter(Boolean)
+          .join('\n')
+
         const classes = [
+          'tower-picker-btn',
           isSelected ? 'selected' : '',
           !affordable ? 'unaffordable' : '',
         ]
           .filter(Boolean)
           .join(' ')
 
-        // Determine a one-line special-ability label for towers with unique mechanics
-        let specialLabel = null
-        if (config.splashRadius != null) {
-          specialLabel = `Splash: ${config.splashRadius}t`
-        } else if (config.slowFactor != null) {
-          specialLabel = `Slow: ${Math.round((1 - config.slowFactor) * 100)}%`
-        } else if (config.poisonTickDamage != null) {
-          specialLabel = `Poison: ${config.poisonTicks}×${config.poisonTickDamage} DoT`
-        }
-
         return (
           <button
             key={type}
-            className={classes || undefined}
+            className={classes}
             disabled={!affordable}
             onClick={() => onSelect(type)}
+            title={tooltip}
           >
+            <span className="tower-picker-icon-wrap">
+              <TowerPickerIcon type={type} />
+              <span className="tower-picker-cost-badge">{config.cost}g</span>
+            </span>
+            {/* Keep the full type name for test selectors; CSS clips to compact size */}
             <span className="tower-picker-name">{type}</span>
-            <span className="tower-picker-stat">Cost: {config.cost}</span>
-            <span className="tower-picker-stat">Range: {config.range}</span>
-            <span className="tower-picker-stat">Dmg: {config.damage}</span>
-            {specialLabel && (
-              <span className="tower-picker-stat tower-picker-special">{specialLabel}</span>
-            )}
           </button>
         )
       })}
