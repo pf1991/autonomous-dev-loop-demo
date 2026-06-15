@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { createWave, getWaveEnemyHp, getWaveEnemyCount, getWaveComposition, getEarlyWaveBonus, getEndlessWaveEnemyHp, getEndlessWaveEnemyCount, getEndlessWaveComposition, isBossWave, getWaveEventType, WAVE_EVENT_CONFIG } from '../../src/game/wave.js'
+import { createWave, getWaveEnemyHp, getWaveEnemyCount, getWaveComposition, getEarlyWaveBonus, getEndlessWaveEnemyHp, getEndlessWaveEnemyCount, getEndlessWaveComposition, isBossWave, getWaveEventType, WAVE_EVENT_CONFIG, getWavePreview } from '../../src/game/wave.js'
 
 describe('getWaveEnemyHp', () => {
   it('wave 1 returns 100 HP', () => {
@@ -476,5 +476,86 @@ describe('WAVE_EVENT_CONFIG', () => {
     expect(WAVE_EVENT_CONFIG.elite.label).toContain('ELITE')
     expect(WAVE_EVENT_CONFIG.stealth.label).toContain('STEALTH')
     expect(WAVE_EVENT_CONFIG.normal.label).toBeNull()
+  })
+})
+
+describe('getWavePreview', () => {
+  it('wave 1 (grunts only) — returns only grunt enemies with correct HP', () => {
+    const preview = getWavePreview(1, false)
+    expect(preview).toBeDefined()
+    expect(preview.isBoss).toBe(false)
+    expect(preview.enemies.length).toBeGreaterThan(0)
+    const grunt = preview.enemies.find(e => e.type === 'grunt')
+    expect(grunt).toBeDefined()
+    expect(grunt.hp).toBe(getWaveEnemyHp(1))
+    expect(grunt.count).toBeGreaterThan(0)
+    // wave 1 has no non-grunt enemies
+    expect(preview.enemies.every(e => e.type === 'grunt')).toBe(true)
+  })
+
+  it('wave 4 (tank wave, no healers) — includes tank enemies and tip mentions Snipers', () => {
+    // Wave 4 has tanks but no healers, so the tank tip should fire
+    const preview = getWavePreview(4, false)
+    const hasTank = preview.enemies.some(e => e.type === 'tank')
+    expect(hasTank).toBe(true)
+    expect(preview.tip).toContain('Sniper')
+  })
+
+  it('wave 6 (healer wave) — tip prioritises healer warning', () => {
+    // Wave 6 introduces healers; healer tip has higher priority than tank tip
+    const preview = getWavePreview(6, false)
+    const hasHealer = preview.enemies.some(e => e.type === 'healer')
+    expect(hasHealer).toBe(true)
+    expect(preview.tip).toContain('healer')
+  })
+
+  it('wave 5 (boss wave) — isBoss is true and colossus is present with higher HP', () => {
+    const preview = getWavePreview(5, false)
+    expect(preview.isBoss).toBe(true)
+    const boss = preview.enemies.find(e => e.type === 'colossus')
+    expect(boss).toBeDefined()
+    expect(boss.count).toBe(1)
+    // colossus HP should be 3× the wave HP
+    expect(boss.hp).toBe(Math.round(getWaveEnemyHp(5) * 3))
+    expect(preview.tip).toContain('Boss')
+  })
+
+  it('endless wave 15 — returns enemies appropriate for endless scaling', () => {
+    const preview = getWavePreview(15, true)
+    expect(preview).toBeDefined()
+    expect(Array.isArray(preview.enemies)).toBe(true)
+    expect(preview.enemies.length).toBeGreaterThan(0)
+    // Endless wave 15 is a boss wave (15 % 5 === 0)
+    expect(preview.isBoss).toBe(true)
+    const boss = preview.enemies.find(e => e.type === 'colossus')
+    expect(boss).toBeDefined()
+    // HP should use endless scaling
+    expect(preview.enemies.find(e => e.type !== 'colossus').hp).toBe(getEndlessWaveEnemyHp(15))
+  })
+
+  it('returns at least 4 distinct tip messages across various waves', () => {
+    const tips = new Set()
+    for (let w = 1; w <= 10; w++) {
+      tips.add(getWavePreview(w, false).tip)
+    }
+    expect(tips.size).toBeGreaterThanOrEqual(4)
+  })
+
+  it('all enemy entries have count > 0', () => {
+    for (let w = 1; w <= 10; w++) {
+      const preview = getWavePreview(w, false)
+      for (const e of preview.enemies) {
+        expect(e.count).toBeGreaterThan(0)
+      }
+    }
+  })
+
+  it('all enemy entries have hp > 0', () => {
+    for (let w = 1; w <= 10; w++) {
+      const preview = getWavePreview(w, false)
+      for (const e of preview.enemies) {
+        expect(e.hp).toBeGreaterThan(0)
+      }
+    }
   })
 })
