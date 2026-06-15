@@ -579,16 +579,26 @@ function App() {
       setDamageNumbers(nextDamageNumbers)
     }
 
-    // Update towers with new lastFiredAt values when any tower fired.
-    // Only call setTowers when a tower actually fired to avoid a re-render every tick.
-    const anyFired = combatResult.towers.some(
+    // Update towers with new lastFiredAt / kills values when any tower fired.
+    // When overcharge was active, combatTowers had a temporary fireRate * 1.5 applied.
+    // We must NOT store those inflated values back — only copy lastFiredAt and kills from
+    // the combat result onto the original (non-boosted) towers, to prevent fireRate from
+    // compounding on every tick while overcharge is active.
+    const sourceTowers = overchargeActiveRef.current
+      ? towersRef.current.map((t, i) => ({
+          ...t,
+          lastFiredAt: combatResult.towers[i]?.lastFiredAt ?? t.lastFiredAt,
+          kills: combatResult.towers[i]?.kills ?? t.kills,
+        }))
+      : combatResult.towers
+    const anyFired = sourceTowers.some(
       (t, i) => t.lastFiredAt !== towersRef.current[i]?.lastFiredAt
     )
     if (anyFired) {
-      towersRef.current = combatResult.towers
-      setTowers(combatResult.towers)
+      towersRef.current = sourceTowers
+      setTowers(sourceTowers)
     } else if (towersRef.current.length > 0) {
-      towersRef.current = combatResult.towers
+      towersRef.current = sourceTowers
     }
 
     killedInWaveRef.current += killedNow
