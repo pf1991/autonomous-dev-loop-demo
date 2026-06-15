@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import UpgradePanel from './UpgradePanel.jsx'
 import WaveCountdownBanner from './WaveCountdownBanner.jsx'
 import { getEnemyRadius, isEnemyPoisoned } from '../game/enemy.js'
@@ -312,6 +313,8 @@ function GameBoard({
   getNextUpgradeStats,
   sellTower,
   adjacencySynergies = null,
+  synergyPartners = null,
+  showSynergies = false,
   powerCrates = [],
   onCrateClick,
   showCountdownBanner = false,
@@ -322,10 +325,34 @@ function GameBoard({
   countdownEventType = 'normal',
   onCountdownStart,
 }) {
+  // hoveredTower: { row, col } | null — the tower tile the cursor is currently over
+  const [hoveredTower, setHoveredTower] = useState(null)
+
   // Build a map from "row-col" key to tower object for O(1) lookup
   const towerMap = {}
   for (const t of towers) {
     towerMap[`${t.row}-${t.col}`] = t
+  }
+
+  // Synergy line color per effectType
+  const SYNERGY_COLORS = {
+    fireRate: '#00e5cc', // teal
+    freeze:   '#ff4444', // red
+    poison:   '#44dd44', // green
+    range:    '#4488ff', // blue
+  }
+
+  // Active synergy focus: selected tower > hovered tower (neither if global overlay)
+  const focusTower = selectedTower ?? hoveredTower
+
+  // Partner tile keys for the focused tower (for border ring highlighting)
+  const partnerKeys = new Set()
+  if (synergyPartners && focusTower) {
+    const key = `${focusTower.row}-${focusTower.col}`
+    const partners = synergyPartners.get(key) ?? []
+    for (const p of partners) {
+      partnerKeys.add(`${p.partnerRow}-${p.partnerCol}`)
+    }
   }
 
   const isSelectedTower = (rowIndex, colIndex) =>
@@ -360,12 +387,34 @@ function GameBoard({
               if (isTowerSlot && !hasTower && onHoverSlot) {
                 onHoverSlot({ row: rowIndex, col: colIndex })
               }
+              if (hasTower) {
+                setHoveredTower({ row: rowIndex, col: colIndex })
+              }
             }
             const handleMouseLeave = () => {
               if (isTowerSlot && !hasTower && onHoverSlot) {
                 onHoverSlot(null)
               }
+              if (hasTower) {
+                setHoveredTower(null)
+              }
             }
+
+            // Partner ring: highlight this tile if it's a synergy partner of the focused tower
+            const isPartner = partnerKeys.has(key)
+            // Determine partner ring color from the focused tower's synergy list
+            let partnerRingColor = null
+            if (isPartner && synergyPartners && focusTower) {
+              const focusKey = `${focusTower.row}-${focusTower.col}`
+              const partners = synergyPartners.get(focusKey) ?? []
+              const match = partners.find(p => p.partnerRow === rowIndex && p.partnerCol === colIndex)
+              if (match) partnerRingColor = SYNERGY_COLORS[match.effectType] ?? null
+            }
+
+            // Enriched synergies for UpgradePanel: include partner position from synergyPartners
+            const upgradePanelSynergies = synergyPartners
+              ? (synergyPartners.get(towerKey({ row: rowIndex, col: colIndex })) ?? [])
+              : (adjacencySynergies ? (adjacencySynergies.get(towerKey({ row: rowIndex, col: colIndex })) ?? []) : [])
 
             return (
               <div
@@ -374,6 +423,7 @@ function GameBoard({
                 onClick={handleClick}
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
+                style={isPartner && partnerRingColor ? { outline: `2px solid ${partnerRingColor}`, outlineOffset: '-2px' } : undefined}
               >
                 {hasTower && <TowerSVG type={tower.type} upgradeLevel={tower.upgradeLevel} />}
                 {hasTower && tower.upgradeLevel > 0 && (
@@ -417,7 +467,7 @@ function GameBoard({
                     canUpgrade={canUpgrade}
                     getNextUpgradeStats={getNextUpgradeStats}
                     sellTower={sellTower}
-                    synergies={adjacencySynergies ? (adjacencySynergies.get(towerKey(tower)) ?? []) : []}
+                    synergies={upgradePanelSynergies}
                   />
                 )}
               </div>
@@ -455,7 +505,46 @@ function GameBoard({
           }
         }
 
-        const showSvg = projectiles.length > 0 || hoverR !== null || fireR !== null || placementPulses.length > 0
+        // Build synergy lines to render
+        // Focal lines: from selected/hovered tower to its partners
+        const synergyLines = []
+        if (synergyPartners && focusTower) {
+          const key = `${focusTower.row}-${focusTower.col}`
+          const partners = synergyPartners.get(key) ?? []
+          for (const p of partners) {
+            synergyLines.push({
+              id: `focal-${key}-${p.partnerRow}-${p.partnerCol}`,
+              x1: (focusTower.col + 0.5) * TILE_PX,
+              y1: (focusTower.row + 0.5) * TILE_PX,
+              x2: (p.partnerCol + 0.5) * TILE_PX,
+              y2: (p.partnerRow + 0.5) * TILE_PX,
+              color: SYNERGY_COLORS[p.effectType] ?? '#00e5cc',
+            })
+          }
+        }
+        // Global overlay lines: all active synergy pairs
+        const globalLines = []
+        if (showSynergies && synergyPartners) {
+          const seen = new Set()
+          for (const [key, partners] of synergyPartners) {
+            for (const p of partners) {
+              const pairId = [key, `${p.partnerRow}-${p.partnerCol}`].sort().join('|')
+              if (seen.has(pairId)) continue
+              seen.add(pairId)
+              const [srcRow, srcCol] = key.split('-').map(Number)
+              globalLines.push({
+                id: `global-${pairId}`,
+                x1: (srcCol + 0.5) * TILE_PX,
+                y1: (srcRow + 0.5) * TILE_PX,
+                x2: (p.partnerCol + 0.5) * TILE_PX,
+                y2: (p.partnerRow + 0.5) * TILE_PX,
+                color: SYNERGY_COLORS[p.effectType] ?? '#00e5cc',
+              })
+            }
+          }
+        }
+
+        const showSvg = projectiles.length > 0 || hoverR !== null || fireR !== null || placementPulses.length > 0 || synergyLines.length > 0 || globalLines.length > 0
         if (!showSvg) return null
 
         return (
@@ -465,6 +554,48 @@ function GameBoard({
             height={ROWS * TILE_PX}
             aria-hidden="true"
           >
+            <defs>
+              <filter id="synergy-glow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="2" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              <style>{`
+                @keyframes synergy-dash {
+                  from { stroke-dashoffset: 20; }
+                  to   { stroke-dashoffset: 0; }
+                }
+                .synergy-line {
+                  stroke-width: 2;
+                  stroke-dasharray: 6 4;
+                  animation: synergy-dash 0.6s linear infinite;
+                  filter: url(#synergy-glow);
+                  fill: none;
+                  opacity: 0.85;
+                }
+              `}</style>
+            </defs>
+            {/* Global synergy overlay lines */}
+            {globalLines.map(l => (
+              <line
+                key={l.id}
+                className="synergy-line"
+                x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2}
+                stroke={l.color}
+                strokeOpacity="0.6"
+              />
+            ))}
+            {/* Focal synergy lines (selected / hovered tower) */}
+            {synergyLines.map(l => (
+              <line
+                key={l.id}
+                className="synergy-line"
+                x1={l.x1} y1={l.y1} x2={l.x2} y2={l.y2}
+                stroke={l.color}
+              />
+            ))}
             {hoverR !== null && (
               <circle
                 className="range-preview-ring"

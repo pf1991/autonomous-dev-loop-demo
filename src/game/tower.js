@@ -382,3 +382,71 @@ export function getAdjacentSynergies(towers) {
 
   return result
 }
+
+/**
+ * getSynergyPartners(towers) — pure function; returns a Map from towerKey to
+ * an array of synergy partner descriptors for visual line rendering.
+ *
+ * Each entry: { partnerRow, partnerCol, effectType, description }
+ * effectType: 'fireRate' | 'freeze' | 'poison' | 'range'
+ *   'fireRate' — teal line  (fireRateMult > 1 or damageMult)
+ *   'freeze'   — red line   (freezeOnHit)
+ *   'poison'   — green line (poisonOnHit)
+ *   'range'    — blue line  (rangePlus > 0)
+ *
+ * @param {Array<{ row: number, col: number, type: string }>} towers
+ * @returns {Map<string, Array<{ partnerRow: number, partnerCol: number, effectType: string, description: string }>>}
+ */
+export function getSynergyPartners(towers) {
+  const result = new Map()
+  for (const tower of towers) {
+    result.set(towerKey(tower), [])
+  }
+
+  function effectType(effect) {
+    if (effect.freezeOnHit) return 'freeze'
+    if (effect.poisonOnHit) return 'poison'
+    if (effect.rangePlus && effect.rangePlus > 0) return 'range'
+    return 'fireRate'
+  }
+
+  for (let i = 0; i < towers.length; i++) {
+    for (let j = i + 1; j < towers.length; j++) {
+      const a = towers[i]
+      const b = towers[j]
+      if (!areAdjacent(a, b)) continue
+
+      for (const rule of SYNERGY_RULES) {
+        const matchAB = a.type === rule.typeA && b.type === rule.typeB
+        const matchBA = b.type === rule.typeA && a.type === rule.typeB
+        const isSameType = rule.typeA === rule.typeB
+
+        if (matchAB || matchBA) {
+          for (const effect of rule.effects) {
+            const etype = effectType(effect)
+            if (isSameType) {
+              result.get(towerKey(a)).push({ partnerRow: b.row, partnerCol: b.col, effectType: etype, description: effect.description })
+              result.get(towerKey(b)).push({ partnerRow: a.row, partnerCol: a.col, effectType: etype, description: effect.description })
+            } else if (matchAB) {
+              if (effect.targetType === rule.typeA) {
+                result.get(towerKey(a)).push({ partnerRow: b.row, partnerCol: b.col, effectType: etype, description: effect.description })
+              }
+              if (effect.targetType === rule.typeB) {
+                result.get(towerKey(b)).push({ partnerRow: a.row, partnerCol: a.col, effectType: etype, description: effect.description })
+              }
+            } else {
+              if (effect.targetType === rule.typeA) {
+                result.get(towerKey(b)).push({ partnerRow: a.row, partnerCol: a.col, effectType: etype, description: effect.description })
+              }
+              if (effect.targetType === rule.typeB) {
+                result.get(towerKey(a)).push({ partnerRow: b.row, partnerCol: b.col, effectType: etype, description: effect.description })
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return result
+}

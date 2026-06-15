@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { createTower, getAdjacentSynergies, towerKey, SYNERGY_RULES } from '../../src/game/tower.js'
+import { createTower, getAdjacentSynergies, getSynergyPartners, towerKey, SYNERGY_RULES } from '../../src/game/tower.js'
 import { processCombat } from '../../src/game/combat.js'
 
 // ---------------------------------------------------------------------------
@@ -224,5 +224,71 @@ describe('processCombat — synergy buff integration', () => {
     const result = processCombat([basic], [enemy], 1000, null, () => 1.0)
     const dmg = 1000 - (result.enemies[0]?.hp ?? 0)
     expect(dmg).toBe(25) // base damage
+  })
+})
+
+// ---------------------------------------------------------------------------
+// getSynergyPartners — visual line rendering data
+// ---------------------------------------------------------------------------
+
+describe('getSynergyPartners', () => {
+  it('returns an empty partners list for isolated towers', () => {
+    const towers = [makeTower('BasicTower', 0, 0), makeTower('SlowTower', 5, 5)]
+    const map = getSynergyPartners(towers)
+    expect(map.get(towerKey(towers[0]))).toHaveLength(0)
+    expect(map.get(towerKey(towers[1]))).toHaveLength(0)
+  })
+
+  it('BasicTower + SlowTower: BasicTower partner is the SlowTower position', () => {
+    const basic = makeTower('BasicTower', 3, 3)
+    const slow  = makeTower('SlowTower',  3, 4)
+    const map = getSynergyPartners([basic, slow])
+    const basicPartners = map.get(towerKey(basic))
+    expect(basicPartners).toHaveLength(1)
+    expect(basicPartners[0].partnerRow).toBe(3)
+    expect(basicPartners[0].partnerCol).toBe(4)
+  })
+
+  it('BasicTower + SlowTower: fireRate effectType is "fireRate" (teal)', () => {
+    const basic = makeTower('BasicTower', 3, 3)
+    const slow  = makeTower('SlowTower',  3, 4)
+    const map = getSynergyPartners([basic, slow])
+    expect(map.get(towerKey(basic))[0].effectType).toBe('fireRate')
+  })
+
+  it('SniperTower + SlowTower: freeze effectType is "freeze"', () => {
+    const sniper = makeTower('SniperTower', 1, 1)
+    const slow   = makeTower('SlowTower',   1, 2)
+    const map = getSynergyPartners([sniper, slow])
+    const sniperPartners = map.get(towerKey(sniper))
+    expect(sniperPartners.some(p => p.effectType === 'freeze')).toBe(true)
+  })
+
+  it('SniperTower + PoisonTower: poison effectType is "poison"', () => {
+    const sniper = makeTower('SniperTower', 2, 2)
+    const poison = makeTower('PoisonTower', 2, 3)
+    const map = getSynergyPartners([sniper, poison])
+    const sniperPartners = map.get(towerKey(sniper))
+    expect(sniperPartners.some(p => p.effectType === 'poison')).toBe(true)
+  })
+
+  it('SlowTower + BasicTower: SlowTower partner is "range" effectType', () => {
+    const basic = makeTower('BasicTower', 5, 5)
+    const slow  = makeTower('SlowTower',  5, 6)
+    const map = getSynergyPartners([basic, slow])
+    const slowPartners = map.get(towerKey(slow))
+    expect(slowPartners.some(p => p.effectType === 'range')).toBe(true)
+  })
+
+  it('all synergy partners include a description string', () => {
+    const basic = makeTower('BasicTower', 0, 0)
+    const slow  = makeTower('SlowTower',  0, 1)
+    const map = getSynergyPartners([basic, slow])
+    for (const [, partners] of map) {
+      for (const p of partners) {
+        expect(typeof p.description).toBe('string')
+        expect(p.description.length).toBeGreaterThan(0)
+      }
+    }
   })
 })

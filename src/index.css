@@ -75,6 +75,28 @@ body {
   cursor: not-allowed;
 }
 
+.hud-synergies-toggle {
+  background: #0f3460;
+  color: #eee;
+  border: 1px solid #00e5cc;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.hud-synergies-toggle:hover {
+  background: #00e5cc;
+  color: #16213e;
+}
+
+.hud-synergies-toggle--active {
+  background: #00e5cc;
+  color: #16213e;
+}
+
 .hud-restart {
   margin-left: auto;
   background: #3a0e1e;

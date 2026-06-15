@@ -9,7 +9,7 @@ import AchievementModal from './components/AchievementModal'
 import DifficultySelector from './components/DifficultySelector'
 import WavePreviewPanel from './components/WavePreviewPanel'
 import { createDefaultMap, getPathWaypoints } from './game/map'
-import { TOWER_TYPES, createTower, canAfford, canUpgrade, upgradeTower, getUpgradeCost, getNextUpgradeStats, sellTower, getAdjacentSynergies } from './game/tower'
+import { TOWER_TYPES, createTower, canAfford, canUpgrade, upgradeTower, getUpgradeCost, getNextUpgradeStats, sellTower, getAdjacentSynergies, getSynergyPartners } from './game/tower'
 import { createEnemy, moveEnemy, getEnemyHpForWave, tickHealerAbilities } from './game/enemy'
 import { processCombat, processEffectTick } from './game/combat'
 import { getWaveEnemyHp, getWaveEnemyCount, getWaveComposition, getEarlyWaveBonus, isBossWave, getWaveEventType, WAVE_EVENT_CONFIG, getWavePreview } from './game/wave'
@@ -145,6 +145,10 @@ function App() {
   // Adjacency synergies — recomputed whenever towers change
   const [adjacencySynergies, setAdjacencySynergies] = useState(() => new Map())
   const adjacencySynergiesRef = useRef(new Map())
+  // Synergy partner positions for visual line rendering — recomputed with towers
+  const [synergyPartners, setSynergyPartners] = useState(() => new Map())
+  // Global synergy overlay toggle (HUD "Show Synergies" button)
+  const [showSynergies, setShowSynergies] = useState(false)
 
   const nextEnemyIdRef = useRef(0)
   const spawnTimerRef = useRef(0)
@@ -245,12 +249,13 @@ function App() {
   }
 
   // Keep towersRef in sync with towers state so onTick always sees the latest tower list.
-  // Also recompute adjacency synergies whenever the tower list changes.
+  // Also recompute adjacency synergies and synergy partner map whenever the tower list changes.
   useEffect(() => {
     towersRef.current = towers
     const synergies = getAdjacentSynergies(towers)
     adjacencySynergiesRef.current = synergies
     setAdjacencySynergies(synergies)
+    setSynergyPartners(getSynergyPartners(towers))
   }, [towers])
 
   // Mirror gold state into goldRef so the interest real-time interval can read it without
@@ -874,6 +879,7 @@ function App() {
     setTowers(INITIAL_STATE.towers)
     adjacencySynergiesRef.current = new Map()
     setAdjacencySynergies(new Map())
+    setSynergyPartners(new Map())
     enemiesRef.current = INITIAL_STATE.enemies
     setEnemies(INITIAL_STATE.enemies)
     projectilesRef.current = []
@@ -1085,6 +1091,8 @@ function App() {
         interestCountdown={gamePhase === 'playing' ? interestCountdown : null}
         interestFlash={interestFlash}
         prestigeStars={prestigeStars}
+        showSynergies={showSynergies}
+        onShowSynergiesToggle={() => setShowSynergies(v => !v)}
       />
       <TowerPicker
         selectedType={selectedTowerType}
@@ -1117,6 +1125,8 @@ function App() {
         getNextUpgradeStats={getNextUpgradeStats}
         sellTower={sellTower}
         adjacencySynergies={adjacencySynergies}
+        synergyPartners={synergyPartners}
+        showSynergies={showSynergies}
         powerCrates={powerCrates}
         onCrateClick={handleCrateClick}
         overchargeActive={overchargeActive}

@@ -25,6 +25,8 @@ import { computeInterest } from '../game/score.js'
  *   interestCountdown    — seconds until next interest payout (number | null; null = not playing)
  *   interestFlash        — { amount, key } | null — triggers a brief "+Xg interest" flash
  *   prestigeStars        — current prestige star count (0–5)
+ *   showSynergies        — boolean: whether global synergy overlay is active
+ *   onShowSynergiesToggle — callback invoked when "Show Synergies" button is clicked
  */
 function HUD({
   lives,
@@ -48,6 +50,8 @@ function HUD({
   interestCountdown = null,
   interestFlash = null,
   prestigeStars = 0,
+  showSynergies = false,
+  onShowSynergiesToggle,
 }) {
   const isRampage = comboCount >= 5
 
@@ -106,6 +110,13 @@ function HUD({
         title="Achievements"
       >
         🏆 {unlockedAchievements.length}/{totalAchievements}
+      </button>
+      <button
+        className={`hud-synergies-toggle${showSynergies ? ' hud-synergies-toggle--active' : ''}`}
+        onClick={onShowSynergiesToggle}
+        title="Show/hide all active synergy connections"
+      >
+        Show Synergies
       </button>
       <button className="hud-restart" onClick={onRestart}>
         Restart
