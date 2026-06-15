@@ -7,11 +7,12 @@ import TowerPicker from './components/TowerPicker'
 import AchievementToast from './components/AchievementToast'
 import AchievementModal from './components/AchievementModal'
 import DifficultySelector from './components/DifficultySelector'
+import WavePreviewPanel from './components/WavePreviewPanel'
 import { createDefaultMap, getPathWaypoints } from './game/map'
 import { TOWER_TYPES, createTower, canAfford, canUpgrade, upgradeTower, getUpgradeCost, getNextUpgradeStats, sellTower, getAdjacentSynergies } from './game/tower'
 import { createEnemy, moveEnemy, getEnemyHpForWave, tickHealerAbilities } from './game/enemy'
 import { processCombat, processEffectTick } from './game/combat'
-import { getWaveEnemyHp, getWaveEnemyCount, getWaveComposition, getEarlyWaveBonus, getEndlessWaveEnemyHp, getEndlessWaveEnemyCount, getEndlessWaveComposition, isBossWave, getWaveEventType, WAVE_EVENT_CONFIG } from './game/wave'
+import { getWaveEnemyHp, getWaveEnemyCount, getWaveComposition, getEarlyWaveBonus, getEndlessWaveEnemyHp, getEndlessWaveEnemyCount, getEndlessWaveComposition, isBossWave, getWaveEventType, WAVE_EVENT_CONFIG, getWavePreview } from './game/wave'
 import { createPowerCrate, selectCrateReward } from './game/powerCrate'
 import { useGameLoop } from './hooks/useGameLoop'
 import { computeScore, computeComboBonus, getComboLabel, computeInterest } from './game/score'
@@ -1119,6 +1120,12 @@ function App() {
           onStart={handleNextWaveStart}
           endlessMode={endlessMode}
           onToggleEndless={handleToggleEndless}
+        />
+      )}
+      {gamePhase === 'between-waves' && wave > 1 && difficultyMode !== null && (
+        <WavePreviewPanel
+          waveNumber={wave + 1 + pendingWaveAdvance}
+          preview={getWavePreview(wave + 1 + pendingWaveAdvance, endlessMode)}
         />
       )}
       <AchievementToast toasts={achievementToasts} />

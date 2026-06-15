@@ -269,6 +269,82 @@ export const WAVE_EVENT_CONFIG = {
 }
 
 /**
+ * ENEMY_DISPLAY_INFO maps each enemy type to a human-readable label and emoji
+ * used by WavePreviewPanel.  Kept here (not in a React component) so it stays
+ * in the pure-game layer alongside the composition functions.
+ */
+export const ENEMY_DISPLAY_INFO = {
+  grunt:    { label: 'Grunts',    icon: '👾' },
+  speeder:  { label: 'Speeders',  icon: '💨' },
+  tank:     { label: 'Tanks',     icon: '🛡' },
+  armored:  { label: 'Armored',   icon: '🔩' },
+  splitter: { label: 'Splitters', icon: '🔀' },
+  healer:   { label: 'Healers',   icon: '💚' },
+  phantom:  { label: 'Phantoms',  icon: '👻' },
+  shielded: { label: 'Shielded',  icon: '🛡️' },
+  colossus: { label: 'BOSS',      icon: '💀' },
+}
+
+/**
+ * WAVE_TIPS is a static lookup table indexed by composition flags.
+ * Keys are checked in order; first match wins.
+ *
+ * Flags:
+ *   hasColossus  — wave has a boss enemy
+ *   hasHealer    — wave has healers
+ *   hasTank      — wave has tanks or armored enemies
+ *   isGruntHeavy — >50% of non-boss enemies are grunts or speeders
+ */
+export const WAVE_TIPS = [
+  { flag: 'hasColossus',  message: 'Boss drops a power crate — keep lives spare.' },
+  { flag: 'hasHealer',    message: 'Kill the healer first!' },
+  { flag: 'hasTank',      message: 'Tanks absorb heavy damage — use Snipers.' },
+  { flag: 'isGruntHeavy', message: 'Fast enemies! Prioritize fire rate.' },
+  { flag: 'default',      message: 'Spread towers across the path.' },
+]
+
+/**
+ * getWavePreview returns a preview descriptor for the upcoming wave.
+ *
+ * @param {number} waveNumber - 1-based upcoming wave number
+ * @param {boolean} [endlessMode=false] - whether endless mode is active
+ * @returns {{ enemies: Array<{ type: string, count: number, hp: number }>, isBoss: boolean, tip: string }}
+ */
+export function getWavePreview(waveNumber, endlessMode = false) {
+  const composition = endlessMode
+    ? getEndlessWaveComposition(waveNumber)
+    : getWaveComposition(waveNumber)
+
+  const hp = endlessMode
+    ? getEndlessWaveEnemyHp(waveNumber)
+    : getWaveEnemyHp(waveNumber)
+
+  const boss = isBossWave(waveNumber)
+
+  const enemies = composition.map(({ type, count }) => ({
+    type,
+    count,
+    hp: type === 'colossus' ? Math.round(hp * 3) : hp,
+  }))
+
+  // Determine tip based on composition flags (first match wins)
+  const hasColossus  = composition.some(e => e.type === 'colossus')
+  const hasHealer    = composition.some(e => e.type === 'healer')
+  const hasTank      = composition.some(e => e.type === 'tank' || e.type === 'armored')
+  const totalNonBoss = composition.filter(e => e.type !== 'colossus').reduce((s, e) => s + e.count, 0)
+  const gruntCount   = composition
+    .filter(e => e.type === 'grunt' || e.type === 'speeder')
+    .reduce((s, e) => s + e.count, 0)
+  const isGruntHeavy = totalNonBoss > 0 && gruntCount / totalNonBoss > 0.5
+
+  const flags = { hasColossus, hasHealer, hasTank, isGruntHeavy }
+  const tipEntry = WAVE_TIPS.find(t => t.flag === 'default' || flags[t.flag])
+  const tip = tipEntry ? tipEntry.message : ''
+
+  return { enemies, isBoss: boss, tip }
+}
+
+/**
  * getEarlyWaveBonus returns the gold-per-kill multiplier granted when the player
  * calls the next wave early.
  *

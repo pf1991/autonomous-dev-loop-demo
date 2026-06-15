@@ -3210,6 +3210,107 @@ test.describe('Tower Defense - smoke tests', () => {
     await expect(bar).toHaveCSS('width', /[1-9]/);
   });
 
+  // --- WavePreviewPanel component (issue #80 / PR #105) ---
+  // WavePreviewPanel renders when: gamePhase === 'between-waves' && wave > 1 && difficultyMode !== null
+  // difficultyMode is already set by beforeEach (clicks Normal).
+  // Inject wave=2 (stateHooks[3]) and gamePhase='between-waves' (stateHooks[12]) via React fiber.
+  //
+  // stateHooks dispatch indices (after PR #103 prestigeStars+wavesReached inserted):
+  //   stateHooks[3]  = wave
+  //   stateHooks[12] = gamePhase
+
+  test('.wave-preview-panel is visible between waves (wave > 1) and shows enemy info and tip', async ({ page }) => {
+    // Inject wave=2 and gamePhase='between-waves' so WavePreviewPanel renders.
+    // difficultyMode is already non-null (Normal selected in beforeEach).
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          const stateHooks = [];
+          let hookNode = fiber.memoizedState;
+          while (hookNode) {
+            if (hookNode.queue && typeof hookNode.queue.dispatch === 'function') {
+              stateHooks.push(hookNode);
+            }
+            hookNode = hookNode.next;
+          }
+          // wave=stateHooks[3], gamePhase=stateHooks[12]
+          if (stateHooks[3]) stateHooks[3].queue.dispatch(2);              // wave → 2 (>1 triggers panel)
+          if (stateHooks[12]) stateHooks[12].queue.dispatch('between-waves');
+          return;
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find App fiber hooks');
+    });
+
+    // The wave preview panel must be visible (wave=2, between-waves, difficultyMode set)
+    await expect(page.locator('.wave-preview-panel')).toBeVisible({ timeout: 2000 });
+
+    // Panel header must mention the upcoming wave number (wave+1=3)
+    const header = page.locator('.wave-preview-header');
+    await expect(header).toBeVisible();
+    await expect(header).toContainText('WAVE');
+
+    // Enemy list must have at least one entry (wave 3 has grunts)
+    const enemyRows = page.locator('.wave-preview-enemy-row');
+    await expect(enemyRows.first()).toBeAttached({ timeout: 2000 });
+    const rowCount = await enemyRows.count();
+    expect(rowCount).toBeGreaterThanOrEqual(1);
+
+    // Tip text must be present (getWavePreview always returns a tip for grunt-heavy waves)
+    await expect(page.locator('.wave-preview-tip')).toBeVisible({ timeout: 2000 });
+  });
+
+  test('.wave-preview-panel is NOT visible when wave === 1 (between-waves before first wave)', async ({ page }) => {
+    // On initial load after beforeEach, wave=1 and gamePhase='between-waves',
+    // so WavePreviewPanel must NOT render (wave > 1 condition is false).
+    // The NextWave overlay is visible instead.
+    await expect(page.locator('.next-wave-overlay')).toBeVisible();
+    await expect(page.locator('.wave-preview-panel')).not.toBeAttached();
+  });
+
+  test('.wave-preview-panel shows grunt count entry for wave 3 (between waves 2 and 3)', async ({ page }) => {
+    // Wave 3: getWaveComposition(3) returns grunts (and possibly tanks).
+    // Inject wave=2 (panel shows preview for wave+1=3) and gamePhase='between-waves'.
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          const stateHooks = [];
+          let hookNode = fiber.memoizedState;
+          while (hookNode) {
+            if (hookNode.queue && typeof hookNode.queue.dispatch === 'function') {
+              stateHooks.push(hookNode);
+            }
+            hookNode = hookNode.next;
+          }
+          if (stateHooks[3]) stateHooks[3].queue.dispatch(2);
+          if (stateHooks[12]) stateHooks[12].queue.dispatch('between-waves');
+          return;
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find App fiber hooks');
+    });
+
+    await expect(page.locator('.wave-preview-panel')).toBeVisible({ timeout: 2000 });
+    // At least one enemy row must show a count (×N) and HP label
+    const enemyRows = page.locator('.wave-preview-enemy-row');
+    await expect(enemyRows.first()).toBeAttached({ timeout: 2000 });
+    // The first row must contain a count indicator (×N format)
+    const rowText = await enemyRows.first().textContent();
+    expect(rowText).toMatch(/×\d+/);
+    // The first row must also contain HP info
+    expect(rowText).toContain('HP:');
+  });
+
 });
 
 // --- DifficultySelector component (issue #73) ---
