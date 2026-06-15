@@ -2012,3 +2012,74 @@ body {
 .wave-preview-start-btn:active {
   transform: translateY(0);
 }
+
+/* ===== Boss death screen shake ===== */
+@keyframes screen-shake {
+  0%   { transform: translate(0, 0); }
+  15%  { transform: translate(-4px, 2px); }
+  30%  { transform: translate(4px, -2px); }
+  45%  { transform: translate(-3px, 3px); }
+  60%  { transform: translate(3px, -1px); }
+  75%  { transform: translate(-2px, 2px); }
+  100% { transform: translate(0, 0); }
+}
+
+.screen-shake {
+  animation: screen-shake 0.4s ease-out;
+}
+
+/* ===== Tower placement pulse ripple ring ===== */
+@keyframes placement-pulse {
+  0%   { r: 10; stroke-opacity: 0.9; stroke-width: 3; }
+  100% { r: 60; stroke-opacity: 0; stroke-width: 1; }
+}
+
+.placement-pulse-ring {
+  fill: none;
+  stroke: #4ecca3;
+  stroke-width: 3;
+  pointer-events: none;
+  animation: placement-pulse 0.4s ease-out forwards;
+}
+
+/* ===== Death particle SVG layer ===== */
+.death-particle-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 26;
+}
+
+/* Each burst dot — expands outward and fades */
+@keyframes death-burst {
+  0%   { r: 3; opacity: 0.9; }
+  60%  { opacity: 0.7; }
+  100% { r: 7; opacity: 0; }
+}
+
+.death-burst-dot {
+  fill: #f5a623;
+  animation: death-burst 0.3s ease-out forwards;
+}
+
+/* ===== Poison puff SVG layer ===== */
+.poison-puff-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 27;
+}
+
+/* Green puff on each poison tick */
+@keyframes poison-puff {
+  0%   { r: 3; opacity: 0.85; }
+  50%  { r: 8; opacity: 0.6; }
+  100% { r: 12; opacity: 0; }
+}
+
+.poison-puff-dot {
+  fill: #4caf50;
+  animation: poison-puff 0.4s ease-out forwards;
+}

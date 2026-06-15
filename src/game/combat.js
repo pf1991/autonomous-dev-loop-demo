@@ -419,12 +419,14 @@ export function processCombat(towers, enemies, nowMs, adjacencySynergies, rng = 
  *
  * @param {Array<{ id: string|number, hp: number, maxHp: number, goldReward: number, effects?: Array }>} enemies
  * @param {number} nowMs - current game clock in milliseconds
- * @returns {{ enemies: Array, goldEarned: number, killedEnemies: Array }}
+ * @returns {{ enemies: Array, goldEarned: number, killedEnemies: Array, poisonPuffs: Array }}
  */
 export function processEffectTick(enemies, nowMs) {
   let goldEarned = 0
   const killedEnemies = []
   const updatedEnemies = []
+  /** @type {Array<{ id: string, row: number, col: number, createdAt: number }>} */
+  const poisonPuffs = []
 
   for (const enemy of enemies) {
     const effects = enemy.effects ?? []
@@ -443,6 +445,13 @@ export function processEffectTick(enemies, nowMs) {
         if (nowMs >= effect.nextTickAt) {
           // Apply this tick's damage
           currentHp -= effect.tickDamage
+          // Emit a green puff visual at the enemy's position
+          poisonPuffs.push({
+            id: `pp-${enemy.id}-${nowMs}`,
+            row: enemy.pos.row,
+            col: enemy.pos.col,
+            createdAt: nowMs,
+          })
           const newRemaining = effect.ticksRemaining - 1
           if (newRemaining > 0) {
             survivingEffects.push({
@@ -473,5 +482,5 @@ export function processEffectTick(enemies, nowMs) {
     }
   }
 
-  return { enemies: updatedEnemies, goldEarned, killedEnemies }
+  return { enemies: updatedEnemies, goldEarned, killedEnemies, poisonPuffs }
 }
