@@ -13,7 +13,6 @@ import { computeInterest } from '../game/score.js'
  *   showNextWave         — whether to show the "Next Wave" early-call button (bool)
  *   earlyWaveDisabled    — whether the early-call button is already used this wave (bool)
  *   onNextWaveEarly      — callback invoked when the player calls next wave early
- *   endlessMode          — whether endless mode is active (bool)
  *   comboCount           — current combo kill count (number, ≥ 0; 0 = no active combo)
  *   comboLabel           — label text for current combo tier (string)
  *   comboBonus           — bonus gold per kill for current combo (number)
@@ -37,7 +36,6 @@ function HUD({
   showNextWave,
   earlyWaveDisabled,
   onNextWaveEarly,
-  endlessMode = false,
   comboCount = 0,
   comboLabel = '',
   comboBonus = 0,
@@ -81,7 +79,6 @@ function HUD({
           {difficultyLabel}
         </span>
       )}
-      {endlessMode && <span className="hud-endless-badge">ENDLESS</span>}
       <span className="hud-prestige-stars" aria-label={`Prestige stars: ${prestigeStars} of 5`}>
         {Array.from({ length: 5 }, (_, i) => (
           <span key={i} className={i < prestigeStars ? 'prestige-star prestige-star--filled' : 'prestige-star prestige-star--hollow'}>
