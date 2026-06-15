@@ -3311,6 +3311,132 @@ test.describe('Tower Defense - smoke tests', () => {
     expect(rowText).toContain('HP:');
   });
 
+  // --- WavePreviewPanel overlay backdrop and Start Wave button (PR #120) ---
+
+  test('.wave-preview-overlay is present with a semi-transparent backdrop (AC #3)', async ({ page }) => {
+    // Inject wave=2 and gamePhase='between-waves' so WavePreviewPanel renders.
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          const stateHooks = [];
+          let hookNode = fiber.memoizedState;
+          while (hookNode) {
+            if (hookNode.queue && typeof hookNode.queue.dispatch === 'function') {
+              stateHooks.push(hookNode);
+            }
+            hookNode = hookNode.next;
+          }
+          if (stateHooks[3]) stateHooks[3].queue.dispatch(2);
+          if (stateHooks[12]) stateHooks[12].queue.dispatch('between-waves');
+          return;
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find App fiber hooks');
+    });
+
+    // The overlay wrapper must be present in the DOM
+    await expect(page.locator('.wave-preview-overlay')).toBeAttached({ timeout: 2000 });
+
+    // Verify the overlay has a semi-transparent backdrop via computed background-color
+    // CSS sets: background: rgba(0, 0, 0, 0.6) — alpha must be non-zero
+    const bg = await page.locator('.wave-preview-overlay').evaluate(el =>
+      getComputedStyle(el).backgroundColor
+    );
+    // Must be rgba(...) with a non-zero alpha — not fully transparent, not fully opaque
+    expect(bg).toMatch(/rgba?\(/);
+    expect(bg).not.toBe('rgba(0, 0, 0, 0)');
+    expect(bg).not.toBe('transparent');
+    // position:fixed puts the overlay above the game board (z-index is set in CSS)
+    const position = await page.locator('.wave-preview-overlay').evaluate(el =>
+      getComputedStyle(el).position
+    );
+    expect(position).toBe('fixed');
+  });
+
+  test('.wave-preview-start-btn is visible inside the panel (AC #4)', async ({ page }) => {
+    // Inject wave=2 and gamePhase='between-waves' so WavePreviewPanel renders.
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          const stateHooks = [];
+          let hookNode = fiber.memoizedState;
+          while (hookNode) {
+            if (hookNode.queue && typeof hookNode.queue.dispatch === 'function') {
+              stateHooks.push(hookNode);
+            }
+            hookNode = hookNode.next;
+          }
+          if (stateHooks[3]) stateHooks[3].queue.dispatch(2);
+          if (stateHooks[12]) stateHooks[12].queue.dispatch('between-waves');
+          return;
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find App fiber hooks');
+    });
+
+    // The panel must be visible
+    await expect(page.locator('.wave-preview-panel')).toBeVisible({ timeout: 2000 });
+
+    // The "Start Wave" button must be present and visible inside the panel
+    const startBtn = page.locator('.wave-preview-panel .wave-preview-start-btn');
+    await expect(startBtn).toBeVisible({ timeout: 2000 });
+    await expect(startBtn).toContainText('Start Wave');
+  });
+
+  test('clicking .wave-preview-start-btn dismisses the overlay and begins the wave (AC #4)', async ({ page }) => {
+    // Inject wave=2 and gamePhase='between-waves' so WavePreviewPanel renders.
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          const stateHooks = [];
+          let hookNode = fiber.memoizedState;
+          while (hookNode) {
+            if (hookNode.queue && typeof hookNode.queue.dispatch === 'function') {
+              stateHooks.push(hookNode);
+            }
+            hookNode = hookNode.next;
+          }
+          if (stateHooks[3]) stateHooks[3].queue.dispatch(2);
+          if (stateHooks[12]) stateHooks[12].queue.dispatch('between-waves');
+          return;
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find App fiber hooks');
+    });
+
+    // Wait for the panel and Start Wave button to appear
+    await expect(page.locator('.wave-preview-panel')).toBeVisible({ timeout: 2000 });
+    const startBtn = page.locator('.wave-preview-start-btn');
+    await expect(startBtn).toBeVisible({ timeout: 2000 });
+
+    // Click "Start Wave"
+    await startBtn.click();
+
+    // After clicking, the overlay must be dismissed — wait for the exit animation (0.22s)
+    // and then the component unmounts. Allow up to 1 s for the full transition.
+    await expect(page.locator('.wave-preview-overlay')).not.toBeAttached({ timeout: 1000 });
+
+    // Game phase must now be 'playing' — enemies spawn and the HUD wave counter is visible
+    await expect(page.locator('.hud-wave')).toBeVisible();
+    // The HUD must no longer show 'between-waves' UI (the overlay is gone)
+    await expect(page.locator('.wave-preview-panel')).not.toBeAttached({ timeout: 1000 });
+  });
+
 });
 
 // --- DifficultySelector component (issue #73) ---
