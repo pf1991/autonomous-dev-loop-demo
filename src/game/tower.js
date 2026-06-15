@@ -26,7 +26,7 @@ export const TOWER_TYPES = {
     fireRate: 0.5,
     upgrades: [
       { cost: 75, range: 8, damage: 110, fireRate: 0.7 },
-      { cost: 100, range: 10, damage: 160, fireRate: 1.0 },
+      { cost: 100, range: 10, damage: 160, fireRate: 1.0, critChance: 0.20 },
     ],
   },
   /**
@@ -126,7 +126,8 @@ export const TOWER_TYPES = {
 export function createTower(type, row, col) {
   const typeDef = TOWER_TYPES[type]
   const { range, damage, fireRate } = typeDef
-  const tower = { type, row, col, range, damage, fireRate, lastFiredAt: 0, upgradeLevel: 0, kills: 0 }
+  // All towers have a base 10% critical hit chance; SniperTower L2 upgrades this to 20%
+  const tower = { type, row, col, range, damage, fireRate, lastFiredAt: 0, upgradeLevel: 0, kills: 0, critChance: 0.10 }
   // Include special properties for towers that have unique mechanics
   if (typeDef.splashRadius      != null) tower.splashRadius      = typeDef.splashRadius
   if (typeDef.splashDamage      != null) tower.splashDamage      = typeDef.splashDamage
@@ -182,6 +183,7 @@ export function upgradeTower(tower) {
   if (upgrade.poisonTickDamage  != null) updated.poisonTickDamage  = upgrade.poisonTickDamage
   if (upgrade.poisonTicks       != null) updated.poisonTicks       = upgrade.poisonTicks
   if (upgrade.poisonTickInterval!= null) updated.poisonTickInterval= upgrade.poisonTickInterval
+  if (upgrade.critChance        != null) updated.critChance        = upgrade.critChance
   return updated
 }
 

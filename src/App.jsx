@@ -15,7 +15,7 @@ import { getWaveEnemyHp, getWaveEnemyCount, getWaveComposition, getEarlyWaveBonu
 import { createPowerCrate, selectCrateReward } from './game/powerCrate'
 import { useGameLoop } from './hooks/useGameLoop'
 import { computeScore, computeComboBonus, getComboLabel, computeInterest } from './game/score'
-import { getDifficultyConfig, applyDifficultyToScore } from './game/difficulty'
+import { getDifficultyConfig, applyDifficultyToScore, DIFFICULTY_MODES } from './game/difficulty'
 import { saveLeaderboardEntry } from './utils/leaderboard'
 import { checkAchievements, ACHIEVEMENTS } from './game/achievements'
 import { loadUnlockedAchievements, persistNewAchievements } from './utils/achievements'
@@ -56,6 +56,9 @@ function App() {
   // Death animations: list of { id, row, col, gold, createdAt } for floating "+N gold" labels
   const [deathAnimations, setDeathAnimations] = useState([])
   const deathAnimationsRef = useRef([])
+  // Floating damage numbers: list of { id, value, row, col, expiresAt } for crit hit labels
+  const [damageNumbers, setDamageNumbers] = useState([])
+  const damageNumbersRef = useRef([])
   const [selectedTowerType, setSelectedTowerType] = useState('BasicTower')
   // { row, col } | null — the tower tile currently selected for upgrade
   const [selectedTower, setSelectedTower] = useState(null)
@@ -566,6 +569,15 @@ function App() {
     projectilesRef.current = nextProjectiles
     setProjectiles(nextProjectiles)
 
+    // Floating crit damage numbers — expire when expiresAt passes (700 ms lifetime)
+    const aliveDamageNumbers = damageNumbersRef.current.filter(dn => nowMs < dn.expiresAt)
+    const newDamageNumbers = combatResult.damageNumbers ?? []
+    if (aliveDamageNumbers.length !== damageNumbersRef.current.length || newDamageNumbers.length > 0) {
+      const nextDamageNumbers = [...aliveDamageNumbers, ...newDamageNumbers]
+      damageNumbersRef.current = nextDamageNumbers
+      setDamageNumbers(nextDamageNumbers)
+    }
+
     // Update towers with new lastFiredAt values when any tower fired.
     // Only call setTowers when a tower actually fired to avoid a re-render every tick.
     const anyFired = combatResult.towers.some(
@@ -821,6 +833,8 @@ function App() {
     setProjectiles([])
     deathAnimationsRef.current = []
     setDeathAnimations([])
+    damageNumbersRef.current = []
+    setDamageNumbers([])
     setSelectedTower(null)
     nextEnemyIdRef.current = 0
     spawnTimerRef.current = 0
@@ -1036,6 +1050,7 @@ function App() {
         enemies={enemies}
         projectiles={projectiles}
         deathAnimations={deathAnimations}
+        damageNumbers={damageNumbers}
         selectedTower={selectedTower}
         hoveredSlot={hoveredSlot}
         onHoverSlot={setHoveredSlot}

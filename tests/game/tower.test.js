@@ -52,6 +52,7 @@ describe('createTower', () => {
       lastFiredAt: 0,
       upgradeLevel: 0,
       kills: 0,
+      critChance: 0.10,
     })
   })
 

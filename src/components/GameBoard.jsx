@@ -201,6 +201,7 @@ function cooldownBarClass(type) {
  *   powerCrates    — array of { id, row, col } crate objects dropped by boss enemies
  *   onCrateClick   — callback(crateId) invoked when a power crate is clicked
  *   countdownIsBossWave — boolean: true when the upcoming wave is a boss wave
+ *   damageNumbers  — array of { id, value, row, col, expiresAt } for floating crit damage labels
  */
 function GameBoard({
   tiles,
@@ -211,6 +212,7 @@ function GameBoard({
   enemies = [],
   projectiles = [],
   deathAnimations = [],
+  damageNumbers = [],
   selectedTower = null,
   hoveredSlot = null,
   onHoverSlot,
@@ -415,6 +417,20 @@ function GameBoard({
                 )
               }
 
+              // Crit projectile: bright yellow, 2× stroke width
+              if (p.isCrit) {
+                return (
+                  <line
+                    key={p.id}
+                    className="projectile-crit"
+                    x1={(p.fromCol + 0.5) * TILE_PX}
+                    y1={(p.fromRow + 0.5) * TILE_PX}
+                    x2={(p.toCol + 0.5) * TILE_PX}
+                    y2={(p.toRow + 0.5) * TILE_PX}
+                  />
+                )
+              }
+
               const className = `projectile projectile-${typeSlug}${levelSuffix}`
               return (
                 <line
@@ -488,7 +504,8 @@ function GameBoard({
             const isSlowed = enemy.slowUntil != null
             const isPoisoned = isEnemyPoisoned(enemy)
             const stealthClass = enemy.stealth ? ' enemy-stealth' : ' enemy-visible'
-            const statusClass = (isSlowed ? ' enemy-slowed' : isPoisoned ? ' enemy-poisoned' : '') + stealthClass
+            const critFlashClass = enemy._critFlashAt != null ? ' enemy-crit-flash' : ''
+            const statusClass = (isSlowed ? ' enemy-slowed' : isPoisoned ? ' enemy-poisoned' : '') + stealthClass + critFlashClass
             return (
               <div
                 key={enemy.id}
@@ -531,6 +548,22 @@ function GameBoard({
               }}
             >
               +{anim.gold}
+            </div>
+          ))}
+        </div>
+      )}
+      {damageNumbers.length > 0 && (
+        <div className="damage-number-layer" aria-hidden="true">
+          {damageNumbers.map(dn => (
+            <div
+              key={dn.id}
+              className="damage-number-crit"
+              style={{
+                left: (dn.col + 0.5) * TILE_PX,
+                top: (dn.row + 0.5) * TILE_PX,
+              }}
+            >
+              {dn.value}!
             </div>
           ))}
         </div>
