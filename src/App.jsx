@@ -1136,6 +1136,7 @@ function App() {
         <WavePreviewPanel
           waveNumber={wave + 1 + pendingWaveAdvance}
           preview={getWavePreview(wave + 1 + pendingWaveAdvance, endlessMode)}
+          onStart={handleNextWaveStart}
         />
       )}
       <AchievementToast toasts={achievementToasts} />
