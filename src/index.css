@@ -909,15 +909,14 @@ body {
 /* ===== Tower Picker — 2-column icon grid ===== */
 .tower-picker {
   display: grid;
-  /* 7 towers → 4 columns on top row, 3 on bottom; auto-fill keeps it tidy */
-  grid-template-columns: repeat(7, 1fr);
+  /* 2 columns: icons stack vertically in pairs, fits screens ≥ 768px without scrolling */
+  grid-template-columns: repeat(2, 1fr);
   gap: 6px;
   background: #16213e;
   border: 2px solid #0f3460;
   border-radius: 8px;
   padding: 8px 12px;
-  width: 800px;
-  /* Stays within one row on screens ≥ 768px — no vertical scrolling */
+  width: 160px;
   align-items: stretch;
 }
 
