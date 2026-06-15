@@ -57,9 +57,20 @@ function App() {
   // Death animations: list of { id, row, col, gold, createdAt } for floating "+N gold" labels
   const [deathAnimations, setDeathAnimations] = useState([])
   const deathAnimationsRef = useRef([])
+  // Death burst particles: list of { id, row, col, createdAt } — 4-6 dots expanding radially on enemy death
+  const [deathParticles, setDeathParticles] = useState([])
+  const deathParticlesRef = useRef([])
   // Floating damage numbers: list of { id, value, row, col, expiresAt } for crit hit labels
   const [damageNumbers, setDamageNumbers] = useState([])
   const damageNumbersRef = useRef([])
+  // Poison puff particles: list of { id, row, col, createdAt } — green puff on each poison tick
+  const [poisonPuffs, setPoisonPuffs] = useState([])
+  const poisonPuffsRef = useRef([])
+  // Placement pulses: list of { id, row, col, createdAt } — ripple ring when a tower is placed
+  const [placementPulses, setPlacementPulses] = useState([])
+  const placementPulsesRef = useRef([])
+  // Screen shake: true for 400ms when a Colossus (boss) is killed
+  const [screenShakeActive, setScreenShakeActive] = useState(false)
   const [selectedTowerType, setSelectedTowerType] = useState('BasicTower')
   // { row, col } | null — the tower tile currently selected for upgrade
   const [selectedTower, setSelectedTower] = useState(null)
@@ -474,6 +485,69 @@ function App() {
       const nextCrates = [...powerCratesRef.current, ...newCrates]
       powerCratesRef.current = nextCrates
       setPowerCrates(nextCrates)
+      // Boss death screen shake — apply for 400ms
+      setScreenShakeActive(true)
+      setTimeout(() => setScreenShakeActive(false), 400)
+    }
+
+    // Death burst particles — emit 5 dots per killed enemy, expire after 300ms
+    const DEATH_PARTICLE_LIFETIME_MS = 300
+    if (allKilledEnemies.length > 0) {
+      const newParticles = allKilledEnemies.flatMap((k, ki) =>
+        Array.from({ length: 5 }, (_, pi) => ({
+          id: `dp-${k.id}-${ki}-${pi}-${nowMs}`,
+          row: k.row,
+          col: k.col,
+          angle: (pi / 5) * Math.PI * 2,
+          createdAt: nowMs,
+        }))
+      )
+      const aliveParticles = deathParticlesRef.current.filter(
+        p => nowMs - p.createdAt < DEATH_PARTICLE_LIFETIME_MS
+      )
+      const nextParticles = [...aliveParticles, ...newParticles]
+      deathParticlesRef.current = nextParticles
+      setDeathParticles(nextParticles)
+    } else if (deathParticlesRef.current.length > 0) {
+      const aliveParticles = deathParticlesRef.current.filter(
+        p => nowMs - p.createdAt < DEATH_PARTICLE_LIFETIME_MS
+      )
+      if (aliveParticles.length !== deathParticlesRef.current.length) {
+        deathParticlesRef.current = aliveParticles
+        setDeathParticles(aliveParticles)
+      }
+    }
+
+    // Poison puff particles — derived from poisonTickHits returned by processEffectTick.
+    // Visual particle objects (id, createdAt) are created here in the React layer,
+    // keeping animation concerns out of src/game/. Particles expire after 400ms.
+    const POISON_PUFF_LIFETIME_MS = 400
+    const newPoisonPuffs = (effectResult.poisonTickHits ?? []).map(hit => ({
+      id: `pp-${hit.enemyId}-${nowMs}`,
+      row: hit.row,
+      col: hit.col,
+      createdAt: nowMs,
+    }))
+    if (newPoisonPuffs.length > 0 || poisonPuffsRef.current.length > 0) {
+      const alivePuffs = poisonPuffsRef.current.filter(
+        p => nowMs - p.createdAt < POISON_PUFF_LIFETIME_MS
+      )
+      const nextPuffs = [...alivePuffs, ...newPoisonPuffs]
+      poisonPuffsRef.current = nextPuffs
+      setPoisonPuffs(nextPuffs)
+    }
+
+    // Placement pulses — expire after 400ms
+    const PULSE_LIFETIME_MS = 400
+    if (placementPulsesRef.current.length > 0) {
+      const now = Date.now()
+      const alivePulses = placementPulsesRef.current.filter(
+        p => now - p.createdAt < PULSE_LIFETIME_MS
+      )
+      if (alivePulses.length !== placementPulsesRef.current.length) {
+        placementPulsesRef.current = alivePulses
+        setPlacementPulses(alivePulses)
+      }
     }
 
     // Expire overcharge when timer is up
@@ -738,6 +812,11 @@ function App() {
     const cost = TOWER_TYPES[type].cost
     setGold(g => g - cost)
     setTowers(ts => [...ts, createTower(type, row, col)])
+    // Emit a placement pulse ripple at the tower tile
+    const pulse = { id: `pulse-${row}-${col}-${Date.now()}`, row, col, createdAt: Date.now() }
+    const nextPulses = [...placementPulsesRef.current, pulse]
+    placementPulsesRef.current = nextPulses
+    setPlacementPulses(nextPulses)
     // Auto-select the newly placed tower so its fire radius ring is visible immediately
     setSelectedTower({ row, col })
     // Achievement: tower_builder — track cumulative placements in this run
@@ -844,8 +923,15 @@ function App() {
     setProjectiles([])
     deathAnimationsRef.current = []
     setDeathAnimations([])
+    deathParticlesRef.current = []
+    setDeathParticles([])
     damageNumbersRef.current = []
     setDamageNumbers([])
+    poisonPuffsRef.current = []
+    setPoisonPuffs([])
+    placementPulsesRef.current = []
+    setPlacementPulses([])
+    setScreenShakeActive(false)
     setSelectedTower(null)
     nextEnemyIdRef.current = 0
     spawnTimerRef.current = 0
@@ -1061,7 +1147,11 @@ function App() {
         enemies={enemies}
         projectiles={projectiles}
         deathAnimations={deathAnimations}
+        deathParticles={deathParticles}
         damageNumbers={damageNumbers}
+        poisonPuffs={poisonPuffs}
+        placementPulses={placementPulses}
+        screenShakeActive={screenShakeActive}
         selectedTower={selectedTower}
         hoveredSlot={hoveredSlot}
         onHoverSlot={setHoveredSlot}

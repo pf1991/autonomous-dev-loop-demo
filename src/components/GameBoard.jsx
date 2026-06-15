@@ -295,7 +295,11 @@ function GameBoard({
   enemies = [],
   projectiles = [],
   deathAnimations = [],
+  deathParticles = [],
   damageNumbers = [],
+  poisonPuffs = [],
+  placementPulses = [],
+  screenShakeActive = false,
   selectedTower = null,
   hoveredSlot = null,
   onHoverSlot,
@@ -333,7 +337,7 @@ function GameBoard({
   const ROWS = tiles.length
 
   return (
-    <div className="game-board-wrapper">
+    <div className={`game-board-wrapper${screenShakeActive ? ' screen-shake' : ''}`}>
       <div className="game-board">
         {tiles.map((row, rowIndex) =>
           row.map((tileType, colIndex) => {
@@ -451,7 +455,7 @@ function GameBoard({
           }
         }
 
-        const showSvg = projectiles.length > 0 || hoverR !== null || fireR !== null
+        const showSvg = projectiles.length > 0 || hoverR !== null || fireR !== null || placementPulses.length > 0
         if (!showSvg) return null
 
         return (
@@ -477,6 +481,16 @@ function GameBoard({
                 r={fireR}
               />
             )}
+            {/* Placement pulse ripple rings */}
+            {placementPulses.map(pulse => (
+              <circle
+                key={pulse.id}
+                className="placement-pulse-ring"
+                cx={(pulse.col + 0.5) * TILE_PX}
+                cy={(pulse.row + 0.5) * TILE_PX}
+                r={TILE_PX * 0.5}
+              />
+            ))}
             {projectiles.map(p => {
               const typeSlug = p.towerType
                 ? p.towerType.replace('Tower', '').toLowerCase()
@@ -500,30 +514,43 @@ function GameBoard({
                 )
               }
 
-              // Crit projectile: bright yellow, 2× stroke width
+              // Crit projectile: bright yellow, 2× stroke width + 2 fading trail segments
               if (p.isCrit) {
+                const x1 = (p.fromCol + 0.5) * TILE_PX
+                const y1 = (p.fromRow + 0.5) * TILE_PX
+                const x2 = (p.toCol + 0.5) * TILE_PX
+                const y2 = (p.toRow + 0.5) * TILE_PX
+                const mx1 = x1 + (x2 - x1) * 0.33
+                const my1 = y1 + (y2 - y1) * 0.33
+                const mx2 = x1 + (x2 - x1) * 0.66
+                const my2 = y1 + (y2 - y1) * 0.66
                 return (
-                  <line
-                    key={p.id}
-                    className="projectile-crit"
-                    x1={(p.fromCol + 0.5) * TILE_PX}
-                    y1={(p.fromRow + 0.5) * TILE_PX}
-                    x2={(p.toCol + 0.5) * TILE_PX}
-                    y2={(p.toRow + 0.5) * TILE_PX}
-                  />
+                  <g key={p.id}>
+                    <line className="projectile-trail projectile-trail-crit projectile-trail--far" x1={x1} y1={y1} x2={mx1} y2={my1} />
+                    <line className="projectile-trail projectile-trail-crit projectile-trail--mid" x1={mx1} y1={my1} x2={mx2} y2={my2} />
+                    <line className="projectile-crit" x1={mx2} y1={my2} x2={x2} y2={y2} />
+                  </g>
                 )
               }
 
               const className = `projectile projectile-${typeSlug}${levelSuffix}`
+              // Trail: render 2 additional faded segments behind the main shot.
+              // They use the 'projectile-trail' class (not 'projectile') so existing tests
+              // querying '.projectile' still count only one element per shot.
+              const x1 = (p.fromCol + 0.5) * TILE_PX
+              const y1 = (p.fromRow + 0.5) * TILE_PX
+              const x2 = (p.toCol + 0.5) * TILE_PX
+              const y2 = (p.toRow + 0.5) * TILE_PX
+              const mx1 = x1 + (x2 - x1) * 0.33
+              const my1 = y1 + (y2 - y1) * 0.33
+              const mx2 = x1 + (x2 - x1) * 0.66
+              const my2 = y1 + (y2 - y1) * 0.66
               return (
-                <line
-                  key={p.id}
-                  className={className}
-                  x1={(p.fromCol + 0.5) * TILE_PX}
-                  y1={(p.fromRow + 0.5) * TILE_PX}
-                  x2={(p.toCol + 0.5) * TILE_PX}
-                  y2={(p.toRow + 0.5) * TILE_PX}
-                />
+                <g key={p.id}>
+                  <line className={`projectile-trail projectile-trail-${typeSlug}${levelSuffix} projectile-trail--far`} x1={x1} y1={y1} x2={mx1} y2={my1} />
+                  <line className={`projectile-trail projectile-trail-${typeSlug}${levelSuffix} projectile-trail--mid`} x1={mx1} y1={my1} x2={mx2} y2={my2} />
+                  <line className={className} x1={mx2} y1={my2} x2={x2} y2={y2} />
+                </g>
               )
             })}
           </svg>
@@ -634,6 +661,48 @@ function GameBoard({
             </div>
           ))}
         </div>
+      )}
+      {/* Death burst particles — 5 dots expanding radially from enemy death position */}
+      {deathParticles.length > 0 && (
+        <svg
+          className="death-particle-layer"
+          width={COLS * TILE_PX}
+          height={ROWS * TILE_PX}
+          aria-hidden="true"
+        >
+          {deathParticles.map(p => {
+            const cx = (p.col + 0.5) * TILE_PX + Math.cos(p.angle) * 10
+            const cy = (p.row + 0.5) * TILE_PX + Math.sin(p.angle) * 10
+            return (
+              <circle
+                key={p.id}
+                className="death-burst-dot"
+                cx={cx}
+                cy={cy}
+                r={3}
+              />
+            )
+          })}
+        </svg>
+      )}
+      {/* Poison tick puffs — small green circles emitted on each poison DoT tick */}
+      {poisonPuffs.length > 0 && (
+        <svg
+          className="poison-puff-layer"
+          width={COLS * TILE_PX}
+          height={ROWS * TILE_PX}
+          aria-hidden="true"
+        >
+          {poisonPuffs.map(p => (
+            <circle
+              key={p.id}
+              className="poison-puff-dot"
+              cx={(p.col + 0.5) * TILE_PX}
+              cy={(p.row + 0.5) * TILE_PX}
+              r={5}
+            />
+          ))}
+        </svg>
       )}
       {damageNumbers.length > 0 && (
         <div className="damage-number-layer" aria-hidden="true">
