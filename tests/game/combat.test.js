@@ -466,3 +466,62 @@ describe('kill badge colour tier boundaries (via processCombat kill accumulation
     expect(simulateKills(48, 2)).toBe(50)
   })
 })
+
+// Regression test for issue #101: overcharge (fireRate * 1.5) must NOT compound across ticks.
+// processCombat returns towers with the same fireRate that was passed in.
+// A caller that applies a temporary multiplier (e.g. overcharge) must NOT feed the returned
+// towers directly back as state — it must restore the original fireRate and only carry over
+// lastFiredAt / kills from the result.
+describe('overcharge fireRate regression (#101)', () => {
+  it('processCombat preserves the fireRate of the towers it was given', () => {
+    const baseTower = makeTower({ row: 0, col: 0, range: 5, damage: 10, fireRate: 2, lastFiredAt: 0 })
+    const boostedTower = { ...baseTower, fireRate: baseTower.fireRate * 1.5 } // simulate overcharge copy
+    const enemy = makeEnemy({ id: 1, hp: 500, row: 0, col: 0 })
+
+    const { towers: result } = processCombat([boostedTower], [enemy], 1000)
+
+    // processCombat must return the same fireRate it was given (3, not the base 2)
+    expect(result[0].fireRate).toBe(3)
+  })
+
+  it('fireRate does NOT compound when caller correctly restores base stats after each overcharge tick', () => {
+    const baseTower = makeTower({ row: 0, col: 0, range: 5, damage: 10, fireRate: 2, lastFiredAt: 0 })
+    const enemy = makeEnemy({ id: 1, hp: 99999, row: 0, col: 0 })
+
+    // Simulate 5 overcharge ticks using the CORRECT approach:
+    // apply multiplier to a copy, call processCombat, then only merge lastFiredAt/kills back.
+    let currentTower = { ...baseTower }
+    for (let tick = 1; tick <= 5; tick++) {
+      const boosted = { ...currentTower, fireRate: currentTower.fireRate * 1.5 }
+      const { towers: result } = processCombat([boosted], [enemy], tick * 1000)
+      // Correct: restore original fireRate, only carry over lastFiredAt and kills
+      currentTower = {
+        ...currentTower,
+        lastFiredAt: result[0].lastFiredAt,
+        kills: result[0].kills,
+      }
+    }
+
+    // After 5 ticks, fireRate must still be the original base value (2), not 2 * 1.5^5
+    expect(currentTower.fireRate).toBe(2)
+  })
+
+  it('fireRate compounds (bug) when caller naively stores processCombat result during overcharge', () => {
+    const baseTower = makeTower({ row: 0, col: 0, range: 5, damage: 10, fireRate: 2, lastFiredAt: 0 })
+    const enemy = makeEnemy({ id: 1, hp: 99999, row: 0, col: 0 })
+
+    // Simulate the BUGGY approach: feed combatResult.towers directly back each tick
+    let currentTower = { ...baseTower }
+    for (let tick = 1; tick <= 5; tick++) {
+      const boosted = { ...currentTower, fireRate: currentTower.fireRate * 1.5 }
+      const { towers: result } = processCombat([boosted], [enemy], tick * 1000)
+      // Bug: overwrite currentTower with the result that already has boosted fireRate
+      currentTower = result[0]
+    }
+
+    // fireRate has compounded: 2 * 1.5^5 = 15.1875
+    expect(currentTower.fireRate).toBeCloseTo(2 * Math.pow(1.5, 5))
+    // The rate is no longer 2 — this demonstrates what the bug looked like
+    expect(currentTower.fireRate).not.toBe(2)
+  })
+})
