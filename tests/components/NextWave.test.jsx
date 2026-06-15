@@ -46,4 +46,12 @@ describe('NextWave', () => {
     })
     expect(onStart).toHaveBeenCalledTimes(1)
   })
+
+  it('does not render an endless mode toggle', () => {
+    act(() => {
+      root.render(createElement(NextWave, { wave: 1, onStart: vi.fn() }))
+    })
+    expect(container.querySelector('.endless-mode-toggle')).toBeNull()
+    expect(container.querySelector('.endless-mode-checkbox')).toBeNull()
+  })
 })

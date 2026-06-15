@@ -12,7 +12,7 @@ import { createDefaultMap, getPathWaypoints } from './game/map'
 import { TOWER_TYPES, createTower, canAfford, canUpgrade, upgradeTower, getUpgradeCost, getNextUpgradeStats, sellTower, getAdjacentSynergies } from './game/tower'
 import { createEnemy, moveEnemy, getEnemyHpForWave, tickHealerAbilities } from './game/enemy'
 import { processCombat, processEffectTick } from './game/combat'
-import { getWaveEnemyHp, getWaveEnemyCount, getWaveComposition, getEarlyWaveBonus, getEndlessWaveEnemyHp, getEndlessWaveEnemyCount, getEndlessWaveComposition, isBossWave, getWaveEventType, WAVE_EVENT_CONFIG, getWavePreview } from './game/wave'
+import { getWaveEnemyHp, getWaveEnemyCount, getWaveComposition, getEarlyWaveBonus, isBossWave, getWaveEventType, WAVE_EVENT_CONFIG, getWavePreview } from './game/wave'
 import { createPowerCrate, selectCrateReward } from './game/powerCrate'
 import { useGameLoop } from './hooks/useGameLoop'
 import { computeScore, computeComboBonus, getComboLabel, computeInterest } from './game/score'
@@ -28,8 +28,6 @@ const PATH_WAYPOINTS = getPathWaypoints()
 
 // Spawn one enemy every 3 seconds (3000 ms)
 const SPAWN_INTERVAL_MS = 3000
-// Total waves in game
-const TOTAL_WAVES = 10
 
 const INITIAL_GOLD = 100
 
@@ -76,11 +74,8 @@ function App() {
   const [selectedTower, setSelectedTower] = useState(null)
   // { row, col } | null — the empty tower-slot the player is hovering over
   const [hoveredSlot, setHoveredSlot] = useState(null)
-  // 'playing' | 'between-waves' | 'win' | 'lose'
+  // 'playing' | 'between-waves' | 'lose'
   const [gamePhase, setGamePhase] = useState('between-waves')
-  // Endless mode — when true the game never ends at wave 10; difficulty scales infinitely
-  const [endlessMode, setEndlessMode] = useState(false)
-  const endlessModeRef = useRef(false)
   // Score tracking
   const [finalScore, setFinalScore] = useState(null)
 
@@ -707,7 +702,7 @@ function App() {
         sniperDamageDealt: sniperDamageDealtRef.current,
         bossKilledThisTick,
         wave: currentWaveNum,
-        endlessMode: endlessModeRef.current,
+        endlessMode: true,
         activeSynergyPairs: activeSynergyPairsRef.current,
       })
     }
@@ -740,7 +735,7 @@ function App() {
         sniperDamageDealt: sniperDamageDealtRef.current,
         bossKilledThisTick: false,
         wave: currentWaveNum,
-        endlessMode: endlessModeRef.current,
+        endlessMode: true,
         activeSynergyPairs: activeSynergyPairsRef.current,
       })
 
@@ -750,38 +745,7 @@ function App() {
         setWavesReached(currentWaveNum)
       }
 
-      // In endless mode the game never ends on wave 10 — keep going
-      if (currentWaveNum >= TOTAL_WAVES && !endlessModeRef.current) {
-        const rawScore = computeScore({
-          kills: totalKillsRef.current,
-          goldEarned: totalGoldEarnedRef.current,
-          livesRemaining: livesRef.current,
-          wavesCompleted: wavesCompletedRef.current,
-        })
-        const score = applyDifficultyToScore(rawScore, difficultyModeRef.current ?? 'normal')
-        const entry = { score, date: new Date().toLocaleDateString(), result: 'win', difficulty: difficultyModeRef.current ?? 'normal' }
-        saveLeaderboardEntry(entry)
-        setFinalScore(score)
-        // Achievement: flawless, speed_demon — on win
-        triggerAchievementCheck({
-          totalKills: totalKillsRef.current,
-          totalTowersPlaced: totalTowersPlacedRef.current,
-          gold: 0,
-          waveCompletedClean: false,
-          gameWon: true,
-          livesRemaining: livesRef.current,
-          speedDroppedToOne: speedWasOneRef.current,
-          maxComboReached: maxComboReachedRef.current,
-          sniperDamageDealt: sniperDamageDealtRef.current,
-          bossKilledThisTick: false,
-          wave: currentWaveNum,
-          endlessMode: endlessModeRef.current,
-          activeSynergyPairs: activeSynergyPairsRef.current,
-        })
-        syncPhase('win')
-      } else {
-        syncPhase('between-waves')
-      }
+      syncPhase('between-waves')
     }
   }, [gold])
 
@@ -834,7 +798,7 @@ function App() {
       sniperDamageDealt: sniperDamageDealtRef.current,
       bossKilledThisTick: false,
       wave: waveRef.current,
-      endlessMode: endlessModeRef.current,
+      endlessMode: true,
       activeSynergyPairs: activeSynergyPairsRef.current,
     })
   }
@@ -887,13 +851,6 @@ function App() {
       overchargeActiveRef.current = true
       setOverchargeActive(true)
     }
-  }
-
-  function handleToggleEndless() {
-    // Only toggleable on the pre-wave-1 screen (wave hasn't started yet)
-    const next = !endlessModeRef.current
-    endlessModeRef.current = next
-    setEndlessMode(next)
   }
 
   function handlePrestige() {
@@ -949,8 +906,6 @@ function App() {
     setEarlyWaveCalled(false)
     setPendingWaveAdvance(0)
     setFinalScore(null)
-    endlessModeRef.current = false
-    setEndlessMode(false)
     powerCratesRef.current = []
     setPowerCrates([])
     nextCrateIdRef.current = 0
@@ -986,15 +941,15 @@ function App() {
     syncPhase('between-waves')
   }
 
-  // Endless-aware helpers — route to the appropriate scaling functions
+  // Scaling helpers — use the unified wave functions (always endless)
   function waveEnemyHp(waveNumber) {
-    return endlessModeRef.current ? getEndlessWaveEnemyHp(waveNumber) : getWaveEnemyHp(waveNumber)
+    return getWaveEnemyHp(waveNumber)
   }
   function waveEnemyCount(waveNumber) {
-    return endlessModeRef.current ? getEndlessWaveEnemyCount(waveNumber) : getWaveEnemyCount(waveNumber)
+    return getWaveEnemyCount(waveNumber)
   }
   function waveComposition(waveNumber) {
-    return endlessModeRef.current ? getEndlessWaveComposition(waveNumber) : getWaveComposition(waveNumber)
+    return getWaveComposition(waveNumber)
   }
 
   function buildSpawnQueue(waveNumber, eventType = 'normal') {
@@ -1087,9 +1042,8 @@ function App() {
   }
 
   function handleCallNextWaveEarly() {
-    // Guard: only one early call per wave, and not on the final wave (unless endless mode)
+    // Guard: only one early call per wave
     if (earlyWaveCalledRef.current) return
-    if (!endlessModeRef.current && waveRef.current >= TOTAL_WAVES) return
 
     earlyWaveCalledRef.current = true
     earlyWaveCountRef.current = 1
@@ -1116,8 +1070,7 @@ function App() {
         speed={speed}
         onSpeedToggle={handleSpeedToggle}
         onRestart={handleRestart}
-        showNextWave={gamePhase === 'playing' && (endlessMode || wave < TOTAL_WAVES)}
-        endlessMode={endlessMode}
+        showNextWave={gamePhase === 'playing'}
         earlyWaveDisabled={earlyWaveCalled}
         onNextWaveEarly={handleCallNextWaveEarly}
         comboCount={comboDisplay.count}
@@ -1182,21 +1135,8 @@ function App() {
       />
       {gamePhase === 'lose' && (
         <GameOver
-          result="lose"
           score={finalScore}
           onRestart={handleRestart}
-          endlessMode={endlessMode}
-          wavesReached={wavesReached}
-          prestigeStars={prestigeStars}
-          onPrestige={handlePrestige}
-        />
-      )}
-      {gamePhase === 'win' && (
-        <GameOver
-          result="win"
-          score={finalScore}
-          onRestart={handleRestart}
-          endlessMode={endlessMode}
           wavesReached={wavesReached}
           prestigeStars={prestigeStars}
           onPrestige={handlePrestige}
@@ -1218,15 +1158,13 @@ function App() {
           enemyCount={waveEnemyCount(wave)}
           enemyHp={waveEnemyHp(wave)}
           onStart={handleNextWaveStart}
-          endlessMode={endlessMode}
-          onToggleEndless={handleToggleEndless}
         />
       )}
       {wave > 1 && difficultyMode !== null && (
         <WavePreviewPanel
           visible={gamePhase === 'between-waves'}
           waveNumber={wave + 1 + pendingWaveAdvance}
-          preview={getWavePreview(wave + 1 + pendingWaveAdvance, endlessMode)}
+          preview={getWavePreview(wave + 1 + pendingWaveAdvance)}
           onStart={handleNextWaveStart}
         />
       )}

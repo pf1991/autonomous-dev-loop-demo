@@ -910,6 +910,12 @@ body {
   color: #eee;
 }
 
+.game-over-waves {
+  font-size: 1.2rem;
+  color: #aaa;
+  margin: 0.25rem 0 0.5rem;
+}
+
 .game-over-restart {
   background: #e94560;
   color: #fff;

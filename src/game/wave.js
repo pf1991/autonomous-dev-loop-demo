@@ -14,33 +14,41 @@ export function isBossWave(waveNumber) {
 
 /**
  * getWaveEnemyHp returns the HP for enemies in the given wave.
- * Formula: Math.round(100 * 1.4^(wave - 1))
- * wave 1: 100, wave 5: 384, wave 10: 2064
  *
- * Exponential growth ensures enemies remain a genuine threat even against
- * fully-upgraded towers; the old linear formula (+25/wave) was trivially
- * outpaced by tower DPS upgrades.
+ * Waves 1–10: Math.round(100 * 1.4^(wave - 1))
+ *   wave 1: 100, wave 5: 384, wave 10: ~2066
+ *
+ * Wave 11+: starts at wave-10 HP and scales by ×1.15 per wave beyond 10.
+ *   Exponential growth ensures enemies remain a genuine threat at any depth.
  *
  * @param {number} waveNumber - 1-based wave number
  * @returns {number} HP value
  */
 export function getWaveEnemyHp(waveNumber) {
-  return Math.round(100 * Math.pow(1.4, waveNumber - 1))
+  if (waveNumber <= 10) {
+    return Math.round(100 * Math.pow(1.4, waveNumber - 1))
+  }
+  const base = Math.round(100 * Math.pow(1.4, 9)) // wave 10 HP
+  return Math.round(base * Math.pow(1.15, waveNumber - 10))
 }
 
 /**
  * getWaveEnemyCount returns the number of enemies to spawn in the given wave.
- * Formula: 5 + (wave - 1)
- * wave 1: 5, wave 3: 7, wave 5: 9, wave 9: 13
  *
- * One additional enemy per wave (previously only one extra every two waves)
- * so the total enemy count scales meaningfully alongside HP growth.
+ * Waves 1–10: 5 + (wave - 1)
+ *   wave 1: 5, wave 3: 7, wave 5: 9, wave 9: 13, wave 10: 14
+ *
+ * Wave 11+: starts at wave-10 count (14) and adds 1 per 2 extra waves.
  *
  * @param {number} waveNumber - 1-based wave number
  * @returns {number} Enemy count
  */
 export function getWaveEnemyCount(waveNumber) {
-  return 5 + (waveNumber - 1)
+  if (waveNumber <= 10) {
+    return 5 + (waveNumber - 1)
+  }
+  const base = 14 // wave 10 count
+  return base + Math.floor((waveNumber - 10) / 2)
 }
 
 /**
@@ -108,7 +116,17 @@ export function getWaveComposition(waveNumber) {
   }
 
   // Waves 8–10: full mix
-  return [...distribute([['grunt', 0.1], ['speeder', 0.15], ['tank', 0.15], ['armored', 0.15], ['phantom', 0.15], ['splitter', 0.1], ['healer', 0.1], ['shielded', 0.1]]), ...bossEntry]
+  if (waveNumber <= 10) {
+    return [...distribute([['grunt', 0.1], ['speeder', 0.15], ['tank', 0.15], ['armored', 0.15], ['phantom', 0.15], ['splitter', 0.1], ['healer', 0.1], ['shielded', 0.1]]), ...bossEntry]
+  }
+
+  // Waves 11–15: heavier armored/phantom presence
+  if (waveNumber <= 15) {
+    return [...distribute([['grunt', 0.1], ['speeder', 0.15], ['tank', 0.15], ['armored', 0.3], ['phantom', 0.3]]), ...bossEntry]
+  }
+
+  // Wave 16+: near-pure armored/phantom endgame
+  return [...distribute([['grunt', 0.05], ['speeder', 0.15], ['tank', 0.1], ['armored', 0.35], ['phantom', 0.35]]), ...bossEntry]
 }
 
 /**
@@ -126,72 +144,36 @@ export function createWave(waveNumber) {
 }
 
 /**
- * getEndlessWaveEnemyHp returns the HP for enemies in an endless-mode wave.
- *
- * Waves 1–10 use the standard formula.
- * Wave 11+: starts at wave-10 HP (2064) and scales by ×1.15 per wave beyond 10.
+ * getEndlessWaveEnemyHp — alias for getWaveEnemyHp.
+ * The single unified function now handles all wave depths.
  *
  * @param {number} waveNumber - 1-based wave number
  * @returns {number} HP value (integer)
  */
 export function getEndlessWaveEnemyHp(waveNumber) {
-  if (waveNumber <= 10) return getWaveEnemyHp(waveNumber)
-  const base = getWaveEnemyHp(10) // 2064 with exponential formula
-  return Math.round(base * Math.pow(1.15, waveNumber - 10))
+  return getWaveEnemyHp(waveNumber)
 }
 
 /**
- * getEndlessWaveEnemyCount returns the number of enemies in an endless-mode wave.
- *
- * Waves 1–10 use the standard formula.
- * Wave 11+: starts at wave-10 count (14) and adds 1 per 2 extra waves.
+ * getEndlessWaveEnemyCount — alias for getWaveEnemyCount.
+ * The single unified function now handles all wave depths.
  *
  * @param {number} waveNumber - 1-based wave number
  * @returns {number} Enemy count
  */
 export function getEndlessWaveEnemyCount(waveNumber) {
-  if (waveNumber <= 10) return getWaveEnemyCount(waveNumber)
-  const base = getWaveEnemyCount(10) // 14 with the new per-wave formula
-  return base + Math.floor((waveNumber - 10) / 2)
+  return getWaveEnemyCount(waveNumber)
 }
 
 /**
- * getEndlessWaveComposition returns the enemy mix for an endless-mode wave.
- *
- * Waves 1–10: use standard composition.
- * Wave 11–15: 10% Grunts, 15% Speeders, 15% Tanks, 30% Armored, 30% Phantoms.
- * Wave 16+:   5% Grunts, 15% Speeders, 10% Tanks, 35% Armored, 35% Phantoms.
+ * getEndlessWaveComposition — alias for getWaveComposition.
+ * The single unified function now handles all wave depths.
  *
  * @param {number} waveNumber - 1-based wave number
  * @returns {Array<{ type: string, count: number }>}
  */
 export function getEndlessWaveComposition(waveNumber) {
-  if (waveNumber <= 10) return getWaveComposition(waveNumber)
-
-  const total = getEndlessWaveEnemyCount(waveNumber)
-
-  function distribute(fractions) {
-    const entries = fractions.filter(([, f]) => f > 0)
-    const result = []
-    let remaining = total
-    for (let i = 0; i < entries.length - 1; i++) {
-      const [type, frac] = entries[i]
-      const count = Math.round(total * frac)
-      if (count > 0) result.push({ type, count })
-      remaining -= count
-    }
-    const [lastType] = entries[entries.length - 1]
-    if (remaining > 0) result.push({ type: lastType, count: remaining })
-    return result
-  }
-
-  const bossEntry = isBossWave(waveNumber) ? [{ type: 'colossus', count: 1 }] : []
-
-  if (waveNumber <= 15) {
-    return [...distribute([['grunt', 0.1], ['speeder', 0.15], ['tank', 0.15], ['armored', 0.3], ['phantom', 0.3]]), ...bossEntry]
-  }
-
-  return [...distribute([['grunt', 0.05], ['speeder', 0.15], ['tank', 0.1], ['armored', 0.35], ['phantom', 0.35]]), ...bossEntry]
+  return getWaveComposition(waveNumber)
 }
 
 /**
@@ -307,17 +289,11 @@ export const WAVE_TIPS = [
  * getWavePreview returns a preview descriptor for the upcoming wave.
  *
  * @param {number} waveNumber - 1-based upcoming wave number
- * @param {boolean} [endlessMode=false] - whether endless mode is active
  * @returns {{ enemies: Array<{ type: string, count: number, hp: number }>, isBoss: boolean, tip: string }}
  */
-export function getWavePreview(waveNumber, endlessMode = false) {
-  const composition = endlessMode
-    ? getEndlessWaveComposition(waveNumber)
-    : getWaveComposition(waveNumber)
-
-  const hp = endlessMode
-    ? getEndlessWaveEnemyHp(waveNumber)
-    : getWaveEnemyHp(waveNumber)
+export function getWavePreview(waveNumber) {
+  const composition = getWaveComposition(waveNumber)
+  const hp = getWaveEnemyHp(waveNumber)
 
   const boss = isBossWave(waveNumber)
 
