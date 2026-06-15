@@ -15,7 +15,7 @@ import { getWaveEnemyHp, getWaveEnemyCount, getWaveComposition, getEarlyWaveBonu
 import { createPowerCrate, selectCrateReward } from './game/powerCrate'
 import { useGameLoop } from './hooks/useGameLoop'
 import { computeScore, computeComboBonus, getComboLabel, computeInterest } from './game/score'
-import { getDifficultyConfig, applyDifficultyToScore } from './game/difficulty'
+import { getDifficultyConfig, applyDifficultyToScore, DIFFICULTY_MODES } from './game/difficulty'
 import { saveLeaderboardEntry } from './utils/leaderboard'
 import { checkAchievements, ACHIEVEMENTS } from './game/achievements'
 import { loadUnlockedAchievements, persistNewAchievements } from './utils/achievements'

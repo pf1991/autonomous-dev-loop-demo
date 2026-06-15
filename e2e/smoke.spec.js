@@ -15,13 +15,14 @@ async function triggerGamePhase(page, phase) {
     while (fiber) {
       if (fiber.memoizedState && typeof fiber.type === 'function') {
         // Walk the hooks linked list to find the gamePhase hook dispatcher
-        // App.jsx order (all hooks including useRef) after PR #97 (difficultyMode prepended):
+        // App.jsx order (all hooks including useRef) after PR #104 (damageNumbers added):
         //   difficultyMode(0), difficultyModeRef(1), gold(2), lives(3), wave(4), speed(5),
         //   towers(6), enemies(7), projectiles(8), deathAnimations(9), deathAnimationsRef(10),
-        //   selectedTowerType(11), selectedTower(12), hoveredSlot(13), gamePhase(14)
+        //   damageNumbers(11), damageNumbersRef(12),
+        //   selectedTowerType(13), selectedTower(14), hoveredSlot(15), gamePhase(16)
         let hookNode = fiber.memoizedState;
         let i = 0;
-        while (hookNode && i < 14) {
+        while (hookNode && i < 16) {
           hookNode = hookNode.next;
           i++;
         }
@@ -38,10 +39,11 @@ async function triggerGamePhase(page, phase) {
 
 /**
  * Helper: force lives to a given value via React fiber injection and set gamePhase to 'playing'.
- * App.jsx hook order (all hooks including useRef) after PR #97 (difficultyMode prepended):
+ * App.jsx hook order (all hooks including useRef) after PR #104 (damageNumbers added):
  *   difficultyMode(0), difficultyModeRef(1), gold(2), lives(3), wave(4), speed(5),
  *   towers(6), enemies(7), projectiles(8), deathAnimations(9), deathAnimationsRef(10),
- *   selectedTowerType(11), selectedTower(12), hoveredSlot(13), gamePhase(14)
+ *   damageNumbers(11), damageNumbersRef(12),
+ *   selectedTowerType(13), selectedTower(14), hoveredSlot(15), gamePhase(16)
  */
 async function setLivesAndPhase(page, livesValue, phase) {
   await page.evaluate(({ livesValue, phase }) => {
@@ -51,17 +53,18 @@ async function setLivesAndPhase(page, livesValue, phase) {
     let fiber = gameEl[fiberKey];
     while (fiber) {
       if (fiber.memoizedState && typeof fiber.type === 'function') {
-        // App.jsx hook order (all hooks including useRef) after PR #97 (difficultyMode prepended):
+        // App.jsx hook order (all hooks including useRef) after PR #104 (damageNumbers added):
         //   difficultyMode(0), difficultyModeRef(1), gold(2), lives(3), wave(4), speed(5),
         //   towers(6), enemies(7), projectiles(8), deathAnimations(9), deathAnimationsRef(10),
-        //   selectedTowerType(11), selectedTower(12), hoveredSlot(13), gamePhase(14)
+        //   damageNumbers(11), damageNumbersRef(12),
+        //   selectedTowerType(13), selectedTower(14), hoveredSlot(15), gamePhase(16)
         let hookNode = fiber.memoizedState;
         let livesHook = null;
         let phaseHook = null;
         let i = 0;
         while (hookNode) {
           if (i === 3) livesHook = hookNode;
-          if (i === 14) phaseHook = hookNode;
+          if (i === 16) phaseHook = hookNode;
           hookNode = hookNode.next;
           i++;
         }
@@ -570,10 +573,11 @@ test.describe('Tower Defense - smoke tests', () => {
   /**
    * Helper injected into tests below: set wave and gamePhase via React fiber to trigger
    * the countdown banner (shown when gamePhase === 'between-waves' && wave > 1).
-   * App.jsx hook order (all hooks including useRef):
-   *   gold(0), lives(1), wave(2), speed(3), towers(4), enemies(5),
-   *   projectiles(6), deathAnimations(7), deathAnimationsRef(8),
-   *   selectedTowerType(9), selectedTower(10), hoveredSlot(11), gamePhase(12)
+   * App.jsx hook order (all hooks including useRef) after PR #104 (damageNumbers added):
+   *   difficultyMode(0), difficultyModeRef(1), gold(2), lives(3), wave(4), speed(5),
+   *   towers(6), enemies(7), projectiles(8), deathAnimations(9), deathAnimationsRef(10),
+   *   damageNumbers(11), damageNumbersRef(12),
+   *   selectedTowerType(13), selectedTower(14), hoveredSlot(15), gamePhase(16)
    */
 
   test('countdown banner is visible when between-waves with wave > 1', async ({ page }) => {
@@ -591,7 +595,7 @@ test.describe('Tower Defense - smoke tests', () => {
           let i = 0;
           while (hookNode) {
             if (i === 4) waveHook = hookNode;
-            if (i === 14) phaseHook = hookNode;
+            if (i === 16) phaseHook = hookNode;
             hookNode = hookNode.next;
             i++;
           }
@@ -630,7 +634,7 @@ test.describe('Tower Defense - smoke tests', () => {
           let i = 0;
           while (hookNode) {
             if (i === 4) waveHook = hookNode;
-            if (i === 14) phaseHook = hookNode;
+            if (i === 16) phaseHook = hookNode;
             hookNode = hookNode.next;
             i++;
           }
@@ -669,7 +673,7 @@ test.describe('Tower Defense - smoke tests', () => {
           let i = 0;
           while (hookNode) {
             if (i === 4) waveHook = hookNode;
-            if (i === 14) phaseHook = hookNode;
+            if (i === 16) phaseHook = hookNode;
             hookNode = hookNode.next;
             i++;
           }
@@ -722,7 +726,7 @@ test.describe('Tower Defense - smoke tests', () => {
           let i = 0;
           while (hookNode) {
             if (i === 4) waveHook = hookNode;
-            if (i === 14) phaseHook = hookNode;
+            if (i === 16) phaseHook = hookNode;
             hookNode = hookNode.next;
             i++;
           }
