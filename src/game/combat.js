@@ -419,14 +419,18 @@ export function processCombat(towers, enemies, nowMs, adjacencySynergies, rng = 
  *
  * @param {Array<{ id: string|number, hp: number, maxHp: number, goldReward: number, effects?: Array }>} enemies
  * @param {number} nowMs - current game clock in milliseconds
- * @returns {{ enemies: Array, goldEarned: number, killedEnemies: Array, poisonPuffs: Array }}
+ * @returns {{ enemies: Array, goldEarned: number, killedEnemies: Array, poisonTickHits: Array<{ enemyId: string|number, row: number, col: number }> }}
  */
 export function processEffectTick(enemies, nowMs) {
   let goldEarned = 0
   const killedEnemies = []
   const updatedEnemies = []
-  /** @type {Array<{ id: string, row: number, col: number, createdAt: number }>} */
-  const poisonPuffs = []
+  /**
+   * poisonTickHits — game-state record of which enemies received a poison tick this frame.
+   * Contains only positional data so the React layer can derive visual particles from it.
+   * @type {Array<{ enemyId: string|number, row: number, col: number }>}
+   */
+  const poisonTickHits = []
 
   for (const enemy of enemies) {
     const effects = enemy.effects ?? []
@@ -445,12 +449,11 @@ export function processEffectTick(enemies, nowMs) {
         if (nowMs >= effect.nextTickAt) {
           // Apply this tick's damage
           currentHp -= effect.tickDamage
-          // Emit a green puff visual at the enemy's position
-          poisonPuffs.push({
-            id: `pp-${enemy.id}-${nowMs}`,
+          // Record the hit position so the React layer can emit a visual puff
+          poisonTickHits.push({
+            enemyId: enemy.id,
             row: enemy.pos.row,
             col: enemy.pos.col,
-            createdAt: nowMs,
           })
           const newRemaining = effect.ticksRemaining - 1
           if (newRemaining > 0) {
@@ -482,5 +485,5 @@ export function processEffectTick(enemies, nowMs) {
     }
   }
 
-  return { enemies: updatedEnemies, goldEarned, killedEnemies, poisonPuffs }
+  return { enemies: updatedEnemies, goldEarned, killedEnemies, poisonTickHits }
 }

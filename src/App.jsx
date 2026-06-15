@@ -518,9 +518,16 @@ function App() {
       }
     }
 
-    // Poison puff particles from processEffectTick — expire after 400ms
+    // Poison puff particles — derived from poisonTickHits returned by processEffectTick.
+    // Visual particle objects (id, createdAt) are created here in the React layer,
+    // keeping animation concerns out of src/game/. Particles expire after 400ms.
     const POISON_PUFF_LIFETIME_MS = 400
-    const newPoisonPuffs = effectResult.poisonPuffs ?? []
+    const newPoisonPuffs = (effectResult.poisonTickHits ?? []).map(hit => ({
+      id: `pp-${hit.enemyId}-${nowMs}`,
+      row: hit.row,
+      col: hit.col,
+      createdAt: nowMs,
+    }))
     if (newPoisonPuffs.length > 0 || poisonPuffsRef.current.length > 0) {
       const alivePuffs = poisonPuffsRef.current.filter(
         p => nowMs - p.createdAt < POISON_PUFF_LIFETIME_MS

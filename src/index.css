@@ -290,6 +290,103 @@ body {
   filter: drop-shadow(0 0 3px #4caf50);
 }
 
+/* ===== Projectile trail segments (fading tail behind each shot) ===== */
+/* Base: thin, low-opacity line — inherits colour from per-type rule below */
+.projectile-trail {
+  stroke-linecap: round;
+  fill: none;
+}
+
+/* BasicTower trail — teal */
+.projectile-trail-basic {
+  stroke: #4ecca3;
+  stroke-width: 2;
+}
+.projectile-trail-basic-lv1 {
+  stroke: #5fffcc;
+  stroke-width: 3;
+}
+.projectile-trail-basic-lv2 {
+  stroke: #80ffdd;
+  stroke-width: 3;
+}
+
+/* SniperTower trail — red */
+.projectile-trail-sniper {
+  stroke: #e94560;
+  stroke-width: 1.5;
+}
+.projectile-trail-sniper-lv1 {
+  stroke: #ff2244;
+  stroke-width: 2;
+}
+.projectile-trail-sniper-lv2 {
+  stroke: #ff4466;
+  stroke-width: 3;
+}
+
+/* RapidTower trail — orange */
+.projectile-trail-rapid {
+  stroke: #f5a623;
+  stroke-width: 1.5;
+}
+.projectile-trail-rapid-lv1 {
+  stroke: #ffbe44;
+  stroke-width: 2;
+}
+.projectile-trail-rapid-lv2 {
+  stroke: #ffd060;
+  stroke-width: 3;
+}
+
+/* CannonTower trail — grey */
+.projectile-trail-cannon {
+  stroke: #9a9abb;
+  stroke-width: 3;
+}
+.projectile-trail-cannon-lv1 {
+  stroke: #bbbbd8;
+  stroke-width: 4;
+}
+.projectile-trail-cannon-lv2 {
+  stroke: #ddddee;
+  stroke-width: 5;
+}
+
+/* SlowTower trail — icy blue */
+.projectile-trail-slow {
+  stroke: #44a8d8;
+  stroke-width: 2;
+}
+.projectile-trail-slow-lv1 {
+  stroke: #60ccee;
+  stroke-width: 3;
+}
+.projectile-trail-slow-lv2 {
+  stroke: #88eeff;
+  stroke-width: 4;
+}
+
+/* PoisonTower trail — green */
+.projectile-trail-poison {
+  stroke: #4caf50;
+  stroke-width: 2;
+}
+.projectile-trail-poison-lv1 {
+  stroke: #66bb6a;
+  stroke-width: 3;
+}
+.projectile-trail-poison-lv2 {
+  stroke: #a5d6a7;
+  stroke-width: 4;
+}
+
+/* Crit trail — bright yellow */
+.projectile-trail-crit {
+  stroke: #ffe000;
+  stroke-width: 4;
+}
+
 /* ===== Range preview ring (hover over empty tower-slot) ===== */
 .range-preview-ring {
   stroke: rgba(255, 255, 255, 0.35);
