@@ -1132,8 +1132,9 @@ function App() {
           onToggleEndless={handleToggleEndless}
         />
       )}
-      {gamePhase === 'between-waves' && wave > 1 && difficultyMode !== null && (
+      {wave > 1 && difficultyMode !== null && (
         <WavePreviewPanel
+          visible={gamePhase === 'between-waves'}
           waveNumber={wave + 1 + pendingWaveAdvance}
           preview={getWavePreview(wave + 1 + pendingWaveAdvance, endlessMode)}
           onStart={handleNextWaveStart}
