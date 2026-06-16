@@ -28,6 +28,7 @@ import { computeInterest } from '../game/score.js'
  *   prestigeStars        — current prestige star count (0–5)
  *   showSynergies        — boolean: whether global synergy overlay is active
  *   onShowSynergiesToggle — callback invoked when "Show Synergies" button is clicked
+ *   initialMenuOpen      — boolean: start with burger menu open (default false; used in tests)
  */
 function HUD({
   lives,
@@ -53,9 +54,10 @@ function HUD({
   prestigeStars = 0,
   showSynergies = false,
   onShowSynergiesToggle,
+  initialMenuOpen = false,
 }) {
   const isRampage = comboCount >= 5
-  const [menuOpen, setMenuOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(initialMenuOpen)
 
   return (
     <div className="hud">
@@ -96,15 +98,6 @@ function HUD({
 
       {/* Right cluster: actions */}
       <div className="hud-actions">
-        {showNextWave && (
-          <button
-            className="hud-next-wave"
-            onClick={onNextWaveEarly}
-            disabled={earlyWaveDisabled}
-          >
-            Next Wave Early
-          </button>
-        )}
         <button className="hud-speed" onClick={onSpeedToggle}>
           {speed === 5 ? '5×' : speed === 2 ? '2×' : '1×'}
         </button>
@@ -124,6 +117,15 @@ function HUD({
           </button>
           {menuOpen && (
             <div className="hud-burger-menu">
+              {showNextWave && (
+                <button
+                  className="hud-burger-item hud-next-wave"
+                  onClick={() => { onNextWaveEarly(); setMenuOpen(false) }}
+                  disabled={earlyWaveDisabled}
+                >
+                  Next Wave Early
+                </button>
+              )}
               <button
                 className={`hud-burger-item${showSynergies ? ' hud-burger-item--active' : ''}`}
                 onClick={() => { onShowSynergiesToggle(); setMenuOpen(false) }}

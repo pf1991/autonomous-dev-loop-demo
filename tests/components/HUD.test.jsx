@@ -122,13 +122,15 @@ describe('HUD', () => {
     expect(container.querySelector('.hud-next-wave')).toBeNull()
   })
 
-  it('renders Next Wave Early button when showNextWave is true', () => {
+  it('renders Next Wave Early button when showNextWave is true (inside burger menu)', () => {
     act(() => {
       root.render(
         createElement(HUD, {
           lives: 20, gold: 100, wave: 3, speed: 1,
           onSpeedToggle: vi.fn(), onRestart: vi.fn(),
           showNextWave: true, earlyWaveDisabled: false, onNextWaveEarly: vi.fn(),
+          onShowSynergiesToggle: vi.fn(), onAchievementClick: vi.fn(),
+          initialMenuOpen: true,
         })
       )
     })
@@ -137,20 +139,22 @@ describe('HUD', () => {
     expect(btn.disabled).toBe(false)
   })
 
-  it('Next Wave Early button is disabled when earlyWaveDisabled is true', () => {
+  it('Next Wave Early button is disabled when earlyWaveDisabled is true (inside burger menu)', () => {
     act(() => {
       root.render(
         createElement(HUD, {
           lives: 20, gold: 100, wave: 3, speed: 1,
           onSpeedToggle: vi.fn(), onRestart: vi.fn(),
           showNextWave: true, earlyWaveDisabled: true, onNextWaveEarly: vi.fn(),
+          onShowSynergiesToggle: vi.fn(), onAchievementClick: vi.fn(),
+          initialMenuOpen: true,
         })
       )
     })
     expect(container.querySelector('.hud-next-wave').disabled).toBe(true)
   })
 
-  it('Next Wave Early button calls onNextWaveEarly when clicked', () => {
+  it('Next Wave Early button calls onNextWaveEarly when clicked (inside burger menu)', () => {
     const onNextWaveEarly = vi.fn()
     act(() => {
       root.render(
@@ -158,6 +162,8 @@ describe('HUD', () => {
           lives: 20, gold: 100, wave: 3, speed: 1,
           onSpeedToggle: vi.fn(), onRestart: vi.fn(),
           showNextWave: true, earlyWaveDisabled: false, onNextWaveEarly,
+          onShowSynergiesToggle: vi.fn(), onAchievementClick: vi.fn(),
+          initialMenuOpen: true,
         })
       )
     })
