@@ -1094,11 +1094,12 @@ function App() {
         showSynergies={showSynergies}
         onShowSynergiesToggle={() => setShowSynergies(v => !v)}
       />
-      <TowerPicker
-        selectedType={selectedTowerType}
-        gold={gold}
-        onSelect={setSelectedTowerType}
-      />
+      <div className="game-area">
+        <TowerPicker
+          selectedType={selectedTowerType}
+          gold={gold}
+          onSelect={setSelectedTowerType}
+        />
       <GameBoard
         tiles={INITIAL_MAP}
         onTileClick={placeTower}
@@ -1143,6 +1144,7 @@ function App() {
         countdownEventType={getWaveEventType(wave + 1 + pendingWaveAdvance, waveEventSeedRef.current)}
         onCountdownStart={handleNextWaveStart}
       />
+      </div>
       {gamePhase === 'lose' && (
         <GameOver
           score={finalScore}
