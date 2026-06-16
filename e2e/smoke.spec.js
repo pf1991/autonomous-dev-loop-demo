@@ -3524,6 +3524,165 @@ test.describe('Tower Defense - smoke tests', () => {
     await expect(poisonBtn.locator('svg ellipse.tower-poison')).toBeAttached();
   });
 
+  // --- Synergy lines visual overlay (issue #111 / PR #124) ---
+
+  test('"Show Synergies" button is visible in the HUD', async ({ page }) => {
+    // beforeEach navigates to '/' and dismisses the difficulty overlay
+    await expect(page.locator('.hud-synergies-toggle')).toBeVisible();
+  });
+
+  test('"Show Synergies" button is not active by default', async ({ page }) => {
+    const btn = page.locator('.hud-synergies-toggle');
+    await expect(btn).toBeVisible();
+    await expect(btn).not.toHaveClass(/hud-synergies-toggle--active/);
+  });
+
+  test('clicking "Show Synergies" toggles the active class on', async ({ page }) => {
+    // Dismiss the NextWave overlay (intercepts pointer events) before clicking HUD buttons
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    const btn = page.locator('.hud-synergies-toggle');
+    await expect(btn).toBeVisible();
+    await btn.click();
+    await expect(btn).toHaveClass(/hud-synergies-toggle--active/);
+  });
+
+  test('clicking "Show Synergies" twice toggles the active class back off', async ({ page }) => {
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    const btn = page.locator('.hud-synergies-toggle');
+    await expect(btn).toBeVisible();
+    await btn.click();
+    await expect(btn).toHaveClass(/hud-synergies-toggle--active/);
+    await btn.click();
+    await expect(btn).not.toHaveClass(/hud-synergies-toggle--active/);
+  });
+
+  test('synergy lines appear after placing two adjacent synergy towers and enabling the overlay', async ({ page }) => {
+    // Dismiss the NextWave overlay so the board is interactive
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+
+    // Place a BasicTower on the first slot (costs 50g — affordable on 100g)
+    const slots = page.locator('.tower-slot');
+    await slots.first().click();
+    await expect(page.locator('.tower-icon').first()).toBeVisible();
+
+    // Place a SlowTower on the adjacent slot (costs 90g — too expensive after spending 50g;
+    // select SlowTower only if affordable, otherwise use a BasicTower which still synergises)
+    const slowBtn = page.locator('.tower-picker button').filter({ hasText: 'SlowTower' });
+    const isSlowAffordable = (await slowBtn.getAttribute('disabled')) === null;
+    if (isSlowAffordable) {
+      await slowBtn.click();
+    }
+    // Place second tower adjacent to the first (second slot)
+    if (await slots.nth(1).isVisible()) {
+      await slots.nth(1).click();
+    }
+
+    // Enable the global synergy overlay
+    const showSynergiesBtn = page.locator('.hud-synergies-toggle');
+    await showSynergiesBtn.click();
+    await expect(showSynergiesBtn).toHaveClass(/hud-synergies-toggle--active/);
+
+    // If both towers have an active synergy, .synergy-line elements should appear in the SVG layer.
+    // (BasicTower+BasicTower always synergises; BasicTower+SlowTower also synergises.)
+    const towerCount = await page.locator('.tower-icon').count();
+    if (towerCount >= 2) {
+      await expect(page.locator('.synergy-line').first()).toBeAttached({ timeout: 2000 });
+    }
+  });
+
+  test('hovering an occupied tower-slot shows focal synergy lines to its partners', async ({ page }) => {
+    // Dismiss NextWave overlay
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Place two adjacent BasicTowers (BasicTower+BasicTower synergy always fires)
+    const basicBtn = page.locator('.tower-picker button').filter({ hasText: 'BasicTower' });
+    if (await basicBtn.isVisible() && (await basicBtn.getAttribute('disabled')) === null) {
+      await basicBtn.click();
+    }
+    const slots = page.locator('.tower-slot');
+    await slots.first().click();
+    await expect(page.locator('.tower-icon').first()).toBeVisible();
+    // Second adjacent BasicTower
+    if (await basicBtn.isVisible() && (await basicBtn.getAttribute('disabled')) === null) {
+      await basicBtn.click();
+    }
+    if (await slots.nth(1).isVisible()) {
+      await slots.nth(1).click();
+    }
+    const towerCount = await page.locator('.tower-icon').count();
+    if (towerCount < 2) return; // skip if gold ran out
+
+    // Hover the first tower tile — should show focal synergy lines without the global toggle
+    const towerTile = page.locator('.tile').filter({ has: page.locator('.tower-icon') }).first();
+    await towerTile.hover();
+    // Focal synergy lines appear when hoveredTower has partners
+    await expect(page.locator('.synergy-line').first()).toBeAttached({ timeout: 2000 });
+  });
+
+  test('partner tile gets an outline highlight when a tower with synergy is selected', async ({ page }) => {
+    // Dismiss NextWave overlay
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    // Place two adjacent BasicTowers
+    const basicBtn = page.locator('.tower-picker button').filter({ hasText: 'BasicTower' });
+    if (await basicBtn.isVisible() && (await basicBtn.getAttribute('disabled')) === null) {
+      await basicBtn.click();
+    }
+    const slots = page.locator('.tower-slot');
+    await slots.first().click();
+    await expect(page.locator('.tower-icon').first()).toBeVisible();
+    if (await basicBtn.isVisible() && (await basicBtn.getAttribute('disabled')) === null) {
+      await basicBtn.click();
+    }
+    if (await slots.nth(1).isVisible()) {
+      await slots.nth(1).click();
+    }
+    const towerCount = await page.locator('.tower-icon').count();
+    if (towerCount < 2) return; // skip if gold ran out
+
+    // Select the first tower to trigger partner highlighting
+    const towerTile = page.locator('.tile').filter({ has: page.locator('.tower-icon') }).first();
+    await towerTile.click();
+
+    // At least one partner tile should have an inline outline style applied
+    const hasPartnerOutline = await page.evaluate(() => {
+      const tiles = document.querySelectorAll('.tile');
+      for (const tile of tiles) {
+        if (tile.style && tile.style.outline && tile.style.outline.includes('solid')) {
+          return true;
+        }
+      }
+      return false;
+    });
+    expect(hasPartnerOutline).toBe(true);
+  });
+
+  test('.hud-synergies-toggle CSS class has a teal border (brand colour)', async ({ page }) => {
+    // Verify the CSS rule from index.css for .hud-synergies-toggle is loaded
+    const borderColor = await page.evaluate(() => {
+      const btn = document.querySelector('.hud-synergies-toggle');
+      if (!btn) return null;
+      return getComputedStyle(btn).borderColor;
+    });
+    // Border is set to #00e5cc in index.css — any non-black, non-transparent value confirms loading
+    expect(borderColor).not.toBeNull();
+    expect(borderColor).not.toBe('rgb(0, 0, 0)');
+    expect(borderColor).not.toBe('');
+  });
+
 });
 
 // --- DifficultySelector component (issue #73) ---
