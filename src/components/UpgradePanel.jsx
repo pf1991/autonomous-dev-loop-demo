@@ -33,9 +33,14 @@ function UpgradePanel({ tower, gold, onUpgrade, onSell, getUpgradeCost, canUpgra
       {synergies.length > 0 && (
         <div className="upgrade-panel-synergies">
           <span className="upgrade-panel-synergy-label">&#x26A1; Synergies:</span>
-          {synergies.map((s, i) => (
-            <span key={i} className="upgrade-panel-synergy-item">{s.description}</span>
-          ))}
+          {synergies.map((s, i) => {
+            const coord = (s.partnerRow != null && s.partnerCol != null)
+              ? ` (←col ${s.partnerCol}, row ${s.partnerRow})`
+              : ''
+            return (
+              <span key={i} className="upgrade-panel-synergy-item">{s.description}{coord}</span>
+            )
+          })}
         </div>
       )}
       {upgradable && cost !== null && (
