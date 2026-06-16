@@ -22,8 +22,17 @@ body {
 #game {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 12px;
+  align-items: stretch;
+  gap: 8px;
+  width: max-content;
+}
+
+/* ===== Game area: towers sidebar + map side by side ===== */
+.game-area {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0;
 }
 
 /* ===== HUD ===== */
@@ -31,14 +40,34 @@ body {
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 24px;
+  justify-content: space-between;
+  gap: 12px;
   background: #16213e;
   border: 2px solid #0f3460;
   border-radius: 8px;
-  padding: 8px 20px;
+  padding: 8px 16px;
   font-size: 1rem;
   font-weight: 600;
-  width: 800px;
+  width: 100%;
+}
+
+/* Left cluster: stats (lives, gold, wave, difficulty, combo) */
+.hud-stats {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 20px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Right cluster: action buttons */
+.hud-actions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .hud-lives {
@@ -97,8 +126,81 @@ body {
   color: #16213e;
 }
 
+/* ===== Burger menu (HUD) ===== */
+.hud-burger-wrapper {
+  position: relative;
+}
+
+.hud-burger-btn {
+  background: #0f3460;
+  color: #eee;
+  border: 1px solid #4ecca3;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1;
+  transition: background 0.15s, color 0.15s;
+}
+
+.hud-burger-btn:hover,
+.hud-burger-btn--open {
+  background: #1a4a8a;
+}
+
+.hud-burger-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: #16213e;
+  border: 2px solid #0f3460;
+  border-radius: 8px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 200;
+  min-width: 180px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+}
+
+.hud-burger-item {
+  background: #0f3460;
+  color: #eee;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s, color 0.15s;
+}
+
+.hud-burger-item:hover {
+  background: #1a4a8a;
+}
+
+.hud-burger-item--active {
+  background: #00e5cc;
+  color: #16213e;
+  border-color: #00e5cc;
+}
+
+.hud-burger-item--active:hover {
+  background: #00bfaa;
+}
+
+.hud-burger-stars {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  padding: 4px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
 .hud-restart {
-  margin-left: auto;
   background: #3a0e1e;
   color: #e94560;
   border: 1px solid #e94560;
@@ -1037,18 +1139,21 @@ body {
   color: #16213e;
 }
 
-/* ===== Tower Picker — 2-column icon grid ===== */
+/* ===== Tower Picker — 2-column icon grid, left sidebar ===== */
 .tower-picker {
   display: grid;
-  /* 2 columns: icons stack vertically in pairs, fits screens ≥ 768px without scrolling */
+  /* 2 columns: icons stack vertically in pairs */
   grid-template-columns: repeat(2, 1fr);
   gap: 6px;
   background: #16213e;
   border: 2px solid #0f3460;
-  border-radius: 8px;
-  padding: 8px 12px;
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+  padding: 8px 10px;
   width: 160px;
   align-items: stretch;
+  align-content: start;
+  height: 100%;
 }
 
 /* Each tower button: icon on top, short name below */

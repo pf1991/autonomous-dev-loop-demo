@@ -372,6 +372,66 @@ test.describe('Tower Defense - smoke tests', () => {
     await expect(page.locator('.game-board-wrapper .game-board')).toBeVisible();
   });
 
+  // --- Layout redesign (issue #125 / PR #126) ---
+
+  test('.game-area flex-row wrapper is present and contains the tower picker and game board', async ({ page }) => {
+    await expect(page.locator('.game-area')).toBeVisible();
+    // Tower picker must be inside .game-area (left sidebar position)
+    await expect(page.locator('.game-area .tower-picker')).toBeVisible();
+    // Game board wrapper must also be inside .game-area
+    await expect(page.locator('.game-area .game-board-wrapper')).toBeVisible();
+  });
+
+  test('.game-area lays out tower picker to the left of the game board (flex row)', async ({ page }) => {
+    // Verify the tower picker is horizontally to the left of the game board
+    const pickerBox = await page.locator('.game-area .tower-picker').boundingBox();
+    const boardBox = await page.locator('.game-area .game-board-wrapper').boundingBox();
+    expect(pickerBox).not.toBeNull();
+    expect(boardBox).not.toBeNull();
+    // Picker left edge should be left of (or at) the board's left edge
+    expect(pickerBox.x).toBeLessThanOrEqual(boardBox.x);
+    // They should be vertically overlapping (same row)
+    const pickerMidY = pickerBox.y + pickerBox.height / 2;
+    const boardMidY = boardBox.y + boardBox.height / 2;
+    expect(Math.abs(pickerMidY - boardMidY)).toBeLessThan(boardBox.height);
+  });
+
+  test('.hud is a full-width header bar above .game-area', async ({ page }) => {
+    const hudBox = await page.locator('.hud').boundingBox();
+    const gameAreaBox = await page.locator('.game-area').boundingBox();
+    expect(hudBox).not.toBeNull();
+    expect(gameAreaBox).not.toBeNull();
+    // HUD must be above the game-area
+    expect(hudBox.y + hudBox.height).toBeLessThanOrEqual(gameAreaBox.y + 5); // small tolerance
+  });
+
+  test('.hud-burger-btn is visible in the HUD right cluster', async ({ page }) => {
+    await expect(page.locator('.hud-burger-btn')).toBeVisible();
+  });
+
+  test('clicking .hud-burger-btn opens the burger menu with expected items', async ({ page }) => {
+    // Dismiss NextWave overlay so the HUD burger button is clickable
+    const nwBtn = page.locator('.next-wave-start');
+    if (await nwBtn.isVisible()) await nwBtn.click();
+    await page.locator('.hud-burger-btn').click();
+    await expect(page.locator('.hud-burger-menu')).toBeVisible();
+    // Must contain Show Synergies and Achievements items
+    await expect(page.locator('.hud-burger-menu .hud-burger-item').filter({ hasText: /Synergies/ })).toBeVisible();
+    await expect(page.locator('.hud-burger-menu .hud-burger-item').filter({ hasText: 'Achievements' })).toBeVisible();
+    // Must contain prestige stars section
+    await expect(page.locator('.hud-burger-stars')).toBeAttached();
+  });
+
+  test('clicking .hud-burger-btn again closes the burger menu', async ({ page }) => {
+    // Dismiss NextWave overlay so the HUD burger button is clickable
+    const nwBtn = page.locator('.next-wave-start');
+    if (await nwBtn.isVisible()) await nwBtn.click();
+    await page.locator('.hud-burger-btn').click();
+    await expect(page.locator('.hud-burger-menu')).toBeVisible();
+    await page.locator('.hud-burger-btn').click();
+    await expect(page.locator('.hud-burger-menu')).not.toBeVisible();
+  });
+
   test('projectile SVG layer appears when a tower fires at an enemy', async ({ page }) => {
     // Start the wave, place a tower on the first slot (row 1, col 1) — directly above the
     // path start at (row 2, col 1) where enemies enter. Distance = 1 tile, well within range 3.
@@ -1062,54 +1122,71 @@ test.describe('Tower Defense - smoke tests', () => {
   });
 
   // --- Next Wave Early button (issue #44) ---
+  // PR #125: "Next Wave Early" moved into the burger menu (☰). Tests open the menu first.
 
-  test('"Next Wave Early" button is not visible before a wave starts', async ({ page }) => {
-    // On initial load the game is between-waves, so the button must not appear
-    await expect(page.locator('.hud-next-wave')).not.toBeVisible();
+  test('"Next Wave Early" button is not present in the DOM before a wave starts (burger menu closed)', async ({ page }) => {
+    // On initial load the game is between-waves — the burger menu is closed and .hud-next-wave
+    // is not rendered (showNextWave=false means it is conditionally absent from the menu).
+    // Dismiss NextWave overlay so the HUD burger button is clickable, then open the menu
+    const nwStartBtn = page.locator('.next-wave-start');
+    // Do NOT start the wave — we want to test between-waves state. Use the overlay dismiss only if
+    // it's blocking clicks (the NextWave overlay covers the game board, not the HUD bar).
+    // The HUD bar is above the overlay. Use force:true as a fallback if the overlay z-index blocks.
+    await page.locator('.hud-burger-btn').click({ force: true });
+    await expect(page.locator('.hud-next-wave')).not.toBeAttached();
   });
 
-  test('"Next Wave Early" button appears in the HUD once a wave is playing', async ({ page }) => {
+  test('"Next Wave Early" button appears in the burger menu once a wave is playing', async ({ page }) => {
     // Start wave 1
     const startBtn = page.locator('.next-wave-start');
     if (await startBtn.isVisible()) {
       await startBtn.click();
     }
-    // The button must become visible during a wave (not final wave)
+    // Open the burger menu to reveal the button
+    await page.locator('.hud-burger-btn').click();
+    // The button must be present and enabled in the menu during a wave
     await expect(page.locator('.hud-next-wave')).toBeVisible({ timeout: 3000 });
   });
 
-  test('"Next Wave Early" button becomes disabled after being clicked once', async ({ page }) => {
+  test('"Next Wave Early" button becomes disabled after being clicked once (via burger menu)', async ({ page }) => {
     // Start wave 1
     const startBtn = page.locator('.next-wave-start');
     if (await startBtn.isVisible()) {
       await startBtn.click();
     }
+    // Open burger menu
+    await page.locator('.hud-burger-btn').click();
     const earlyBtn = page.locator('.hud-next-wave');
     await expect(earlyBtn).toBeVisible({ timeout: 3000 });
     // Initially enabled
     await expect(earlyBtn).not.toBeDisabled();
-    // Click it
+    // Click it — the menu closes and earlyWaveCalled is set
     await earlyBtn.click();
+    // Re-open menu to verify disabled state
+    await page.locator('.hud-burger-btn').click();
     // Must be disabled immediately after use (one early call per wave)
-    await expect(earlyBtn).toBeDisabled();
+    await expect(page.locator('.hud-next-wave')).toBeDisabled();
   });
 
-  test('clicking "Next Wave Early" adds enemies to the board (wave overlap)', async ({ page }) => {
+  test('clicking "Next Wave Early" adds enemies to the board (wave overlap, via burger menu)', async ({ page }) => {
     // Start wave 1
     const startBtn = page.locator('.next-wave-start');
     if (await startBtn.isVisible()) {
       await startBtn.click();
     }
+    // Open burger menu to access the button
+    await page.locator('.hud-burger-btn').click();
     const earlyBtn = page.locator('.hud-next-wave');
     await expect(earlyBtn).toBeVisible({ timeout: 3000 });
     // Wait for some enemies to spawn so there is already a wave in flight
     await expect(page.locator('.enemy').first()).toBeVisible({ timeout: 5000 });
-    // Trigger the early wave
+    // Trigger the early wave — menu closes automatically
     await earlyBtn.click();
     // The board should still have enemies (not reset) — at least one enemy must be present
     await expect(page.locator('.enemy').first()).toBeAttached({ timeout: 2000 });
-    // The button must now be disabled
-    await expect(earlyBtn).toBeDisabled();
+    // Re-open menu to verify disabled state
+    await page.locator('.hud-burger-btn').click();
+    await expect(page.locator('.hud-next-wave')).toBeDisabled();
   });
 
   // --- 5x speed option (issue #63) ---
@@ -2503,48 +2580,62 @@ test.describe('Tower Defense - smoke tests', () => {
     }, { hookIndex, value });
   }
 
-  test('HUD shows trophy button with achievement count (e.g. "🏆 0/12")', async ({ page }) => {
-    // The HUD achievement button must be visible on initial load
-    const btn = page.locator('.hud-achievement-btn');
+  test('HUD burger menu shows Achievements button with count (e.g. "Achievements (0/12)")', async ({ page }) => {
+    // PR #125: achievements moved into burger menu. Dismiss NextWave overlay then open it.
+    const nwBtn = page.locator('.next-wave-start');
+    if (await nwBtn.isVisible()) await nwBtn.click();
+    await page.locator('.hud-burger-btn').click();
+    const btn = page.locator('.hud-burger-menu .hud-burger-item').filter({ hasText: 'Achievements' });
     await expect(btn).toBeVisible();
-    // Must contain the trophy emoji and a fraction of the form N/12
+    // Must contain a fraction of the form N/12
     const text = await btn.textContent();
-    expect(text).toMatch(/🏆\s*\d+\/12/);
+    expect(text).toMatch(/Achievements \(\d+\/12\)/);
   });
 
-  test('HUD trophy button shows 0/12 when no achievements are unlocked', async ({ page }) => {
+  test('HUD burger menu Achievements button shows 0/12 when no achievements are unlocked', async ({ page }) => {
     // Clear localStorage achievements and reload to start fresh
     await page.evaluate(() => localStorage.removeItem('unlockedAchievements'));
     await page.reload();
-    const btn = page.locator('.hud-achievement-btn');
+    // Dismiss difficulty overlay
+    const diffOverlay = page.locator('.difficulty-overlay');
+    if (await diffOverlay.isVisible()) {
+      await page.click('.difficulty-btn--normal');
+    }
+    // Dismiss NextWave overlay so burger btn is clickable
+    const nwBtn = page.locator('.next-wave-start');
+    if (await nwBtn.isVisible()) await nwBtn.click();
+    await page.locator('.hud-burger-btn').click();
+    const btn = page.locator('.hud-burger-menu .hud-burger-item').filter({ hasText: 'Achievements' });
     await expect(btn).toBeVisible();
     const text = await btn.textContent();
-    expect(text).toMatch(/🏆\s*0\/12/);
+    expect(text).toMatch(/Achievements \(0\/12\)/);
   });
 
-  test('clicking the HUD trophy button opens the achievement modal', async ({ page }) => {
-    // Dismiss the NextWave overlay so the HUD trophy button is clickable
+  test('clicking the burger menu Achievements button opens the achievement modal', async ({ page }) => {
+    // Dismiss the NextWave overlay so the HUD is interactive
     const startBtn = page.locator('.next-wave-start');
     if (await startBtn.isVisible()) {
       await startBtn.click();
     }
     // Modal should not be visible initially
     await expect(page.locator('.achievement-modal')).not.toBeAttached();
-    // Click the trophy button
-    await page.locator('.hud-achievement-btn').click();
+    // Open burger menu and click Achievements
+    await page.locator('.hud-burger-btn').click();
+    await page.locator('.hud-burger-menu .hud-burger-item').filter({ hasText: 'Achievements' }).click();
     // Modal overlay and modal must appear
     await expect(page.locator('.achievement-modal-overlay')).toBeVisible({ timeout: 2000 });
     await expect(page.locator('.achievement-modal')).toBeVisible();
   });
 
   test('achievement modal lists 12 achievement items', async ({ page }) => {
-    // Dismiss the NextWave overlay so the HUD trophy button is clickable
+    // Dismiss the NextWave overlay so the HUD is interactive
     const startBtn = page.locator('.next-wave-start');
     if (await startBtn.isVisible()) {
       await startBtn.click();
     }
-    // Open modal via trophy button
-    await page.locator('.hud-achievement-btn').click();
+    // Open burger menu and click Achievements
+    await page.locator('.hud-burger-btn').click();
+    await page.locator('.hud-burger-menu .hud-burger-item').filter({ hasText: 'Achievements' }).click();
     await expect(page.locator('.achievement-modal')).toBeVisible({ timeout: 2000 });
     // Must have exactly 12 achievement items
     const items = page.locator('.achievement-item');
@@ -2565,8 +2656,9 @@ test.describe('Tower Defense - smoke tests', () => {
     if (await startBtn.isVisible()) {
       await startBtn.click();
     }
-    // Open modal
-    await page.locator('.hud-achievement-btn').click();
+    // Open burger menu and click Achievements
+    await page.locator('.hud-burger-btn').click();
+    await page.locator('.hud-burger-menu .hud-burger-item').filter({ hasText: 'Achievements' }).click();
     await expect(page.locator('.achievement-modal')).toBeVisible({ timeout: 2000 });
     // All items must be locked
     const lockedItems = page.locator('.achievement-item--locked');
@@ -2589,8 +2681,9 @@ test.describe('Tower Defense - smoke tests', () => {
     }
     // Inject unlockedAchievements = ['first_blood'] via React fiber (hook index 31)
     await dispatchAppHook(page, 38, ['first_blood']); // unlockedAchievements = all-hooks[38] post-PR #110
-    // Open modal
-    await page.locator('.hud-achievement-btn').click();
+    // Open burger menu and click Achievements
+    await page.locator('.hud-burger-btn').click();
+    await page.locator('.hud-burger-menu .hud-burger-item').filter({ hasText: 'Achievements' }).click();
     await expect(page.locator('.achievement-modal')).toBeVisible({ timeout: 2000 });
     // At least one unlocked item should appear
     const unlockedItems = page.locator('.achievement-item--unlocked');
@@ -2613,8 +2706,9 @@ test.describe('Tower Defense - smoke tests', () => {
     }
     // Inject 3 unlocked achievements
     await dispatchAppHook(page, 38, ['first_blood', 'boss_slayer', 'combo_king']); // unlockedAchievements all[38] post-PR #110
-    // Open modal
-    await page.locator('.hud-achievement-btn').click();
+    // Open burger menu and click Achievements
+    await page.locator('.hud-burger-btn').click();
+    await page.locator('.hud-burger-menu .hud-burger-item').filter({ hasText: 'Achievements' }).click();
     await expect(page.locator('.achievement-modal')).toBeVisible({ timeout: 2000 });
     // Modal title must show 3/12
     const title = page.locator('.achievement-modal-title');
@@ -2623,13 +2717,14 @@ test.describe('Tower Defense - smoke tests', () => {
   });
 
   test('clicking the close button in the achievement modal closes it', async ({ page }) => {
-    // Dismiss the NextWave overlay so the HUD trophy button is clickable
+    // Dismiss the NextWave overlay so the HUD is interactive
     const startBtn = page.locator('.next-wave-start');
     if (await startBtn.isVisible()) {
       await startBtn.click();
     }
-    // Open modal
-    await page.locator('.hud-achievement-btn').click();
+    // Open burger menu and click Achievements
+    await page.locator('.hud-burger-btn').click();
+    await page.locator('.hud-burger-menu .hud-burger-item').filter({ hasText: 'Achievements' }).click();
     await expect(page.locator('.achievement-modal')).toBeVisible({ timeout: 2000 });
     // Click close button
     await page.locator('.achievement-modal-close').click();
@@ -2638,13 +2733,14 @@ test.describe('Tower Defense - smoke tests', () => {
   });
 
   test('clicking the modal overlay backdrop closes the modal', async ({ page }) => {
-    // Dismiss the NextWave overlay so the HUD trophy button is clickable
+    // Dismiss the NextWave overlay so the HUD is interactive
     const startBtn = page.locator('.next-wave-start');
     if (await startBtn.isVisible()) {
       await startBtn.click();
     }
-    // Open modal
-    await page.locator('.hud-achievement-btn').click();
+    // Open burger menu and click Achievements
+    await page.locator('.hud-burger-btn').click();
+    await page.locator('.hud-burger-menu .hud-burger-item').filter({ hasText: 'Achievements' }).click();
     await expect(page.locator('.achievement-modal-overlay')).toBeVisible({ timeout: 2000 });
     // Click the overlay (not the modal itself) — use coordinates at the very top-left
     // of the overlay which is outside the centered modal panel
@@ -2652,12 +2748,15 @@ test.describe('Tower Defense - smoke tests', () => {
     await expect(page.locator('.achievement-modal')).not.toBeAttached({ timeout: 2000 });
   });
 
-  test('HUD trophy button count updates when achievements are injected', async ({ page }) => {
-    // Initially 0/12
-    const btn = page.locator('.hud-achievement-btn');
-    await expect(btn).toBeVisible();
+  test('burger menu Achievements button count updates when achievements are injected', async ({ page }) => {
     // Inject 5 achievements
     await dispatchAppHook(page, 38, ['first_blood', 'boss_slayer', 'combo_king', 'tower_builder', 'golden_hoard']); // unlockedAchievements all[38] post-PR #110
+    // Dismiss NextWave overlay then open burger menu and check button text
+    const nwBtn = page.locator('.next-wave-start');
+    if (await nwBtn.isVisible()) await nwBtn.click();
+    await page.locator('.hud-burger-btn').click();
+    const btn = page.locator('.hud-burger-menu .hud-burger-item').filter({ hasText: 'Achievements' });
+    await expect(btn).toBeVisible();
     // Button text should update to 5/12
     await expect(btn).toContainText('5/12');
   });
@@ -2686,13 +2785,14 @@ test.describe('Tower Defense - smoke tests', () => {
   });
 
   test('achievement modal is accessible — has achievement-modal-list with list items', async ({ page }) => {
-    // Dismiss the NextWave overlay so the HUD trophy button is clickable
+    // Dismiss the NextWave overlay so the HUD is interactive
     const startBtn = page.locator('.next-wave-start');
     if (await startBtn.isVisible()) {
       await startBtn.click();
     }
-    // Open modal
-    await page.locator('.hud-achievement-btn').click();
+    // Open burger menu and click Achievements
+    await page.locator('.hud-burger-btn').click();
+    await page.locator('.hud-burger-menu .hud-burger-item').filter({ hasText: 'Achievements' }).click();
     await expect(page.locator('.achievement-modal')).toBeVisible({ timeout: 2000 });
     // Must have a list
     await expect(page.locator('.achievement-modal-list')).toBeVisible();
@@ -2934,9 +3034,9 @@ test.describe('Tower Defense - smoke tests', () => {
     await dispatchAppHook(page, 35, 7);
     // The ticker must be attached and visible in the HUD
     await expect(page.locator('.hud .hud-interest-ticker')).toBeVisible({ timeout: 2000 });
-    // Ticker text must mention interest and a countdown in seconds
+    // Ticker text shows format: "+Xg in Ys" (e.g. "+5g in 7s")
     const tickerText = await page.locator('.hud-interest-ticker').textContent();
-    expect(tickerText).toContain('interest');
+    expect(tickerText).toMatch(/\+\d+g/);
     expect(tickerText).toMatch(/\d+s/);
   });
 
@@ -2961,15 +3061,19 @@ test.describe('Tower Defense - smoke tests', () => {
 
   // --- Prestige system (issue #78 / PR #103) ---
 
-  test('.hud-prestige-stars is visible in the HUD on initial load', async ({ page }) => {
-    // HUD renders .hud-prestige-stars unconditionally (all 5 star slots are always shown)
-    await expect(page.locator('.hud-prestige-stars')).toBeVisible();
+  test('.hud-burger-stars is present inside the burger menu with 5 prestige star slots', async ({ page }) => {
+    // PR #125: prestige stars moved into burger menu (.hud-burger-stars).
+    // Dismiss NextWave overlay and open burger menu to check.
+    const nwBtn = page.locator('.next-wave-start');
+    if (await nwBtn.isVisible()) await nwBtn.click();
+    await page.locator('.hud-burger-btn').click();
+    await expect(page.locator('.hud-burger-stars')).toBeVisible();
     // Must contain exactly 5 star span elements
-    const stars = page.locator('.hud-prestige-stars .prestige-star');
+    const stars = page.locator('.hud-burger-stars .prestige-star');
     await expect(stars).toHaveCount(5);
   });
 
-  test('.hud-prestige-stars shows hollow stars when prestigeStars=0', async ({ page }) => {
+  test('.hud-burger-stars shows hollow stars when prestigeStars=0 (in burger menu)', async ({ page }) => {
     // Ensure localStorage has no prestige stars (default state)
     await page.evaluate(() => localStorage.removeItem('towerDefense_prestigeStars'));
     await page.reload();
@@ -2978,14 +3082,18 @@ test.describe('Tower Defense - smoke tests', () => {
     if (await diffOverlay.isVisible()) {
       await page.click('.difficulty-btn--normal');
     }
+    // Dismiss NextWave overlay, open burger menu to check prestige stars
+    const nwBtn = page.locator('.next-wave-start');
+    if (await nwBtn.isVisible()) await nwBtn.click();
+    await page.locator('.hud-burger-btn').click();
     // All 5 stars must be hollow (prestigeStars=0)
-    const filledStars = page.locator('.prestige-star--filled');
+    const filledStars = page.locator('.hud-burger-stars .prestige-star--filled');
     await expect(filledStars).toHaveCount(0);
-    const hollowStars = page.locator('.prestige-star--hollow');
+    const hollowStars = page.locator('.hud-burger-stars .prestige-star--hollow');
     await expect(hollowStars).toHaveCount(5);
   });
 
-  test('.hud-prestige-stars shows filled stars when prestigeStars is injected via fiber', async ({ page }) => {
+  test('.hud-burger-stars shows filled stars when prestigeStars is injected via fiber', async ({ page }) => {
     // Inject prestigeStars=2 via React fiber
     // PR #110: endlessMode removed — prestigeStars shifted from stateHooks[22] to stateHooks[21]
     await page.evaluate(() => {
@@ -3011,9 +3119,13 @@ test.describe('Tower Defense - smoke tests', () => {
       }
       throw new Error('Could not find App fiber hooks');
     });
+    // Dismiss NextWave overlay, open burger menu to verify stars
+    const nwBtn = page.locator('.next-wave-start');
+    if (await nwBtn.isVisible()) await nwBtn.click();
+    await page.locator('.hud-burger-btn').click();
     // 2 filled stars, 3 hollow stars
-    await expect(page.locator('.prestige-star--filled')).toHaveCount(2);
-    await expect(page.locator('.prestige-star--hollow')).toHaveCount(3);
+    await expect(page.locator('.hud-burger-stars .prestige-star--filled')).toHaveCount(2);
+    await expect(page.locator('.hud-burger-stars .prestige-star--hollow')).toHaveCount(3);
   });
 
   test('.prestige-btn appears in GameOver overlay when wavesReached>=20, prestigeStars<5 (PR #110: no endlessMode needed)', async ({ page }) => {
@@ -3194,10 +3306,16 @@ test.describe('Tower Defense - smoke tests', () => {
     // localStorage must now have prestigeStars = '1'
     const stored = await page.evaluate(() => localStorage.getItem('towerDefense_prestigeStars'));
     expect(stored).toBe('1');
-    // Reload and verify the star persists in the HUD
+    // Reload and verify the star persists in the burger menu
     await page.reload();
     await page.waitForSelector('.game-board', { state: 'visible' });
-    const filledAfterReload = await page.locator('.prestige-star--filled').count();
+    // Stars are in the burger menu — dismiss difficulty overlay if needed, then open burger menu
+    const diffO = page.locator('.difficulty-overlay');
+    if (await diffO.isVisible()) await page.click('.difficulty-btn--normal');
+    const nwO = page.locator('.next-wave-start');
+    if (await nwO.isVisible()) await nwO.click();
+    await page.locator('.hud-burger-btn').click();
+    const filledAfterReload = await page.locator('.hud-burger-stars .prestige-star--filled').count();
     expect(filledAfterReload).toBe(1);
   });
 
@@ -3525,41 +3643,61 @@ test.describe('Tower Defense - smoke tests', () => {
   });
 
   // --- Synergy lines visual overlay (issue #111 / PR #124) ---
+  // PR #125: "Show Synergies" moved into the burger menu (☰). Tests open the menu first.
 
-  test('"Show Synergies" button is visible in the HUD', async ({ page }) => {
-    // beforeEach navigates to '/' and dismisses the difficulty overlay
-    await expect(page.locator('.hud-synergies-toggle')).toBeVisible();
-  });
-
-  test('"Show Synergies" button is not active by default', async ({ page }) => {
-    const btn = page.locator('.hud-synergies-toggle');
+  test('"Show Synergies" button is visible inside the burger menu', async ({ page }) => {
+    // PR #125: synergies toggle moved into burger menu — dismiss NextWave overlay then open menu
+    const nwBtn = page.locator('.next-wave-start');
+    if (await nwBtn.isVisible()) await nwBtn.click();
+    await page.locator('.hud-burger-btn').click();
+    const btn = page.locator('.hud-burger-menu .hud-burger-item').filter({ hasText: /Synergies/ });
     await expect(btn).toBeVisible();
-    await expect(btn).not.toHaveClass(/hud-synergies-toggle--active/);
   });
 
-  test('clicking "Show Synergies" toggles the active class on', async ({ page }) => {
+  test('"Show Synergies" burger menu item is not active by default (shows "Show Synergies")', async ({ page }) => {
+    // Dismiss NextWave overlay so burger btn is clickable
+    const nwBtn = page.locator('.next-wave-start');
+    if (await nwBtn.isVisible()) await nwBtn.click();
+    await page.locator('.hud-burger-btn').click();
+    const btn = page.locator('.hud-burger-menu .hud-burger-item').filter({ hasText: /Synergies/ });
+    await expect(btn).toBeVisible();
+    // When inactive, text is "Show Synergies" and class does not have --active
+    await expect(btn).toContainText('Show Synergies');
+    await expect(btn).not.toHaveClass(/hud-burger-item--active/);
+  });
+
+  test('clicking "Show Synergies" in the burger menu toggles the active class on', async ({ page }) => {
     // Dismiss the NextWave overlay (intercepts pointer events) before clicking HUD buttons
     const startBtn = page.locator('.next-wave-start');
     if (await startBtn.isVisible()) {
       await startBtn.click();
     }
-    const btn = page.locator('.hud-synergies-toggle');
-    await expect(btn).toBeVisible();
-    await btn.click();
-    await expect(btn).toHaveClass(/hud-synergies-toggle--active/);
+    // Open burger menu and click Show Synergies
+    await page.locator('.hud-burger-btn').click();
+    await page.locator('.hud-burger-menu .hud-burger-item').filter({ hasText: 'Show Synergies' }).click();
+    // Menu closes; re-open to verify the active state
+    await page.locator('.hud-burger-btn').click();
+    const btn = page.locator('.hud-burger-menu .hud-burger-item').filter({ hasText: /Synergies/ });
+    await expect(btn).toHaveClass(/hud-burger-item--active/);
+    await expect(btn).toContainText('Hide Synergies');
   });
 
-  test('clicking "Show Synergies" twice toggles the active class back off', async ({ page }) => {
+  test('clicking "Show Synergies" twice via burger menu toggles the active class back off', async ({ page }) => {
     const startBtn = page.locator('.next-wave-start');
     if (await startBtn.isVisible()) {
       await startBtn.click();
     }
-    const btn = page.locator('.hud-synergies-toggle');
-    await expect(btn).toBeVisible();
-    await btn.click();
-    await expect(btn).toHaveClass(/hud-synergies-toggle--active/);
-    await btn.click();
-    await expect(btn).not.toHaveClass(/hud-synergies-toggle--active/);
+    // First click: Show → Hide (active)
+    await page.locator('.hud-burger-btn').click();
+    await page.locator('.hud-burger-menu .hud-burger-item').filter({ hasText: 'Show Synergies' }).click();
+    // Second click: Hide → Show (inactive)
+    await page.locator('.hud-burger-btn').click();
+    await page.locator('.hud-burger-menu .hud-burger-item').filter({ hasText: 'Hide Synergies' }).click();
+    // Re-open to verify
+    await page.locator('.hud-burger-btn').click();
+    const btn = page.locator('.hud-burger-menu .hud-burger-item').filter({ hasText: /Synergies/ });
+    await expect(btn).not.toHaveClass(/hud-burger-item--active/);
+    await expect(btn).toContainText('Show Synergies');
   });
 
   test('synergy lines appear after placing two adjacent synergy towers and enabling the overlay', async ({ page }) => {
@@ -3586,10 +3724,9 @@ test.describe('Tower Defense - smoke tests', () => {
       await slots.nth(1).click();
     }
 
-    // Enable the global synergy overlay
-    const showSynergiesBtn = page.locator('.hud-synergies-toggle');
-    await showSynergiesBtn.click();
-    await expect(showSynergiesBtn).toHaveClass(/hud-synergies-toggle--active/);
+    // Enable the global synergy overlay via the burger menu
+    await page.locator('.hud-burger-btn').click();
+    await page.locator('.hud-burger-menu .hud-burger-item').filter({ hasText: 'Show Synergies' }).click();
 
     // If both towers have an active synergy, .synergy-line elements should appear in the SVG layer.
     // (BasicTower+BasicTower always synergises; BasicTower+SlowTower also synergises.)
@@ -3670,15 +3807,21 @@ test.describe('Tower Defense - smoke tests', () => {
     expect(hasPartnerOutline).toBe(true);
   });
 
-  test('.hud-synergies-toggle CSS class has a teal border (brand colour)', async ({ page }) => {
-    // Verify the CSS rule from index.css for .hud-synergies-toggle is loaded
-    const borderColor = await page.evaluate(() => {
-      const btn = document.querySelector('.hud-synergies-toggle');
-      if (!btn) return null;
-      return getComputedStyle(btn).borderColor;
-    });
-    // Border is set to #00e5cc in index.css — any non-black, non-transparent value confirms loading
-    expect(borderColor).not.toBeNull();
+  test('.hud-burger-item--active CSS class has a teal/distinct colour (PR #125 synergies in burger)', async ({ page }) => {
+    // Verify the CSS rule for .hud-burger-item--active is loaded and applied
+    // Open burger menu, enable synergies so the button gets the active class
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+    await page.locator('.hud-burger-btn').click();
+    await page.locator('.hud-burger-menu .hud-burger-item').filter({ hasText: 'Show Synergies' }).click();
+    // Re-open menu to inspect the active item
+    await page.locator('.hud-burger-btn').click();
+    const activeBtn = page.locator('.hud-burger-item--active');
+    await expect(activeBtn).toBeVisible();
+    const borderColor = await activeBtn.evaluate(el => getComputedStyle(el).borderColor);
+    // Border must be a non-default colour (index.css sets teal: #00e5cc or similar brand colour)
     expect(borderColor).not.toBe('rgb(0, 0, 0)');
     expect(borderColor).not.toBe('');
   });
