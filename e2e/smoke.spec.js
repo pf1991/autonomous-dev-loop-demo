@@ -2358,8 +2358,10 @@ test.describe('Tower Defense - smoke tests', () => {
             }
             hookNode = hookNode.next;
           }
-          // stateHooks[31] = pendingWaveAdvance (verified post-PR #110); walk all hooks to find the node after it
-          const pendingWaveHook = stateHooksForSeed[31];
+          // stateHooks[33] = pendingWaveAdvance (verified post-PR #127: synergyPartners[30] and
+          // showSynergies[31] inserted, shifting earlyWaveCalled to [32] and pendingWaveAdvance to [33])
+          // waveEventSeedRef is the very next hook node after pendingWaveAdvance.
+          const pendingWaveHook = stateHooksForSeed[33];
           if (pendingWaveHook) {
             // Walk all hooks to find pendingWaveHook and grab the next one
             let hNode = fiber.memoizedState;
@@ -3707,33 +3709,56 @@ test.describe('Tower Defense - smoke tests', () => {
       await startBtn.click();
     }
 
-    // Place a BasicTower on the first slot (costs 50g — affordable on 100g)
-    const slots = page.locator('.tower-slot');
-    await slots.first().click();
+    // The map is procedurally generated, so the first two .tower-slot elements in the DOM
+    // may NOT be grid-adjacent. Find two tower-slot tiles that ARE adjacent by computing
+    // their (row, col) from their position in the flat tile list, then return their indices.
+    const adjacentIndices = await page.evaluate(() => {
+      const COLS = 20;
+      const allTiles = Array.from(document.querySelectorAll('.game-board .tile'));
+      // Build a set of tower-slot indices for fast lookup
+      const slotIndices = new Set();
+      allTiles.forEach((el, idx) => {
+        if (el.classList.contains('tower-slot')) slotIndices.add(idx);
+      });
+      // For each tower-slot, check if the tile immediately to its right (same row, col+1)
+      // or immediately below (next row, same col) is also a tower-slot.
+      for (const idx of slotIndices) {
+        const row = Math.floor(idx / COLS);
+        const col = idx % COLS;
+        const rightIdx = row * COLS + (col + 1);
+        const downIdx = (row + 1) * COLS + col;
+        if (slotIndices.has(rightIdx)) return [idx, rightIdx];
+        if (slotIndices.has(downIdx)) return [idx, downIdx];
+      }
+      return null;
+    });
+
+    if (adjacentIndices === null) {
+      // No two adjacent tower slots found on this generated map — skip test
+      return;
+    }
+
+    const [idx1, idx2] = adjacentIndices;
+    // Click the first adjacent tower-slot tile
+    await page.locator('.game-board .tile').nth(idx1).click();
     await expect(page.locator('.tower-icon').first()).toBeVisible();
 
-    // Place a SlowTower on the adjacent slot (costs 90g — too expensive after spending 50g;
-    // select SlowTower only if affordable, otherwise use a BasicTower which still synergises)
-    const slowBtn = page.locator('.tower-picker button').filter({ hasText: 'SlowTower' });
-    const isSlowAffordable = (await slowBtn.getAttribute('disabled')) === null;
-    if (isSlowAffordable) {
-      await slowBtn.click();
+    // Select BasicTower (already selected by default; ensure it's still selected after panel opened)
+    const basicBtn = page.locator('.tower-picker button').filter({ hasText: 'BasicTower' });
+    if (await basicBtn.isVisible() && (await basicBtn.getAttribute('disabled')) === null) {
+      await basicBtn.click();
     }
-    // Place second tower adjacent to the first (second slot)
-    if (await slots.nth(1).isVisible()) {
-      await slots.nth(1).click();
-    }
+
+    // Click the second adjacent tower-slot tile (BasicTower+BasicTower always synergises)
+    await page.locator('.game-board .tile').nth(idx2).click();
+    await expect(page.locator('.tower-icon')).toHaveCount(2, { timeout: 3000 });
 
     // Enable the global synergy overlay via the burger menu
     await page.locator('.hud-burger-btn').click();
     await page.locator('.hud-burger-menu .hud-burger-item').filter({ hasText: 'Show Synergies' }).click();
 
-    // If both towers have an active synergy, .synergy-line elements should appear in the SVG layer.
-    // (BasicTower+BasicTower always synergises; BasicTower+SlowTower also synergises.)
-    const towerCount = await page.locator('.tower-icon').count();
-    if (towerCount >= 2) {
-      await expect(page.locator('.synergy-line').first()).toBeAttached({ timeout: 2000 });
-    }
+    // Both BasicTowers synergise — .synergy-line elements must appear in the SVG layer.
+    await expect(page.locator('.synergy-line').first()).toBeAttached({ timeout: 2000 });
   });
 
   test('hovering an occupied tower-slot shows focal synergy lines to its partners', async ({ page }) => {
