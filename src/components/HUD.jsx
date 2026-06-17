@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { computeInterest } from '../game/score.js'
+import { isMuted, toggleMute } from '../audio.js'
 
 /**
  * copyLevelUrl copies the current page URL to the clipboard.
@@ -71,6 +72,12 @@ function HUD({
   const isRampage = comboCount >= 5
   const [menuOpen, setMenuOpen] = useState(initialMenuOpen)
   const [copyToast, setCopyToast] = useState(false)
+  const [muted, setMutedState] = useState(() => isMuted())
+
+  function handleMuteToggle() {
+    const next = toggleMute()
+    setMutedState(next)
+  }
 
   function handleCopyLevel() {
     copyLevelUrl().then(() => {
@@ -165,6 +172,14 @@ function HUD({
                 onClick={() => { onShowSynergiesToggle(); setMenuOpen(false) }}
               >
                 {showSynergies ? 'Hide Synergies' : 'Show Synergies'}
+              </button>
+              <button
+                className={`hud-burger-item hud-mute-btn${muted ? ' hud-burger-item--active' : ''}`}
+                onClick={handleMuteToggle}
+                aria-label={muted ? 'Unmute sound effects' : 'Mute sound effects'}
+                title={muted ? 'Unmute sound effects' : 'Mute sound effects'}
+              >
+                {muted ? '🔇 Unmute' : '🔊 Mute'}
               </button>
               <button
                 className="hud-burger-item"

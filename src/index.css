@@ -192,6 +192,21 @@ body {
   background: #00bfaa;
 }
 
+.hud-mute-btn {
+  /* Mute toggle button in burger menu — inherits hud-burger-item base styles */
+}
+
+.hud-mute-btn.hud-burger-item--active {
+  /* When muted: use a dimmer background to signal audio is off */
+  background: #444;
+  color: #bbb;
+  border-color: #666;
+}
+
+.hud-mute-btn.hud-burger-item--active:hover {
+  background: #555;
+}
+
 .hud-burger-stars {
   display: flex;
   gap: 2px;
