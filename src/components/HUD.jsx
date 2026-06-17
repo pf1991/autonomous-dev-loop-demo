@@ -2,6 +2,14 @@ import { useState } from 'react'
 import { computeInterest } from '../game/score.js'
 
 /**
+ * copyLevelUrl copies the current page URL to the clipboard.
+ * Returns a promise that resolves when done.
+ */
+function copyLevelUrl() {
+  return navigator.clipboard.writeText(window.location.href)
+}
+
+/**
  * HUD — Heads-up display showing live game stats, a speed toggle button,
  * and a persistent Restart button.
  * Props:
@@ -28,6 +36,8 @@ import { computeInterest } from '../game/score.js'
  *   prestigeStars        — current prestige star count (0–5)
  *   showSynergies        — boolean: whether global synergy overlay is active
  *   onShowSynergiesToggle — callback invoked when "Show Synergies" button is clicked
+ *   levelHash            — 8-char hex string for the current level seed (string | undefined)
+ *   onNewMap             — callback to navigate to a fresh map
  *   initialMenuOpen      — boolean: start with burger menu open (default false; used in tests)
  */
 function HUD({
@@ -54,10 +64,20 @@ function HUD({
   prestigeStars = 0,
   showSynergies = false,
   onShowSynergiesToggle,
+  levelHash,
+  onNewMap,
   initialMenuOpen = false,
 }) {
   const isRampage = comboCount >= 5
   const [menuOpen, setMenuOpen] = useState(initialMenuOpen)
+  const [copyToast, setCopyToast] = useState(false)
+
+  function handleCopyLevel() {
+    copyLevelUrl().then(() => {
+      setCopyToast(true)
+      setTimeout(() => setCopyToast(false), 1500)
+    })
+  }
 
   return (
     <div className="hud">
@@ -81,6 +101,12 @@ function HUD({
           )}
         </div>
         <span className="hud-wave">Wave: {wave}</span>
+        {levelHash && (
+          <span className="level-chip" onClick={handleCopyLevel} title="Click to copy level URL">
+            Level: #{levelHash} 📋
+            {copyToast && <span className="level-chip-toast">Level URL copied!</span>}
+          </span>
+        )}
         {difficultyLabel && (
           <span
             className="hud-difficulty-pill"
@@ -117,6 +143,14 @@ function HUD({
           </button>
           {menuOpen && (
             <div className="hud-burger-menu">
+              {onNewMap && (
+                <button
+                  className="hud-burger-item hud-new-map"
+                  onClick={() => { onNewMap(); setMenuOpen(false) }}
+                >
+                  New Map
+                </button>
+              )}
               {showNextWave && (
                 <button
                   className="hud-burger-item hud-next-wave"

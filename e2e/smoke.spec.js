@@ -2358,8 +2358,10 @@ test.describe('Tower Defense - smoke tests', () => {
             }
             hookNode = hookNode.next;
           }
-          // stateHooks[31] = pendingWaveAdvance (verified post-PR #110); walk all hooks to find the node after it
-          const pendingWaveHook = stateHooksForSeed[31];
+          // stateHooks[33] = pendingWaveAdvance (verified post-PR #127: synergyPartners[30] and
+          // showSynergies[31] inserted, shifting earlyWaveCalled to [32] and pendingWaveAdvance to [33])
+          // waveEventSeedRef is the very next hook node after pendingWaveAdvance.
+          const pendingWaveHook = stateHooksForSeed[33];
           if (pendingWaveHook) {
             // Walk all hooks to find pendingWaveHook and grab the next one
             let hNode = fiber.memoizedState;
@@ -3707,33 +3709,56 @@ test.describe('Tower Defense - smoke tests', () => {
       await startBtn.click();
     }
 
-    // Place a BasicTower on the first slot (costs 50g — affordable on 100g)
-    const slots = page.locator('.tower-slot');
-    await slots.first().click();
+    // The map is procedurally generated, so the first two .tower-slot elements in the DOM
+    // may NOT be grid-adjacent. Find two tower-slot tiles that ARE adjacent by computing
+    // their (row, col) from their position in the flat tile list, then return their indices.
+    const adjacentIndices = await page.evaluate(() => {
+      const COLS = 20;
+      const allTiles = Array.from(document.querySelectorAll('.game-board .tile'));
+      // Build a set of tower-slot indices for fast lookup
+      const slotIndices = new Set();
+      allTiles.forEach((el, idx) => {
+        if (el.classList.contains('tower-slot')) slotIndices.add(idx);
+      });
+      // For each tower-slot, check if the tile immediately to its right (same row, col+1)
+      // or immediately below (next row, same col) is also a tower-slot.
+      for (const idx of slotIndices) {
+        const row = Math.floor(idx / COLS);
+        const col = idx % COLS;
+        const rightIdx = row * COLS + (col + 1);
+        const downIdx = (row + 1) * COLS + col;
+        if (slotIndices.has(rightIdx)) return [idx, rightIdx];
+        if (slotIndices.has(downIdx)) return [idx, downIdx];
+      }
+      return null;
+    });
+
+    if (adjacentIndices === null) {
+      // No two adjacent tower slots found on this generated map — skip test
+      return;
+    }
+
+    const [idx1, idx2] = adjacentIndices;
+    // Click the first adjacent tower-slot tile
+    await page.locator('.game-board .tile').nth(idx1).click();
     await expect(page.locator('.tower-icon').first()).toBeVisible();
 
-    // Place a SlowTower on the adjacent slot (costs 90g — too expensive after spending 50g;
-    // select SlowTower only if affordable, otherwise use a BasicTower which still synergises)
-    const slowBtn = page.locator('.tower-picker button').filter({ hasText: 'SlowTower' });
-    const isSlowAffordable = (await slowBtn.getAttribute('disabled')) === null;
-    if (isSlowAffordable) {
-      await slowBtn.click();
+    // Select BasicTower (already selected by default; ensure it's still selected after panel opened)
+    const basicBtn = page.locator('.tower-picker button').filter({ hasText: 'BasicTower' });
+    if (await basicBtn.isVisible() && (await basicBtn.getAttribute('disabled')) === null) {
+      await basicBtn.click();
     }
-    // Place second tower adjacent to the first (second slot)
-    if (await slots.nth(1).isVisible()) {
-      await slots.nth(1).click();
-    }
+
+    // Click the second adjacent tower-slot tile (BasicTower+BasicTower always synergises)
+    await page.locator('.game-board .tile').nth(idx2).click();
+    await expect(page.locator('.tower-icon')).toHaveCount(2, { timeout: 3000 });
 
     // Enable the global synergy overlay via the burger menu
     await page.locator('.hud-burger-btn').click();
     await page.locator('.hud-burger-menu .hud-burger-item').filter({ hasText: 'Show Synergies' }).click();
 
-    // If both towers have an active synergy, .synergy-line elements should appear in the SVG layer.
-    // (BasicTower+BasicTower always synergises; BasicTower+SlowTower also synergises.)
-    const towerCount = await page.locator('.tower-icon').count();
-    if (towerCount >= 2) {
-      await expect(page.locator('.synergy-line').first()).toBeAttached({ timeout: 2000 });
-    }
+    // Both BasicTowers synergise — .synergy-line elements must appear in the SVG layer.
+    await expect(page.locator('.synergy-line').first()).toBeAttached({ timeout: 2000 });
   });
 
   test('hovering an occupied tower-slot shows focal synergy lines to its partners', async ({ page }) => {
@@ -3897,5 +3922,79 @@ test.describe('DifficultySelector', () => {
     await page.locator('.game-over-restart').click();
     // After restart, difficulty overlay must appear again
     await expect(page.locator('.difficulty-overlay')).toBeVisible({ timeout: 2000 });
+  });
+
+  // --- Seeded map generation (issue #112 / PR #127) ---
+
+  test('.level-chip is visible on page load and contains an 8-char hex pattern', async ({ page }) => {
+    // Reload to a fresh page so the seed is always present in the URL hash.
+    // Some prior tests modify page state; a fresh goto ensures LEVEL_HASH is computed.
+    await page.goto('/');
+    const diffOverlay = page.locator('.difficulty-overlay');
+    if (await diffOverlay.isVisible()) {
+      await page.click('.difficulty-btn--normal');
+    }
+    // LEVEL_HASH is always set (derived from the seed in the URL hash or a freshly generated one).
+    // The .level-chip element is rendered in HUD whenever levelHash is truthy.
+    const chip = page.locator('.level-chip');
+    await expect(chip).toBeAttached({ timeout: 5000 });
+    const chipText = await chip.textContent();
+    // Must contain "Level: #" followed by exactly 8 hex characters
+    expect(chipText).toMatch(/Level:\s*#[0-9a-fA-F]{8}/);
+  });
+
+  test('clicking .hud-burger-btn then .hud-new-map causes navigation to a new seed URL', async ({ page }) => {
+    // Reload to a fresh page so state is clean
+    await page.goto('/');
+    const diffOverlay = page.locator('.difficulty-overlay');
+    if (await diffOverlay.isVisible()) {
+      await page.click('.difficulty-btn--normal');
+    }
+    // Dismiss NextWave overlay so the burger button is fully interactive
+    const nwBtn = page.locator('.next-wave-start');
+    if (await nwBtn.isVisible()) await nwBtn.click();
+    // Open the burger menu
+    await page.locator('.hud-burger-btn').click();
+    await expect(page.locator('.hud-burger-menu')).toBeVisible();
+    // .hud-new-map must be present in the menu
+    const newMapBtn = page.locator('.hud-new-map');
+    await expect(newMapBtn).toBeVisible();
+    // handleNewMap() sets window.location.hash='' then calls window.location.reload().
+    // Use waitForURL to detect the navigation that follows the reload.
+    await Promise.all([
+      page.waitForURL(/localhost:5173/, { timeout: 10000 }),
+      newMapBtn.click(),
+    ]);
+    // After navigation, the app generates a new seed and writes it to the URL hash.
+    // Wait for the seed hash to appear (App.jsx calls window.location.hash = `seed=XXXXXXXX`)
+    await page.waitForFunction(
+      () => /seed=[0-9a-fA-F]{8}/.test(window.location.hash),
+      { timeout: 5000 }
+    );
+    const hashAfter = await page.evaluate(() => window.location.hash);
+    expect(hashAfter).toMatch(/seed=[0-9a-fA-F]{8}/);
+  });
+
+  test('.game-over-level-hash is visible on the game-over screen and contains a # followed by 8 hex chars', async ({ page }) => {
+    // Reload to a fresh page so the React fiber is fully ready before fiber injection
+    await page.goto('/');
+    const diffOverlay = page.locator('.difficulty-overlay');
+    if (await diffOverlay.isVisible()) {
+      await page.click('.difficulty-btn--normal');
+    }
+    // Wait for React fiber to attach to #game before calling triggerGamePhase
+    await page.waitForFunction(() => {
+      const el = document.querySelector('#game');
+      return el && Object.keys(el).some(k => k.startsWith('__reactFiber'));
+    }, { timeout: 5000 });
+    // Trigger the lose phase via fiber injection
+    await triggerGamePhase(page, 'lose');
+    await expect(page.locator('.game-over-overlay')).toBeVisible();
+    // The level hash element must be present and show the seed
+    const hashEl = page.locator('.game-over-level-hash');
+    await expect(hashEl).toBeVisible();
+    const hashText = await hashEl.textContent();
+    // Must contain "Level: #" followed by exactly 8 hex characters
+    expect(hashText).toMatch(/Level:\s*#[0-9a-fA-F]{8}/);
   });
 });
