@@ -47,14 +47,3 @@ export function seedToHex(seed) {
   return ((seed >>> 0).toString(16)).padStart(8, '0')
 }
 
-/**
- * generateSeed produces a cryptographically random 32-bit seed using
- * the Web Crypto API.
- *
- * @returns {number} - 32-bit unsigned integer
- */
-export function generateSeed() {
-  const arr = new Uint32Array(1)
-  crypto.getRandomValues(arr)
-  return arr[0]
-}
