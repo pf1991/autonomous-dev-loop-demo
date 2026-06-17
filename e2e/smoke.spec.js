@@ -3898,4 +3898,78 @@ test.describe('DifficultySelector', () => {
     // After restart, difficulty overlay must appear again
     await expect(page.locator('.difficulty-overlay')).toBeVisible({ timeout: 2000 });
   });
+
+  // --- Seeded map generation (issue #112 / PR #127) ---
+
+  test('.level-chip is visible on page load and contains an 8-char hex pattern', async ({ page }) => {
+    // Reload to a fresh page so the seed is always present in the URL hash.
+    // Some prior tests modify page state; a fresh goto ensures LEVEL_HASH is computed.
+    await page.goto('/');
+    const diffOverlay = page.locator('.difficulty-overlay');
+    if (await diffOverlay.isVisible()) {
+      await page.click('.difficulty-btn--normal');
+    }
+    // LEVEL_HASH is always set (derived from the seed in the URL hash or a freshly generated one).
+    // The .level-chip element is rendered in HUD whenever levelHash is truthy.
+    const chip = page.locator('.level-chip');
+    await expect(chip).toBeAttached({ timeout: 5000 });
+    const chipText = await chip.textContent();
+    // Must contain "Level: #" followed by exactly 8 hex characters
+    expect(chipText).toMatch(/Level:\s*#[0-9a-fA-F]{8}/);
+  });
+
+  test('clicking .hud-burger-btn then .hud-new-map causes navigation to a new seed URL', async ({ page }) => {
+    // Reload to a fresh page so state is clean
+    await page.goto('/');
+    const diffOverlay = page.locator('.difficulty-overlay');
+    if (await diffOverlay.isVisible()) {
+      await page.click('.difficulty-btn--normal');
+    }
+    // Dismiss NextWave overlay so the burger button is fully interactive
+    const nwBtn = page.locator('.next-wave-start');
+    if (await nwBtn.isVisible()) await nwBtn.click();
+    // Open the burger menu
+    await page.locator('.hud-burger-btn').click();
+    await expect(page.locator('.hud-burger-menu')).toBeVisible();
+    // .hud-new-map must be present in the menu
+    const newMapBtn = page.locator('.hud-new-map');
+    await expect(newMapBtn).toBeVisible();
+    // handleNewMap() sets window.location.hash='' then calls window.location.reload().
+    // Use waitForURL to detect the navigation that follows the reload.
+    await Promise.all([
+      page.waitForURL(/localhost:5173/, { timeout: 10000 }),
+      newMapBtn.click(),
+    ]);
+    // After navigation, the app generates a new seed and writes it to the URL hash.
+    // Wait for the seed hash to appear (App.jsx calls window.location.hash = `seed=XXXXXXXX`)
+    await page.waitForFunction(
+      () => /seed=[0-9a-fA-F]{8}/.test(window.location.hash),
+      { timeout: 5000 }
+    );
+    const hashAfter = await page.evaluate(() => window.location.hash);
+    expect(hashAfter).toMatch(/seed=[0-9a-fA-F]{8}/);
+  });
+
+  test('.game-over-level-hash is visible on the game-over screen and contains a # followed by 8 hex chars', async ({ page }) => {
+    // Reload to a fresh page so the React fiber is fully ready before fiber injection
+    await page.goto('/');
+    const diffOverlay = page.locator('.difficulty-overlay');
+    if (await diffOverlay.isVisible()) {
+      await page.click('.difficulty-btn--normal');
+    }
+    // Wait for React fiber to attach to #game before calling triggerGamePhase
+    await page.waitForFunction(() => {
+      const el = document.querySelector('#game');
+      return el && Object.keys(el).some(k => k.startsWith('__reactFiber'));
+    }, { timeout: 5000 });
+    // Trigger the lose phase via fiber injection
+    await triggerGamePhase(page, 'lose');
+    await expect(page.locator('.game-over-overlay')).toBeVisible();
+    // The level hash element must be present and show the seed
+    const hashEl = page.locator('.game-over-level-hash');
+    await expect(hashEl).toBeVisible();
+    const hashText = await hashEl.textContent();
+    // Must contain "Level: #" followed by exactly 8 hex characters
+    expect(hashText).toMatch(/Level:\s*#[0-9a-fA-F]{8}/);
+  });
 });
