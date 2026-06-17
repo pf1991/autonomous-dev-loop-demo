@@ -8,7 +8,8 @@ import AchievementToast from './components/AchievementToast'
 import AchievementModal from './components/AchievementModal'
 import DifficultySelector from './components/DifficultySelector'
 import WavePreviewPanel from './components/WavePreviewPanel'
-import { createDefaultMap, getPathWaypoints } from './game/map'
+import { generateMap } from './game/map'
+import { generateSeed, seedFromHex, seedToHex } from './game/rng'
 import { TOWER_TYPES, createTower, canAfford, canUpgrade, upgradeTower, getUpgradeCost, getNextUpgradeStats, sellTower, getAdjacentSynergies, getSynergyPartners } from './game/tower'
 import { createEnemy, moveEnemy, getEnemyHpForWave, tickHealerAbilities } from './game/enemy'
 import { processCombat, processEffectTick } from './game/combat'
@@ -23,8 +24,27 @@ import { loadUnlockedAchievements, persistNewAchievements } from './utils/achiev
 import { getPrestigeBonus, MAX_PRESTIGE_STARS } from './game/prestige'
 import { loadPrestigeStars, savePrestigeStars } from './utils/prestige'
 
-const INITIAL_MAP = createDefaultMap()
-const PATH_WAYPOINTS = getPathWaypoints()
+/**
+ * readOrCreateSeed reads the level seed from the URL hash (#seed=XXXXXXXX).
+ * If absent, generates a new random seed and writes it to the hash.
+ * Returns the numeric seed.
+ */
+function readOrCreateSeed() {
+  const match = window.location.hash.match(/[#&]seed=([0-9a-fA-F]{8})/)
+  if (match) {
+    const parsed = seedFromHex(match[1])
+    if (parsed !== null) return parsed
+  }
+  const fresh = generateSeed()
+  window.location.hash = `seed=${seedToHex(fresh)}`
+  return fresh
+}
+
+const LEVEL_SEED = readOrCreateSeed()
+const GENERATED_MAP = generateMap(LEVEL_SEED)
+const INITIAL_MAP = GENERATED_MAP.tiles
+const PATH_WAYPOINTS = GENERATED_MAP.waypoints
+const LEVEL_HASH = seedToHex(LEVEL_SEED)
 
 // Spawn one enemy every 3 seconds (3000 ms)
 const SPAWN_INTERVAL_MS = 3000
@@ -756,6 +776,15 @@ function App() {
 
   useGameLoop(onTick, speed)
 
+  /**
+   * handleNewMap navigates to the bare URL (clears hash) so a fresh seed is
+   * generated on reload, producing a brand-new map.
+   */
+  function handleNewMap() {
+    window.location.hash = ''
+    window.location.reload()
+  }
+
   function handleSpeedToggle() {
     setSpeed(s => {
       const next = s === 1 ? 2 : s === 2 ? 5 : 1
@@ -1093,6 +1122,8 @@ function App() {
         prestigeStars={prestigeStars}
         showSynergies={showSynergies}
         onShowSynergiesToggle={() => setShowSynergies(v => !v)}
+        levelHash={LEVEL_HASH}
+        onNewMap={handleNewMap}
       />
       <div className="game-area">
         <TowerPicker
@@ -1152,6 +1183,7 @@ function App() {
           wavesReached={wavesReached}
           prestigeStars={prestigeStars}
           onPrestige={handlePrestige}
+          levelHash={LEVEL_HASH}
         />
       )}
       {/* Difficulty selector: shown before the player picks a mode (fresh game or after restart) */}

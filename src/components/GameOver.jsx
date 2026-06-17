@@ -10,8 +10,9 @@ import { loadLeaderboard, clearLeaderboard } from '../utils/leaderboard'
  *   wavesReached    — highest wave number reached this run (number)
  *   prestigeStars   — current prestige star count (0–5)
  *   onPrestige      — callback invoked when player clicks "Prestige" button
+ *   levelHash       — 8-char hex string of the level seed (string | undefined)
  */
-function GameOver({ score, onRestart, wavesReached = 0, prestigeStars = 0, onPrestige }) {
+function GameOver({ score, onRestart, wavesReached = 0, prestigeStars = 0, onPrestige, levelHash }) {
   const [leaderboard, setLeaderboard] = useState(() => loadLeaderboard())
 
   function handleClearScores() {
@@ -28,6 +29,9 @@ function GameOver({ score, onRestart, wavesReached = 0, prestigeStars = 0, onPre
         <p className="game-over-waves">You survived {wavesReached} {wavesReached === 1 ? 'wave' : 'waves'}</p>
         {score !== null && score !== undefined && (
           <p className="final-score">Final Score: {score}</p>
+        )}
+        {levelHash && (
+          <p className="game-over-level-hash">Level: #{levelHash}</p>
         )}
         {prestigeAvailable && (
           <div className="prestige-offer">
