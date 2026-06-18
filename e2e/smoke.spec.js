@@ -4842,11 +4842,16 @@ test.describe('DifficultySelector', () => {
   // historyPanelOpen = stateHooks[28] (PR #135, inserted between achievementModalOpen[27] and prestigeStars[29]).
 
   test('clicking History in burger menu opens .history-panel overlay', async ({ page }) => {
-    // Dismiss NextWave overlay so burger menu button is easily clickable
+    // Start fresh to avoid any state from prior tests leaking in
+    await page.goto('/');
+    if (await page.locator('.difficulty-overlay').isVisible()) {
+      await page.click('.difficulty-btn--normal');
+    }
+    // Dismiss NextWave overlay so the burger button in the HUD is fully interactive
     const nwBtn = page.locator('.next-wave-start');
-    if (await nwBtn.isVisible()) await nwBtn.click();
+    if (await nwBtn.isVisible()) await nwBtn.click({ force: true });
     // Open burger menu
-    await page.locator('.hud-burger-btn').click();
+    await page.locator('.hud-burger-btn').click({ force: true });
     await expect(page.locator('.hud-burger-menu')).toBeVisible();
     // History button must be present in the menu
     const historyBtn = page.locator('.hud-burger-menu .hud-history-btn');
@@ -4859,7 +4864,8 @@ test.describe('DifficultySelector', () => {
   });
 
   test('HistoryPanel shows empty-state text when localStorage has no history', async ({ page }) => {
-    // Clear any stored history so the panel renders the empty state
+    // Navigate fresh and clear history before load so the panel sees an empty store
+    await page.goto('/');
     await page.evaluate(() => {
       localStorage.removeItem('towerDefense_sessionHistory');
     });
@@ -4867,6 +4873,9 @@ test.describe('DifficultySelector', () => {
     if (await page.locator('.difficulty-overlay').isVisible()) {
       await page.click('.difficulty-btn--normal');
     }
+    // Dismiss NextWave overlay
+    const nwBtn = page.locator('.next-wave-start');
+    if (await nwBtn.isVisible()) await nwBtn.click({ force: true });
     // Open burger menu and click History
     await page.locator('.hud-burger-btn').click({ force: true });
     await expect(page.locator('.hud-burger-menu')).toBeVisible();
@@ -4881,11 +4890,16 @@ test.describe('DifficultySelector', () => {
   });
 
   test('HistoryPanel closes when the close (✕) button is clicked', async ({ page }) => {
+    // Start fresh to avoid interference from prior tests
+    await page.goto('/');
+    if (await page.locator('.difficulty-overlay').isVisible()) {
+      await page.click('.difficulty-btn--normal');
+    }
     // Dismiss NextWave overlay
     const nwBtn = page.locator('.next-wave-start');
-    if (await nwBtn.isVisible()) await nwBtn.click();
+    if (await nwBtn.isVisible()) await nwBtn.click({ force: true });
     // Open burger menu, click History to open the panel
-    await page.locator('.hud-burger-btn').click();
+    await page.locator('.hud-burger-btn').click({ force: true });
     await expect(page.locator('.hud-burger-menu')).toBeVisible();
     await page.locator('.hud-burger-menu .hud-history-btn').click();
     await expect(page.locator('.history-panel-overlay')).toBeVisible({ timeout: 2000 });
@@ -4896,6 +4910,11 @@ test.describe('DifficultySelector', () => {
   });
 
   test('after game over, localStorage contains a towerDefense_sessionHistory entry', async ({ page }) => {
+    // Navigate fresh so fiber state is clean and #game element is present
+    await page.goto('/');
+    if (await page.locator('.difficulty-overlay').isVisible()) {
+      await page.click('.difficulty-btn--normal');
+    }
     // Inject lives=0 and gamePhase='playing' to trigger the game-over useEffect which calls saveSession.
     // The useEffect in App.jsx runs when lives <= 0 && gamePhase === 'playing'.
     await setLivesAndPhase(page, 0, 'playing');
