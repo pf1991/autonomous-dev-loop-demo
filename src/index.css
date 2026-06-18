@@ -1080,11 +1080,11 @@ body {
 }
 
 /* Slowed enemy: semi-transparent blue overlay tint */
-.enemy-slowed {
+.enemy--slowed {
   box-shadow: 0 0 6px 3px rgba(68, 168, 216, 0.85);
   border: 2px solid #44a8d8 !important;
 }
-.enemy-slowed::before {
+.enemy--slowed::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -1095,11 +1095,11 @@ body {
 }
 
 /* Frozen enemy: bright cyan border + crystal overlay */
-.enemy-frozen {
+.enemy--frozen {
   box-shadow: 0 0 8px 4px rgba(0, 224, 255, 0.9);
   border: 2px solid #00e0ff !important;
 }
-.enemy-frozen::before {
+.enemy--frozen::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -1110,7 +1110,7 @@ body {
 }
 
 /* Frozen status icon — ❄ above the enemy sprite */
-.enemy-status-icon {
+.enemy--status-icon {
   position: absolute;
   top: -16px;
   left: 50%;
@@ -1120,17 +1120,17 @@ body {
   pointer-events: none;
   z-index: 2;
 }
-.enemy-freeze-icon {
+.enemy--freeze-icon {
   color: #00e0ff;
   text-shadow: 0 0 4px rgba(0, 224, 255, 0.9);
 }
 
 /* Poisoned enemy: green glow + drip dot animation */
-.enemy-poisoned {
+.enemy--poisoned {
   box-shadow: 0 0 6px 3px rgba(76, 175, 80, 0.75);
   border: 2px solid #4caf50 !important;
 }
-.enemy-poisoned::before {
+.enemy--poisoned::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -1145,8 +1145,7 @@ body {
   80%  { opacity: 0.5; }
   100% { transform: translateX(-50%) translateY(10px); opacity: 0; }
 }
-.enemy-poisoned::after {
-  content: '• • •';
+.enemy--poison-drip {
   position: absolute;
   bottom: 0;
   left: 50%;
@@ -1172,7 +1171,6 @@ body {
   border-radius: 2px;
   z-index: -1;
 }
-/* Poisoned enemies override ::after with the drip animation (defined above) */
 
 /* ===== Game Over overlay ===== */
 .game-over-overlay {

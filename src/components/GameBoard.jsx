@@ -785,7 +785,7 @@ function GameBoard({
             const isPoisoned = isEnemyPoisoned(enemy)
             const stealthClass = enemy.stealth ? ' enemy-stealth' : ' enemy-visible'
             const critFlashClass = enemy._critFlashAt != null ? ' enemy-crit-flash' : ''
-            const statusClass = (isFrozen ? ' enemy-frozen' : isSlowed ? ' enemy-slowed' : '') + (isPoisoned ? ' enemy-poisoned' : '') + stealthClass + critFlashClass
+            const statusClass = (isFrozen ? ' enemy--frozen' : isSlowed ? ' enemy--slowed' : '') + (isPoisoned ? ' enemy--poisoned' : '') + stealthClass + critFlashClass
             return (
               <div
                 key={enemy.id}
@@ -797,7 +797,10 @@ function GameBoard({
                   style={{ width: `${Math.max(0, (enemy.hp / enemy.maxHp) * 100)}%` }}
                 />
                 {isFrozen && (
-                  <span className="enemy-status-icon enemy-freeze-icon" aria-hidden="true">❄</span>
+                  <span className="enemy--status-icon enemy--freeze-icon" aria-hidden="true">❄</span>
+                )}
+                {isPoisoned && (
+                  <span className="enemy--poison-drip" aria-hidden="true">• • •</span>
                 )}
                 {enemy.type === 'healer' && (
                   <svg className="enemy-ability-overlay" width={diameter} height={diameter} viewBox={`0 0 ${diameter} ${diameter}`} aria-hidden="true">
