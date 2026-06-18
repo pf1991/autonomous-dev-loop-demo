@@ -549,6 +549,15 @@ body {
   pointer-events: none;
 }
 
+/* ===== Ghost range ring (hover over TowerPicker button — preview ring at 40% opacity) ===== */
+.ghost-range-ring {
+  stroke: rgba(249, 115, 22, 0.40);
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+  fill: rgba(249, 115, 22, 0.05);
+  pointer-events: none;
+}
+
 /* ===== Tile base ===== */
 .tile {
   width: 40px;

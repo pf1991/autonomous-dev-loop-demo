@@ -104,6 +104,8 @@ function App() {
   // Screen shake: true for 400ms when a Colossus (boss) is killed
   const [screenShakeActive, setScreenShakeActive] = useState(false)
   const [selectedTowerType, setSelectedTowerType] = useState('BasicTower')
+  // string | null — the tower type currently hovered in TowerPicker (for ghost range preview)
+  const [hoverTowerType, setHoverTowerType] = useState(null)
   // { row, col } | null — the tower tile currently selected for upgrade
   const [selectedTower, setSelectedTower] = useState(null)
   // { row, col } | null — the empty tower-slot the player is hovering over
@@ -853,6 +855,8 @@ function App() {
     const cost = TOWER_TYPES[type].cost
     setGold(g => g - cost)
     setTowers(ts => [...ts, createTower(type, row, col)])
+    // Clear the TowerPicker hover preview once the tower is placed
+    setHoverTowerType(null)
     // Emit a placement pulse ripple at the tower tile
     const pulse = { id: `pulse-${row}-${col}-${Date.now()}`, row, col, createdAt: Date.now() }
     const nextPulses = [...placementPulsesRef.current, pulse]
@@ -1182,6 +1186,7 @@ function App() {
           selectedType={selectedTowerType}
           gold={gold}
           onSelect={setSelectedTowerType}
+          onHoverTowerType={setHoverTowerType}
         />
       <GameBoard
         tiles={INITIAL_MAP}
@@ -1200,6 +1205,7 @@ function App() {
         selectedTower={selectedTower}
         hoveredSlot={hoveredSlot}
         onHoverSlot={setHoveredSlot}
+        hoverTowerType={hoverTowerType}
         selectedTowerType={selectedTowerType}
         gold={gold}
         onUpgrade={handleUpgrade}

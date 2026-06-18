@@ -304,6 +304,7 @@ function GameBoard({
   selectedTower = null,
   hoveredSlot = null,
   onHoverSlot,
+  hoverTowerType = null,
   selectedTowerType = 'BasicTower',
   gold = 0,
   onUpgrade,
@@ -495,6 +496,28 @@ function GameBoard({
           }
         }
 
+        // Ghost preview ring — shown when hovering a tower type in TowerPicker.
+        // Centers on the nearest tower-slot tile under the cursor (hoveredSlot).
+        // If no slot is hovered, defaults to center of board so the ring is still visible.
+        let ghostCx = null
+        let ghostCy = null
+        let ghostR = null
+
+        if (hoverTowerType !== null) {
+          const ghostTypeDef = TOWER_TYPES[hoverTowerType]
+          if (ghostTypeDef) {
+            if (hoveredSlot !== null) {
+              ghostCx = (hoveredSlot.col + 0.5) * TILE_PX
+              ghostCy = (hoveredSlot.row + 0.5) * TILE_PX
+            } else {
+              // Fall back to board center so the ring appears even before a slot is hovered
+              ghostCx = (COLS / 2) * TILE_PX
+              ghostCy = (ROWS / 2) * TILE_PX
+            }
+            ghostR = ghostTypeDef.range * TILE_PX
+          }
+        }
+
         if (selectedTower !== null) {
           const key = `${selectedTower.row}-${selectedTower.col}`
           const t = towerMap[key]
@@ -544,7 +567,7 @@ function GameBoard({
           }
         }
 
-        const showSvg = projectiles.length > 0 || hoverR !== null || fireR !== null || placementPulses.length > 0 || synergyLines.length > 0 || globalLines.length > 0
+        const showSvg = projectiles.length > 0 || hoverR !== null || fireR !== null || ghostR !== null || placementPulses.length > 0 || synergyLines.length > 0 || globalLines.length > 0
         if (!showSvg) return null
 
         return (
@@ -610,6 +633,14 @@ function GameBoard({
                 cx={fireCx}
                 cy={fireCy}
                 r={fireR}
+              />
+            )}
+            {ghostR !== null && (
+              <circle
+                className="ghost-range-ring"
+                cx={ghostCx}
+                cy={ghostCy}
+                r={ghostR}
               />
             )}
             {/* Placement pulse ripple rings */}

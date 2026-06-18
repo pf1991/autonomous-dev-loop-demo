@@ -6,11 +6,12 @@ import TowerPickerIcon from './TowerPickerIcon'
  * Stats are shown on hover via the native title attribute (tooltip).
  *
  * Props:
- *   selectedType  — the currently selected tower type key (string)
- *   gold          — current player gold (number)
- *   onSelect      — callback(type: string) when a button is clicked
+ *   selectedType      — the currently selected tower type key (string)
+ *   gold              — current player gold (number)
+ *   onSelect          — callback(type: string) when a button is clicked
+ *   onHoverTowerType  — callback(type: string | null) fired on mouseenter/mouseleave
  */
-function TowerPicker({ selectedType, gold, onSelect }) {
+function TowerPicker({ selectedType, gold, onSelect, onHoverTowerType }) {
   return (
     <div className="tower-picker">
       {Object.entries(TOWER_TYPES).map(([type, config]) => {
@@ -49,6 +50,8 @@ function TowerPicker({ selectedType, gold, onSelect }) {
             className={classes}
             disabled={!affordable}
             onClick={() => onSelect(type)}
+            onMouseEnter={() => onHoverTowerType && onHoverTowerType(type)}
+            onMouseLeave={() => onHoverTowerType && onHoverTowerType(null)}
             title={tooltip}
           >
             <span className="tower-picker-icon-wrap">
