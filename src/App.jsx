@@ -32,6 +32,8 @@ import { useGameLoop } from './hooks/useGameLoop'
 import { computeScore, computeComboBonus, getComboLabel, computeInterest } from './game/score'
 import { getDifficultyConfig, applyDifficultyToScore, DIFFICULTY_MODES } from './game/difficulty'
 import { saveLeaderboardEntry } from './utils/leaderboard'
+import { saveSession } from './utils/sessionHistory'
+import HistoryPanel from './components/HistoryPanel'
 import { checkAchievements, ACHIEVEMENTS } from './game/achievements'
 import { loadUnlockedAchievements, persistNewAchievements } from './utils/achievements'
 import { getPrestigeBonus, MAX_PRESTIGE_STARS } from './game/prestige'
@@ -165,6 +167,8 @@ function App() {
   const achievementToastsRef = useRef([])
   // Achievement modal visibility
   const [achievementModalOpen, setAchievementModalOpen] = useState(false)
+  // Session history panel visibility
+  const [historyPanelOpen, setHistoryPanelOpen] = useState(false)
 
   // Prestige system
   // prestigeStars: current star count loaded from localStorage; drives HUD display and run bonuses
@@ -401,6 +405,15 @@ function App() {
       const entry = { score, date: new Date().toLocaleDateString(), result: 'lose', difficulty: difficultyMode ?? 'normal' }
       saveLeaderboardEntry(entry)
       setFinalScore(score)
+      // Persist session history entry on game over
+      saveSession({
+        seed: LEVEL_SEED,
+        hash: LEVEL_HASH,
+        maxWave: wavesReachedRef.current,
+        score,
+        difficulty: difficultyMode ?? 'normal',
+        playedAt: Date.now(),
+      })
       syncPhase('lose')
     }
   }, [lives, gamePhase, difficultyMode])
@@ -847,10 +860,29 @@ function App() {
   useGameLoop(onTick, speed)
 
   /**
-   * handleNewMap navigates to the bare URL (clears hash) so a fresh seed is
-   * generated on reload, producing a brand-new map.
+   * handleNewMap saves the current run stats to session history, then navigates
+   * to the bare URL (clears hash) so a fresh seed is generated on reload,
+   * producing a brand-new map.
    */
   function handleNewMap() {
+    // Save current run stats before navigating away so the player can revisit this seed
+    if (difficultyMode !== null) {
+      const rawScore = computeScore({
+        kills: totalKillsRef.current,
+        goldEarned: totalGoldEarnedRef.current,
+        livesRemaining: livesRef.current,
+        wavesCompleted: wavesCompletedRef.current,
+      })
+      const score = applyDifficultyToScore(rawScore, difficultyMode)
+      saveSession({
+        seed: LEVEL_SEED,
+        hash: LEVEL_HASH,
+        maxWave: wavesReachedRef.current,
+        score,
+        difficulty: difficultyMode,
+        playedAt: Date.now(),
+      })
+    }
     window.location.hash = ''
     window.location.reload()
   }
@@ -968,6 +1000,26 @@ function App() {
     const next = Math.min(current + 1, MAX_PRESTIGE_STARS)
     savePrestigeStars(next)
     setPrestigeStars(next)
+    // Save session history entry on the win (prestige) path — mirrors the lose-path save above
+    if (difficultyMode !== null) {
+      const rawScore = computeScore({
+        kills: totalKillsRef.current,
+        goldEarned: totalGoldEarnedRef.current,
+        livesRemaining: livesRef.current,
+        wavesCompleted: wavesCompletedRef.current,
+      })
+      const score = applyDifficultyToScore(rawScore, difficultyMode)
+      const entry = { score, date: new Date().toLocaleDateString(), result: 'win', difficulty: difficultyMode ?? 'normal' }
+      saveLeaderboardEntry(entry)
+      saveSession({
+        seed: LEVEL_SEED,
+        hash: LEVEL_HASH,
+        maxWave: wavesReachedRef.current,
+        score,
+        difficulty: difficultyMode ?? 'normal',
+        playedAt: Date.now(),
+      })
+    }
     handleRestart()
   }
 
@@ -1206,6 +1258,7 @@ function App() {
         levelHash={LEVEL_HASH}
         onNewMap={handleNewMap}
         bossEnemy={enemies.find(e => e.type === 'colossus') ?? null}
+        onHistoryOpen={() => setHistoryPanelOpen(true)}
       />
       <div className="game-area">
         <TowerPicker
@@ -1303,6 +1356,12 @@ function App() {
         <AchievementModal
           unlocked={unlockedAchievements}
           onClose={() => setAchievementModalOpen(false)}
+        />
+      )}
+      {historyPanelOpen && (
+        <HistoryPanel
+          onClose={() => setHistoryPanelOpen(false)}
+          currentHash={LEVEL_HASH}
         />
       )}
     </div>

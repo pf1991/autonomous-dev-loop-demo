@@ -2,9 +2,9 @@ import { test, expect } from '@playwright/test';
 
 /**
  * Helper: find the React state setter for gamePhase inside the App component.
- * Uses dispatch-only counting. All hook indices verified against live App.jsx (PR #131).
+ * Uses dispatch-only counting. All hook indices verified against live App.jsx (PR #135).
  *
- * App.jsx useState dispatch indices (verified post-PR #131 — tileSize inserted at [1]):
+ * App.jsx useState dispatch indices (verified post-PR #135 — historyPanelOpen inserted at [28]):
  *   stateHook[ 0] = difficultyMode   stateHook[ 1] = tileSize
  *   stateHook[ 2] = gold             stateHook[ 3] = lives
  *   stateHook[ 4] = wave             stateHook[ 5] = speed
@@ -19,11 +19,12 @@ import { test, expect } from '@playwright/test';
  *   stateHook[22] = overchargeActive stateHook[23] = interestFlash
  *   stateHook[24] = interestCountdown stateHook[25] = unlockedAchievements
  *   stateHook[26] = achievementToasts stateHook[27] = achievementModalOpen
- *   stateHook[28] = prestigeStars    stateHook[29] = wavesReached
- *   stateHook[30] = comboDisplay     stateHook[31] = adjacencySynergies
- *   stateHook[32] = synergyPartners  stateHook[33] = showSynergies
- *   stateHook[34] = earlyWaveCalled  stateHook[35] = pendingWaveAdvance
- *   stateHook[36] = currentWaveEventType
+ *   stateHook[28] = historyPanelOpen ← NEW PR #135
+ *   stateHook[29] = prestigeStars    stateHook[30] = wavesReached
+ *   stateHook[31] = comboDisplay     stateHook[32] = adjacencySynergies
+ *   stateHook[33] = synergyPartners  stateHook[34] = showSynergies
+ *   stateHook[35] = earlyWaveCalled  stateHook[36] = pendingWaveAdvance
+ *   stateHook[37] = currentWaveEventType
  */
 async function triggerGamePhase(page, phase) {
   await page.evaluate((targetPhase) => {
@@ -2245,9 +2246,9 @@ test.describe('Tower Defense - smoke tests', () => {
             }
             hookNode = hookNode.next;
           }
-          // comboDisplay = stateHooks[30] (post-PR #131)
-          if (stateHooks[30]) {
-            stateHooks[30].queue.dispatch({ count: 3, label: 'TRIPLE KILL', bonus: 5, visible: true });
+          // comboDisplay = stateHooks[31] (post-PR #135: historyPanelOpen inserted at [28])
+          if (stateHooks[31]) {
+            stateHooks[31].queue.dispatch({ count: 3, label: 'TRIPLE KILL', bonus: 5, visible: true });
           }
           return;
         }
@@ -2280,9 +2281,9 @@ test.describe('Tower Defense - smoke tests', () => {
             }
             hookNode = hookNode.next;
           }
-          // comboDisplay = stateHooks[30] (post-PR #131)
-          if (stateHooks[30]) {
-            stateHooks[30].queue.dispatch({ count: 5, label: 'RAMPAGE', bonus: 20, visible: true });
+          // comboDisplay = stateHooks[31] (post-PR #135: historyPanelOpen inserted at [28])
+          if (stateHooks[31]) {
+            stateHooks[31].queue.dispatch({ count: 5, label: 'RAMPAGE', bonus: 20, visible: true });
           }
           return;
         }
@@ -2316,9 +2317,9 @@ test.describe('Tower Defense - smoke tests', () => {
             }
             hookNode = hookNode.next;
           }
-          // comboDisplay = stateHooks[30] (post-PR #131)
-          if (stateHooks[30]) {
-            stateHooks[30].queue.dispatch({ count: 4, label: 'QUAD KILL', bonus: 10, visible: true });
+          // comboDisplay = stateHooks[31] (post-PR #135: historyPanelOpen inserted at [28])
+          if (stateHooks[31]) {
+            stateHooks[31].queue.dispatch({ count: 4, label: 'QUAD KILL', bonus: 10, visible: true });
           }
           return;
         }
@@ -2351,9 +2352,9 @@ test.describe('Tower Defense - smoke tests', () => {
             }
             hookNode = hookNode.next;
           }
-          // comboDisplay = stateHooks[30] (post-PR #131)
-          if (stateHooks[30]) {
-            stateHooks[30].queue.dispatch({ count: 0, label: '', bonus: 0, visible: false });
+          // comboDisplay = stateHooks[31] (post-PR #135: historyPanelOpen inserted at [28])
+          if (stateHooks[31]) {
+            stateHooks[31].queue.dispatch({ count: 0, label: '', bonus: 0, visible: false });
           }
           return;
         }
@@ -4834,5 +4835,105 @@ test.describe('DifficultySelector', () => {
     // The poison drip element must be present inside the poisoned enemy
     const dripEl = page.locator('.enemy-layer .enemy--poisoned .enemy--poison-drip').first();
     await expect(dripEl).toBeAttached({ timeout: 2000 });
+  });
+
+  // --- Session history panel (issue #119 / PR #135) ---
+  // HistoryPanel: overlay opened via burger menu > 🕐 History button.
+  // historyPanelOpen = stateHooks[28] (PR #135, inserted between achievementModalOpen[27] and prestigeStars[29]).
+
+  test('clicking History in burger menu opens .history-panel overlay', async ({ page }) => {
+    // Start fresh to avoid any state from prior tests leaking in
+    await page.goto('/');
+    if (await page.locator('.difficulty-overlay').isVisible()) {
+      await page.click('.difficulty-btn--normal');
+    }
+    // Dismiss NextWave overlay so the burger button in the HUD is fully interactive
+    const nwBtn = page.locator('.next-wave-start');
+    if (await nwBtn.isVisible()) await nwBtn.click({ force: true });
+    // Open burger menu
+    await page.locator('.hud-burger-btn').click({ force: true });
+    await expect(page.locator('.hud-burger-menu')).toBeVisible();
+    // History button must be present in the menu
+    const historyBtn = page.locator('.hud-burger-menu .hud-history-btn');
+    await expect(historyBtn).toBeVisible();
+    // Click it — panel opens
+    await historyBtn.click();
+    // The history-panel overlay must be visible
+    await expect(page.locator('.history-panel-overlay')).toBeVisible({ timeout: 2000 });
+    await expect(page.locator('.history-panel')).toBeVisible({ timeout: 2000 });
+  });
+
+  test('HistoryPanel shows empty-state text when localStorage has no history', async ({ page }) => {
+    // Navigate fresh and clear history before load so the panel sees an empty store
+    await page.goto('/');
+    await page.evaluate(() => {
+      localStorage.removeItem('towerDefense_sessionHistory');
+    });
+    await page.reload();
+    if (await page.locator('.difficulty-overlay').isVisible()) {
+      await page.click('.difficulty-btn--normal');
+    }
+    // Dismiss NextWave overlay
+    const nwBtn = page.locator('.next-wave-start');
+    if (await nwBtn.isVisible()) await nwBtn.click({ force: true });
+    // Open burger menu and click History
+    await page.locator('.hud-burger-btn').click({ force: true });
+    await expect(page.locator('.hud-burger-menu')).toBeVisible();
+    const historyBtn = page.locator('.hud-burger-menu .hud-history-btn');
+    await expect(historyBtn).toBeVisible();
+    await historyBtn.click();
+    // Panel must show the empty-state paragraph
+    await expect(page.locator('.history-panel-overlay')).toBeVisible({ timeout: 2000 });
+    await expect(page.locator('.history-panel-empty')).toBeVisible({ timeout: 2000 });
+    const emptyText = await page.locator('.history-panel-empty').textContent();
+    expect(emptyText).toMatch(/no previous sessions/i);
+  });
+
+  test('HistoryPanel closes when the close (✕) button is clicked', async ({ page }) => {
+    // Start fresh to avoid interference from prior tests
+    await page.goto('/');
+    if (await page.locator('.difficulty-overlay').isVisible()) {
+      await page.click('.difficulty-btn--normal');
+    }
+    // Dismiss NextWave overlay
+    const nwBtn = page.locator('.next-wave-start');
+    if (await nwBtn.isVisible()) await nwBtn.click({ force: true });
+    // Open burger menu, click History to open the panel
+    await page.locator('.hud-burger-btn').click({ force: true });
+    await expect(page.locator('.hud-burger-menu')).toBeVisible();
+    await page.locator('.hud-burger-menu .hud-history-btn').click();
+    await expect(page.locator('.history-panel-overlay')).toBeVisible({ timeout: 2000 });
+    // Click the ✕ close button
+    await page.locator('.history-panel-close').click();
+    // Panel must disappear
+    await expect(page.locator('.history-panel-overlay')).not.toBeVisible({ timeout: 2000 });
+  });
+
+  test('after game over, localStorage contains a towerDefense_sessionHistory entry', async ({ page }) => {
+    // Navigate fresh so fiber state is clean and #game element is present
+    await page.goto('/');
+    if (await page.locator('.difficulty-overlay').isVisible()) {
+      await page.click('.difficulty-btn--normal');
+    }
+    // Inject lives=0 and gamePhase='playing' to trigger the game-over useEffect which calls saveSession.
+    // The useEffect in App.jsx runs when lives <= 0 && gamePhase === 'playing'.
+    await setLivesAndPhase(page, 0, 'playing');
+    // Wait for game-over overlay (confirms useEffect ran and saveSession was called)
+    await expect(page.locator('.game-over-overlay')).toBeVisible({ timeout: 3000 });
+    // Read localStorage and verify the entry was written
+    const history = await page.evaluate(() => {
+      const raw = localStorage.getItem('towerDefense_sessionHistory');
+      if (!raw) return null;
+      try { return JSON.parse(raw); } catch { return null; }
+    });
+    expect(history).not.toBeNull();
+    expect(Array.isArray(history)).toBe(true);
+    expect(history.length).toBeGreaterThan(0);
+    // Each entry must have the required shape
+    const entry = history[0];
+    expect(entry).toHaveProperty('hash');
+    expect(entry).toHaveProperty('maxWave');
+    expect(entry).toHaveProperty('score');
+    expect(entry).toHaveProperty('playedAt');
   });
 });
