@@ -1030,11 +1030,11 @@ test.describe('Tower Defense - smoke tests', () => {
     await expect(page.locator('.tower-icon').first()).toBeVisible();
     const panel = page.locator('.upgrade-panel');
     await expect(panel).toBeVisible();
-    // Sell button must be visible and show the refund amount (35g for BasicTower)
+    // Sell button must be visible and show the refund amount (25g for BasicTower: Math.floor(50 * 0.5))
     const sellBtn = panel.locator('.upgrade-panel-sell-btn');
     await expect(sellBtn).toBeVisible();
     await expect(sellBtn).toContainText('Sell');
-    await expect(sellBtn).toContainText('35g');
+    await expect(sellBtn).toContainText('25g');
   });
 
   test('clicking Sell removes the tower and refunds gold', async ({ page }) => {
@@ -1063,10 +1063,10 @@ test.describe('Tower Defense - smoke tests', () => {
     // Upgrade panel should be closed
     await expect(page.locator('.upgrade-panel')).not.toBeVisible();
 
-    // Gold should be goldNum - 50 (buy) + 35 (sell refund) = goldNum - 15
+    // Gold should be goldNum - 50 (buy) + 25 (sell refund: Math.floor(50 * 0.5)) = goldNum - 25
     const goldAfterText = await page.locator('.hud-gold').textContent();
     const goldAfterNum = parseInt(goldAfterText.replace(/\D/g, ''), 10);
-    expect(goldAfterNum).toBe(goldNum - 50 + 35);
+    expect(goldAfterNum).toBe(goldNum - 50 + 25);
 
     // The tile should now be a clickable .tower-slot again
     await expect(page.locator('.tower-slot').first()).toBeVisible();
