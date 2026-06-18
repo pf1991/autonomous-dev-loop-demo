@@ -778,11 +778,14 @@ function GameBoard({
               shielded: 'enemy-shielded',
             }
             const typeClass = typeClassMap[enemy.type] ?? 'enemy-grunt'
-            const isSlowed = enemy.slowUntil != null
+            // Frozen: speedMult === 0 (complete stop from synergy freeze)
+            // Slowed: speedMult > 0 but < 1 (partial slow from SlowTower)
+            const isFrozen = enemy.slowUntil != null && (enemy.speedMult ?? 1) === 0
+            const isSlowed = enemy.slowUntil != null && !isFrozen
             const isPoisoned = isEnemyPoisoned(enemy)
             const stealthClass = enemy.stealth ? ' enemy-stealth' : ' enemy-visible'
             const critFlashClass = enemy._critFlashAt != null ? ' enemy-crit-flash' : ''
-            const statusClass = (isSlowed ? ' enemy-slowed' : isPoisoned ? ' enemy-poisoned' : '') + stealthClass + critFlashClass
+            const statusClass = (isFrozen ? ' enemy-frozen' : isSlowed ? ' enemy-slowed' : '') + (isPoisoned ? ' enemy-poisoned' : '') + stealthClass + critFlashClass
             return (
               <div
                 key={enemy.id}
@@ -793,6 +796,9 @@ function GameBoard({
                   className={isPoisoned ? 'enemy-hp-bar enemy-hp-bar--poisoned' : 'enemy-hp-bar'}
                   style={{ width: `${Math.max(0, (enemy.hp / enemy.maxHp) * 100)}%` }}
                 />
+                {isFrozen && (
+                  <span className="enemy-status-icon enemy-freeze-icon" aria-hidden="true">❄</span>
+                )}
                 {enemy.type === 'healer' && (
                   <svg className="enemy-ability-overlay" width={diameter} height={diameter} viewBox={`0 0 ${diameter} ${diameter}`} aria-hidden="true">
                     <text className="enemy-healer-cross" x={diameter / 2} y={diameter / 2 - diameter * 0.35} textAnchor="middle" dominantBaseline="central" fontSize={diameter * 0.45} fontWeight="bold">+</text>
