@@ -1180,6 +1180,7 @@ function App() {
         onShowSynergiesToggle={() => setShowSynergies(v => !v)}
         levelHash={LEVEL_HASH}
         onNewMap={handleNewMap}
+        bossEnemy={enemies.find(e => e.type === 'colossus') ?? null}
       />
       <div className="game-area">
         <TowerPicker

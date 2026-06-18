@@ -40,6 +40,7 @@ function copyLevelUrl() {
  *   levelHash            — 8-char hex string for the current level seed (string | undefined)
  *   onNewMap             — callback to navigate to a fresh map
  *   initialMenuOpen      — boolean: start with burger menu open (default false; used in tests)
+ *   bossEnemy            — the Colossus enemy object { hp, maxHp } when present, or null
  */
 function HUD({
   lives,
@@ -68,6 +69,7 @@ function HUD({
   levelHash,
   onNewMap,
   initialMenuOpen = false,
+  bossEnemy = null,
 }) {
   const isRampage = comboCount >= 5
   const [menuOpen, setMenuOpen] = useState(initialMenuOpen)
@@ -86,8 +88,14 @@ function HUD({
     })
   }
 
+  const bossBarWidth = bossEnemy
+    ? `${Math.max(0, (bossEnemy.hp / bossEnemy.maxHp) * 100)}%`
+    : '100%'
+
   return (
-    <div className="hud">
+    <div className={`hud${bossEnemy ? ' hud--boss' : ''}`}>
+      {/* Main HUD row */}
+      <div className="hud-main-row">
       {/* Left cluster: lives, gold, wave */}
       <div className="hud-stats">
         <span className="hud-lives">Lives: {lives}</span>
@@ -198,6 +206,23 @@ function HUD({
           )}
         </div>
       </div>
+      </div>{/* end hud-main-row */}
+
+      {/* Boss health bar — visible only when a Colossus is on the board */}
+      {bossEnemy && (
+        <div className="hud-boss-bar-row">
+          <span className="hud-boss-bar-label">&#9888; COLOSSUS</span>
+          <div className="hud-boss-bar-track">
+            <div
+              className="hud-boss-bar-fill"
+              style={{ width: bossBarWidth }}
+            />
+          </div>
+          <span className="hud-boss-bar-hp">
+            {Math.max(0, Math.round(bossEnemy.hp))} / {bossEnemy.maxHp}
+          </span>
+        </div>
+      )}
     </div>
   )
 }

@@ -1878,6 +1878,261 @@ test.describe('Tower Defense - smoke tests', () => {
     await expect(page.locator('.enemy-colossus-hex').first()).toBeAttached({ timeout: 1000 });
   });
 
+  // --- Boss health bar in HUD (issue #115 / PR #130) ---
+  // When a Colossus enemy is on the board, the HUD must show a dedicated .hud-boss-bar-row.
+  // The bar fill width must reflect the boss's HP ratio (> 0% when boss is alive).
+  // The HP counter must show the numeric HP value.
+  // When no Colossus is present, the .hud-boss-bar-row must be absent from the DOM.
+  //
+  // Injection strategy: dispatch enemies array with a colossus object via stateHooks[6]
+  // while the game loop is paused (between-waves: gamePhaseRef is NOT 'playing' so the
+  // loop does not overwrite injected state before React re-renders).
+  // Hook indices unchanged from PR #129 header comment above.
+
+  test('HUD boss bar is absent when no colossus is on the board', async ({ page }) => {
+    // On initial load there are no enemies — .hud-boss-bar-row must not be in the DOM
+    await expect(page.locator('.hud-boss-bar-row')).not.toBeAttached();
+  });
+
+  test('HUD boss bar appears when a colossus enemy is injected', async ({ page }) => {
+    // Inject a colossus via stateHooks[6] (enemies) while game loop is paused (between-waves)
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          const stateHooks = [];
+          let hookNode = fiber.memoizedState;
+          while (hookNode) {
+            if (hookNode.queue && typeof hookNode.queue.dispatch === 'function') {
+              stateHooks.push(hookNode);
+            }
+            hookNode = hookNode.next;
+          }
+          // enemies = dispatch index 6 (verified post-PR #129)
+          if (stateHooks[6]) {
+            stateHooks[6].queue.dispatch([{
+              id: 'test-colossus-boss-bar',
+              hp: 750,
+              maxHp: 900,
+              pos: { row: 2, col: 3 },
+              waypointIndex: 1,
+              speed: 0.6,
+              type: 'colossus',
+              goldReward: 150,
+            }]);
+          }
+          return;
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find enemies hook dispatcher');
+    });
+
+    // .hud-boss-bar-row must appear in the DOM now that a colossus is present
+    await expect(page.locator('.hud-boss-bar-row')).toBeAttached({ timeout: 2000 });
+    // .hud--boss modifier must be on the HUD root (switches it to column flex)
+    await expect(page.locator('.hud.hud--boss')).toBeAttached({ timeout: 2000 });
+  });
+
+  test('HUD boss bar fill width reflects the colossus HP ratio (> 0%)', async ({ page }) => {
+    // Inject a colossus with hp=450 / maxHp=900 (50% HP)
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          const stateHooks = [];
+          let hookNode = fiber.memoizedState;
+          while (hookNode) {
+            if (hookNode.queue && typeof hookNode.queue.dispatch === 'function') {
+              stateHooks.push(hookNode);
+            }
+            hookNode = hookNode.next;
+          }
+          if (stateHooks[6]) {
+            stateHooks[6].queue.dispatch([{
+              id: 'test-colossus-fill',
+              hp: 450,
+              maxHp: 900,
+              pos: { row: 2, col: 3 },
+              waypointIndex: 1,
+              speed: 0.6,
+              type: 'colossus',
+              goldReward: 150,
+            }]);
+          }
+          return;
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find enemies hook dispatcher');
+    });
+
+    await expect(page.locator('.hud-boss-bar-fill')).toBeAttached({ timeout: 2000 });
+    // Bar fill must have a positive width (hp=450/maxHp=900 → 50%)
+    const widthStyle = await page.locator('.hud-boss-bar-fill').evaluate(el => el.style.width);
+    expect(widthStyle).toBeTruthy();
+    const widthPct = parseFloat(widthStyle);
+    expect(widthPct).toBeGreaterThan(0);
+    expect(widthPct).toBeLessThanOrEqual(100);
+  });
+
+  test('HUD boss bar HP counter shows correct numeric value', async ({ page }) => {
+    // Inject a colossus with hp=300, maxHp=900
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          const stateHooks = [];
+          let hookNode = fiber.memoizedState;
+          while (hookNode) {
+            if (hookNode.queue && typeof hookNode.queue.dispatch === 'function') {
+              stateHooks.push(hookNode);
+            }
+            hookNode = hookNode.next;
+          }
+          if (stateHooks[6]) {
+            stateHooks[6].queue.dispatch([{
+              id: 'test-colossus-hp-counter',
+              hp: 300,
+              maxHp: 900,
+              pos: { row: 2, col: 3 },
+              waypointIndex: 1,
+              speed: 0.6,
+              type: 'colossus',
+              goldReward: 150,
+            }]);
+          }
+          return;
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find enemies hook dispatcher');
+    });
+
+    await expect(page.locator('.hud-boss-bar-hp')).toBeAttached({ timeout: 2000 });
+    const hpText = await page.locator('.hud-boss-bar-hp').textContent();
+    // Must show current HP (300) and maxHp (900)
+    expect(hpText).toContain('300');
+    expect(hpText).toContain('900');
+  });
+
+  test('HUD boss bar disappears when enemies list is cleared (boss defeated)', async ({ page }) => {
+    // First inject a colossus to make the boss bar appear
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          const stateHooks = [];
+          let hookNode = fiber.memoizedState;
+          while (hookNode) {
+            if (hookNode.queue && typeof hookNode.queue.dispatch === 'function') {
+              stateHooks.push(hookNode);
+            }
+            hookNode = hookNode.next;
+          }
+          if (stateHooks[6]) {
+            stateHooks[6].queue.dispatch([{
+              id: 'test-colossus-death',
+              hp: 100,
+              maxHp: 900,
+              pos: { row: 2, col: 3 },
+              waypointIndex: 1,
+              speed: 0.6,
+              type: 'colossus',
+              goldReward: 150,
+            }]);
+          }
+          return;
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find enemies hook dispatcher');
+    });
+    await expect(page.locator('.hud-boss-bar-row')).toBeAttached({ timeout: 2000 });
+
+    // Now clear enemies (simulate boss death — no more colossus)
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          const stateHooks = [];
+          let hookNode = fiber.memoizedState;
+          while (hookNode) {
+            if (hookNode.queue && typeof hookNode.queue.dispatch === 'function') {
+              stateHooks.push(hookNode);
+            }
+            hookNode = hookNode.next;
+          }
+          if (stateHooks[6]) {
+            stateHooks[6].queue.dispatch([]); // empty enemies array
+          }
+          return;
+        }
+        fiber = fiber.return;
+      }
+    });
+
+    // Boss bar must be gone once no colossus is present
+    await expect(page.locator('.hud-boss-bar-row')).not.toBeAttached({ timeout: 2000 });
+  });
+
+  test('HUD does not show boss bar for non-colossus enemies', async ({ page }) => {
+    // Inject a grunt enemy (type='grunt') — boss bar must NOT appear
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          const stateHooks = [];
+          let hookNode = fiber.memoizedState;
+          while (hookNode) {
+            if (hookNode.queue && typeof hookNode.queue.dispatch === 'function') {
+              stateHooks.push(hookNode);
+            }
+            hookNode = hookNode.next;
+          }
+          if (stateHooks[6]) {
+            stateHooks[6].queue.dispatch([{
+              id: 'test-grunt-1',
+              hp: 100,
+              maxHp: 100,
+              pos: { row: 2, col: 1 },
+              waypointIndex: 0,
+              speed: 1,
+              type: 'grunt',
+              goldReward: 10,
+            }]);
+          }
+          return;
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find enemies hook dispatcher');
+    });
+
+    // Enemy layer should have our grunt
+    await expect(page.locator('.enemy-layer').first()).toBeAttached({ timeout: 2000 });
+    // Boss bar must NOT appear for non-colossus enemies
+    await expect(page.locator('.hud-boss-bar-row')).not.toBeAttached();
+  });
+
   // --- Combo kill-streak banner (issue #68) ---
 
   test('combo banner is hidden by default before any kills', async ({ page }) => {

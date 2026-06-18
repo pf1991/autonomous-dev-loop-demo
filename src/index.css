@@ -249,6 +249,73 @@ body {
   color: #16213e;
 }
 
+/* ===== HUD boss mode: column layout to accommodate boss bar ===== */
+.hud--boss {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+
+/* Main HUD row inside boss mode — keeps the original row layout */
+.hud-main-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+/* Boss health bar row */
+@keyframes boss-bar-slide-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.hud-boss-bar-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  animation: boss-bar-slide-in 0.25s ease-out forwards;
+}
+
+.hud-boss-bar-label {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #e94560;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.hud-boss-bar-track {
+  flex: 1;
+  height: 10px;
+  background: #3a0e1e;
+  border-radius: 5px;
+  overflow: hidden;
+  border: 1px solid #7b1a30;
+}
+
+.hud-boss-bar-fill {
+  height: 100%;
+  background: #e94560;
+  border-radius: 5px;
+  transition: width 0.15s linear;
+}
+
+.hud-boss-bar-hp {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #e94560;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-width: 80px;
+  text-align: right;
+}
+
 /* ===== Game board wrapper (positions projectile SVG over the grid) ===== */
 .game-board-wrapper {
   position: relative;
