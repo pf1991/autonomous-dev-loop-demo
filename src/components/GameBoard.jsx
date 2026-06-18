@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import UpgradePanel from './UpgradePanel.jsx'
 import WaveCountdownBanner from './WaveCountdownBanner.jsx'
-import { getEnemyRadius, isEnemyPoisoned } from '../game/enemy.js'
+import { getEnemyRadius, isEnemyPoisoned, isEnemyFrozen, isEnemySlowed } from '../game/enemy.js'
 import { TOWER_TYPES, towerKey } from '../game/tower.js'
 
 // Default tile size in pixels — overridden by the tileSize prop from App.jsx
@@ -778,10 +778,8 @@ function GameBoard({
               shielded: 'enemy-shielded',
             }
             const typeClass = typeClassMap[enemy.type] ?? 'enemy-grunt'
-            // Frozen: speedMult === 0 (complete stop from synergy freeze)
-            // Slowed: speedMult > 0 but < 1 (partial slow from SlowTower)
-            const isFrozen = enemy.slowUntil != null && (enemy.speedMult ?? 1) === 0
-            const isSlowed = enemy.slowUntil != null && !isFrozen
+            const isFrozen = isEnemyFrozen(enemy)
+            const isSlowed = isEnemySlowed(enemy)
             const isPoisoned = isEnemyPoisoned(enemy)
             const stealthClass = enemy.stealth ? ' enemy-stealth' : ' enemy-visible'
             const critFlashClass = enemy._critFlashAt != null ? ' enemy-crit-flash' : ''

@@ -269,6 +269,26 @@ export function isEnemyPoisoned(enemy) {
 }
 
 /**
+ * isEnemyFrozen returns true when the enemy is fully frozen (speedMult === 0 and slowUntil is set).
+ * @param {{ slowUntil?: number|null, speedMult?: number }} enemy
+ * @returns {boolean}
+ */
+export function isEnemyFrozen(enemy) {
+  return enemy.slowUntil != null && (enemy.speedMult ?? 1) === 0
+}
+
+/**
+ * isEnemySlowed returns true when the enemy is slowed but not fully frozen
+ * (speedMult is between 0 exclusive and 1 exclusive, and slowUntil is set).
+ * @param {{ slowUntil?: number|null, speedMult?: number }} enemy
+ * @returns {boolean}
+ */
+export function isEnemySlowed(enemy) {
+  const speedMult = enemy.speedMult ?? 1
+  return enemy.slowUntil != null && speedMult > 0 && speedMult < 1
+}
+
+/**
  * moveEnemy advances the enemy along the path by the given time delta.
  * Returns null if the enemy has reached (or passed) the last waypoint.
  * @param {{ id, hp, maxHp, pos: {row, col}, waypointIndex: number, speed: number }} enemy
