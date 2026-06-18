@@ -4673,4 +4673,166 @@ test.describe('DifficultySelector', () => {
     );
     expect(tileWidth).toBeLessThan(40);
   });
+
+  // --- Enemy status indicators: frozen, slowed, poisoned (issue #118 / PR #134) ---
+  // These tests inject enemies directly via React fiber (stateHooks[7] = enemies, post-PR #131).
+  // isEnemyFrozen: speedMult===0 && slowUntil set
+  // isEnemySlowed: speedMult>0 && speedMult<1 && slowUntil set
+  // isEnemyPoisoned: poisonEffects array is non-empty
+
+  test('frozen enemy (speedMult=0) shows .enemy--frozen class', async ({ page }) => {
+    await page.goto('/');
+    if (await page.locator('.difficulty-overlay').isVisible()) {
+      await page.click('.difficulty-btn--normal');
+    }
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          const stateHooks = [];
+          let hookNode = fiber.memoizedState;
+          while (hookNode) {
+            if (hookNode.queue && typeof hookNode.queue.dispatch === 'function') {
+              stateHooks.push(hookNode);
+            }
+            hookNode = hookNode.next;
+          }
+          // enemies = stateHooks[7] (post-PR #131)
+          if (stateHooks[7]) {
+            stateHooks[7].queue.dispatch([{
+              id: 'test-frozen-1',
+              hp: 80,
+              maxHp: 100,
+              pos: { row: 2, col: 3 },
+              waypointIndex: 1,
+              speed: 1.0,
+              type: 'grunt',
+              goldReward: 8,
+              speedMult: 0,
+              slowUntil: Date.now() + 5000,
+            }]);
+          }
+          return;
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find App fiber');
+    });
+    // Enemy layer must render
+    await expect(page.locator('.enemy-layer').first()).toBeAttached({ timeout: 2000 });
+    // The enemy must carry .enemy--frozen
+    const frozenEl = page.locator('.enemy-layer .enemy--frozen').first();
+    expect(await frozenEl.count()).toBeGreaterThan(0);
+    await expect(frozenEl).toBeAttached({ timeout: 2000 });
+    // The freeze icon (❄) must be present inside the frozen enemy
+    const freezeIcon = page.locator('.enemy-layer .enemy--frozen .enemy--freeze-icon').first();
+    await expect(freezeIcon).toBeAttached({ timeout: 2000 });
+    // Must NOT carry .enemy--slowed at the same time
+    await expect(page.locator('.enemy-layer .enemy--slowed')).toHaveCount(0);
+  });
+
+  test('slowed enemy (speedMult=0.5) shows .enemy--slowed class', async ({ page }) => {
+    await page.goto('/');
+    if (await page.locator('.difficulty-overlay').isVisible()) {
+      await page.click('.difficulty-btn--normal');
+    }
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          const stateHooks = [];
+          let hookNode = fiber.memoizedState;
+          while (hookNode) {
+            if (hookNode.queue && typeof hookNode.queue.dispatch === 'function') {
+              stateHooks.push(hookNode);
+            }
+            hookNode = hookNode.next;
+          }
+          // enemies = stateHooks[7] (post-PR #131)
+          if (stateHooks[7]) {
+            stateHooks[7].queue.dispatch([{
+              id: 'test-slowed-1',
+              hp: 80,
+              maxHp: 100,
+              pos: { row: 2, col: 4 },
+              waypointIndex: 1,
+              speed: 1.0,
+              type: 'grunt',
+              goldReward: 8,
+              speedMult: 0.5,
+              slowUntil: Date.now() + 5000,
+            }]);
+          }
+          return;
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find App fiber');
+    });
+    // Enemy layer must render
+    await expect(page.locator('.enemy-layer').first()).toBeAttached({ timeout: 2000 });
+    // The enemy must carry .enemy--slowed
+    const slowedEl = page.locator('.enemy-layer .enemy--slowed').first();
+    expect(await slowedEl.count()).toBeGreaterThan(0);
+    await expect(slowedEl).toBeAttached({ timeout: 2000 });
+    // Must NOT carry .enemy--frozen at the same time
+    await expect(page.locator('.enemy-layer .enemy--frozen')).toHaveCount(0);
+  });
+
+  test('poisoned enemy (poisonEffects set) shows .enemy--poisoned and .enemy--poison-drip', async ({ page }) => {
+    await page.goto('/');
+    if (await page.locator('.difficulty-overlay').isVisible()) {
+      await page.click('.difficulty-btn--normal');
+    }
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          const stateHooks = [];
+          let hookNode = fiber.memoizedState;
+          while (hookNode) {
+            if (hookNode.queue && typeof hookNode.queue.dispatch === 'function') {
+              stateHooks.push(hookNode);
+            }
+            hookNode = hookNode.next;
+          }
+          // enemies = stateHooks[7] (post-PR #131)
+          if (stateHooks[7]) {
+            stateHooks[7].queue.dispatch([{
+              id: 'test-poisoned-1',
+              hp: 80,
+              maxHp: 100,
+              pos: { row: 2, col: 5 },
+              waypointIndex: 1,
+              speed: 1.0,
+              type: 'grunt',
+              goldReward: 8,
+              effects: [{ type: 'poison', ticksRemaining: 10 }],
+            }]);
+          }
+          return;
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find App fiber');
+    });
+    // Enemy layer must render
+    await expect(page.locator('.enemy-layer').first()).toBeAttached({ timeout: 2000 });
+    // The enemy must carry .enemy--poisoned
+    const poisonedEl = page.locator('.enemy-layer .enemy--poisoned').first();
+    expect(await poisonedEl.count()).toBeGreaterThan(0);
+    await expect(poisonedEl).toBeAttached({ timeout: 2000 });
+    // The poison drip element must be present inside the poisoned enemy
+    const dripEl = page.locator('.enemy-layer .enemy--poisoned .enemy--poison-drip').first();
+    await expect(dripEl).toBeAttached({ timeout: 2000 });
+  });
 });

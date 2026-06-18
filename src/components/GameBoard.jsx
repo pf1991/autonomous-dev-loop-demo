@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import UpgradePanel from './UpgradePanel.jsx'
 import WaveCountdownBanner from './WaveCountdownBanner.jsx'
-import { getEnemyRadius, isEnemyPoisoned } from '../game/enemy.js'
+import { getEnemyRadius, isEnemyPoisoned, isEnemyFrozen, isEnemySlowed } from '../game/enemy.js'
 import { TOWER_TYPES, towerKey } from '../game/tower.js'
 
 // Default tile size in pixels — overridden by the tileSize prop from App.jsx
@@ -778,11 +778,12 @@ function GameBoard({
               shielded: 'enemy-shielded',
             }
             const typeClass = typeClassMap[enemy.type] ?? 'enemy-grunt'
-            const isSlowed = enemy.slowUntil != null
+            const isFrozen = isEnemyFrozen(enemy)
+            const isSlowed = isEnemySlowed(enemy)
             const isPoisoned = isEnemyPoisoned(enemy)
             const stealthClass = enemy.stealth ? ' enemy-stealth' : ' enemy-visible'
             const critFlashClass = enemy._critFlashAt != null ? ' enemy-crit-flash' : ''
-            const statusClass = (isSlowed ? ' enemy-slowed' : isPoisoned ? ' enemy-poisoned' : '') + stealthClass + critFlashClass
+            const statusClass = (isFrozen ? ' enemy--frozen' : isSlowed ? ' enemy--slowed' : '') + (isPoisoned ? ' enemy--poisoned' : '') + stealthClass + critFlashClass
             return (
               <div
                 key={enemy.id}
@@ -793,6 +794,12 @@ function GameBoard({
                   className={isPoisoned ? 'enemy-hp-bar enemy-hp-bar--poisoned' : 'enemy-hp-bar'}
                   style={{ width: `${Math.max(0, (enemy.hp / enemy.maxHp) * 100)}%` }}
                 />
+                {isFrozen && (
+                  <span className="enemy--status-icon enemy--freeze-icon" aria-hidden="true">❄</span>
+                )}
+                {isPoisoned && (
+                  <span className="enemy--poison-drip" aria-hidden="true">• • •</span>
+                )}
                 {enemy.type === 'healer' && (
                   <svg className="enemy-ability-overlay" width={diameter} height={diameter} viewBox={`0 0 ${diameter} ${diameter}`} aria-hidden="true">
                     <text className="enemy-healer-cross" x={diameter / 2} y={diameter / 2 - diameter * 0.35} textAnchor="middle" dominantBaseline="central" fontSize={diameter * 0.45} fontWeight="bold">+</text>

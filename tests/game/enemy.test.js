@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { createEnemy, moveEnemy, getEnemyRadius, getBossHp, getEnemyHpForWave, ENEMY_TYPES } from '../../src/game/enemy.js'
+import { createEnemy, moveEnemy, getEnemyRadius, getBossHp, getEnemyHpForWave, ENEMY_TYPES, isEnemyFrozen, isEnemySlowed } from '../../src/game/enemy.js'
 
 const WAYPOINTS = [
   { row: 0, col: 0 },
@@ -209,5 +209,73 @@ describe('getEnemyHpForWave', () => {
   it('higher wave enemies are harder: wave 10 grunt has more HP than wave 1 tank', () => {
     // Ensures scaling makes later-wave weak units genuinely dangerous
     expect(getEnemyHpForWave('grunt', 10)).toBeGreaterThan(getEnemyHpForWave('tank', 1))
+  })
+})
+
+describe('isEnemyFrozen', () => {
+  const nowMs = 10000
+
+  it('returns true when speedMult is 0 and slowUntil is set', () => {
+    const enemy = { slowUntil: nowMs + 1000, speedMult: 0 }
+    expect(isEnemyFrozen(enemy)).toBe(true)
+  })
+
+  it('returns false when speedMult is 0.5 (slowed, not frozen)', () => {
+    const enemy = { slowUntil: nowMs + 1000, speedMult: 0.5 }
+    expect(isEnemyFrozen(enemy)).toBe(false)
+  })
+
+  it('returns false when slowUntil is null', () => {
+    const enemy = { slowUntil: null, speedMult: 0 }
+    expect(isEnemyFrozen(enemy)).toBe(false)
+  })
+
+  it('returns false when slowUntil is undefined', () => {
+    const enemy = { speedMult: 0 }
+    expect(isEnemyFrozen(enemy)).toBe(false)
+  })
+
+  it('returns false when speedMult is 1 (full speed)', () => {
+    const enemy = { slowUntil: nowMs + 1000, speedMult: 1 }
+    expect(isEnemyFrozen(enemy)).toBe(false)
+  })
+
+  it('returns false for an enemy with no slow fields', () => {
+    const enemy = {}
+    expect(isEnemyFrozen(enemy)).toBe(false)
+  })
+})
+
+describe('isEnemySlowed', () => {
+  const nowMs = 10000
+
+  it('returns true when speedMult is between 0 and 1 exclusive and slowUntil is set', () => {
+    const enemy = { slowUntil: nowMs + 1000, speedMult: 0.5 }
+    expect(isEnemySlowed(enemy)).toBe(true)
+  })
+
+  it('returns false when speedMult is 0 (frozen, not just slowed)', () => {
+    const enemy = { slowUntil: nowMs + 1000, speedMult: 0 }
+    expect(isEnemySlowed(enemy)).toBe(false)
+  })
+
+  it('returns false when speedMult is 1 (full speed)', () => {
+    const enemy = { slowUntil: nowMs + 1000, speedMult: 1 }
+    expect(isEnemySlowed(enemy)).toBe(false)
+  })
+
+  it('returns false when slowUntil is null', () => {
+    const enemy = { slowUntil: null, speedMult: 0.5 }
+    expect(isEnemySlowed(enemy)).toBe(false)
+  })
+
+  it('returns false when slowUntil is undefined', () => {
+    const enemy = { speedMult: 0.5 }
+    expect(isEnemySlowed(enemy)).toBe(false)
+  })
+
+  it('returns false for an enemy with no slow fields', () => {
+    const enemy = {}
+    expect(isEnemySlowed(enemy)).toBe(false)
   })
 })

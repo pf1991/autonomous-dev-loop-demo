@@ -1079,19 +1079,87 @@ body {
   background: #4caf50;
 }
 
-/* Slowed enemy: blue ice overlay */
-.enemy-slowed {
+/* Slowed enemy: semi-transparent blue overlay tint */
+.enemy--slowed {
   box-shadow: 0 0 6px 3px rgba(68, 168, 216, 0.85);
-  border: 1px solid #44a8d8 !important;
-  filter: brightness(0.85) hue-rotate(160deg);
+  border: 2px solid #44a8d8 !important;
+}
+.enemy--slowed::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(68, 168, 216, 0.35);
+  pointer-events: none;
+  z-index: 1;
 }
 
-/* Poisoned enemy: green glow overlay */
-.enemy-poisoned {
+/* Frozen enemy: bright cyan border + crystal overlay */
+.enemy--frozen {
+  box-shadow: 0 0 8px 4px rgba(0, 224, 255, 0.9);
+  border: 2px solid #00e0ff !important;
+}
+.enemy--frozen::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(0, 224, 255, 0.45);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Frozen status icon — ❄ above the enemy sprite */
+.enemy--status-icon {
+  position: absolute;
+  top: -16px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  line-height: 1;
+  pointer-events: none;
+  z-index: 2;
+}
+.enemy--freeze-icon {
+  color: #00e0ff;
+  text-shadow: 0 0 4px rgba(0, 224, 255, 0.9);
+}
+
+/* Poisoned enemy: green glow + drip dot animation */
+.enemy--poisoned {
   box-shadow: 0 0 6px 3px rgba(76, 175, 80, 0.75);
-  border: 1px solid #4caf50 !important;
+  border: 2px solid #4caf50 !important;
+}
+.enemy--poisoned::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(76, 175, 80, 0.25);
+  pointer-events: none;
+  z-index: 1;
+}
+/* Green drip dots — three animated dots dripping from the bottom of the enemy sprite */
+@keyframes poison-drip {
+  0%   { transform: translateX(-50%) translateY(0); opacity: 0.9; }
+  80%  { opacity: 0.5; }
+  100% { transform: translateX(-50%) translateY(10px); opacity: 0; }
+}
+.enemy--poison-drip {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%) translateY(0);
+  font-size: 7px;
+  line-height: 1;
+  color: #4caf50;
+  letter-spacing: 1px;
+  pointer-events: none;
+  animation: poison-drip 0.9s ease-in infinite;
+  z-index: 2;
 }
 
+/* HP bar trough — dark background strip behind the coloured HP bar */
 .enemy::after {
   content: '';
   position: absolute;
