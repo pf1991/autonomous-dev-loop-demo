@@ -4681,6 +4681,10 @@ test.describe('DifficultySelector', () => {
   // isEnemyPoisoned: poisonEffects array is non-empty
 
   test('frozen enemy (speedMult=0) shows .enemy--frozen class', async ({ page }) => {
+    await page.goto('/');
+    if (await page.locator('.difficulty-overlay').isVisible()) {
+      await page.click('.difficulty-btn--normal');
+    }
     await page.evaluate(() => {
       const gameEl = document.querySelector('#game');
       const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
@@ -4731,6 +4735,10 @@ test.describe('DifficultySelector', () => {
   });
 
   test('slowed enemy (speedMult=0.5) shows .enemy--slowed class', async ({ page }) => {
+    await page.goto('/');
+    if (await page.locator('.difficulty-overlay').isVisible()) {
+      await page.click('.difficulty-btn--normal');
+    }
     await page.evaluate(() => {
       const gameEl = document.querySelector('#game');
       const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
@@ -4778,6 +4786,10 @@ test.describe('DifficultySelector', () => {
   });
 
   test('poisoned enemy (poisonEffects set) shows .enemy--poisoned and .enemy--poison-drip', async ({ page }) => {
+    await page.goto('/');
+    if (await page.locator('.difficulty-overlay').isVisible()) {
+      await page.click('.difficulty-btn--normal');
+    }
     await page.evaluate(() => {
       const gameEl = document.querySelector('#game');
       const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
@@ -4804,7 +4816,7 @@ test.describe('DifficultySelector', () => {
               speed: 1.0,
               type: 'grunt',
               goldReward: 8,
-              poisonEffects: [{ dps: 5, expiresAt: Date.now() + 5000 }],
+              effects: [{ type: 'poison', ticksRemaining: 10 }],
             }]);
           }
           return;
