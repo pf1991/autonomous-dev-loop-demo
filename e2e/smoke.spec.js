@@ -3997,4 +3997,143 @@ test.describe('DifficultySelector', () => {
     // Must contain "Level: #" followed by exactly 8 hex characters
     expect(hashText).toMatch(/Level:\s*#[0-9a-fA-F]{8}/);
   });
+
+  // --- Sound effects mute toggle (PR #128 / issue #113) ---
+
+  test('.hud-mute-btn is present inside the burger menu when the menu is open', async ({ page }) => {
+    // The HUD burger button may be blocked by the difficulty overlay if React
+    // hadn't fully mounted when beforeEach ran isVisible(). Re-check and dismiss.
+    await expect(page.locator('.hud-burger-btn')).toBeAttached({ timeout: 5000 });
+    const diffCheck = page.locator('.difficulty-overlay');
+    if (await diffCheck.isAttached()) {
+      await page.click('.difficulty-btn--normal');
+    }
+    // Dismiss NextWave overlay if present so the HUD is fully interactive
+    const nwBtn = page.locator('.next-wave-start');
+    if (await nwBtn.isVisible()) await nwBtn.click();
+    // Open the burger menu
+    await page.locator('.hud-burger-btn').click();
+    await expect(page.locator('.hud-burger-menu')).toBeVisible();
+    // Mute button must be present inside the menu
+    await expect(page.locator('.hud-burger-menu .hud-mute-btn')).toBeVisible();
+  });
+
+  test('.hud-mute-btn shows "🔊 Mute" label when sound is not muted', async ({ page }) => {
+    // Navigate fresh so sfx-muted key is cleared; wait for burger button to confirm React mounted
+    await page.goto('/');
+    await expect(page.locator('.hud-burger-btn')).toBeAttached({ timeout: 5000 });
+    // Dismiss difficulty overlay if it appeared after React mounted
+    if (await page.locator('.difficulty-overlay').isAttached()) {
+      await page.click('.difficulty-btn--normal');
+    }
+    // Clear any persisted mute state via evaluate (page is now on localhost)
+    await page.evaluate(() => { try { localStorage.removeItem('sfx-muted') } catch {} });
+    // Reload so the HUD picks up the cleared mute state
+    await page.goto('/');
+    await expect(page.locator('.hud-burger-btn')).toBeAttached({ timeout: 5000 });
+    if (await page.locator('.difficulty-overlay').isAttached()) {
+      await page.click('.difficulty-btn--normal');
+    }
+    // Open burger menu
+    await page.locator('.hud-burger-btn').click();
+    await expect(page.locator('.hud-burger-menu')).toBeVisible();
+    const muteBtn = page.locator('.hud-mute-btn');
+    await expect(muteBtn).toBeVisible();
+    // When not muted the label must contain Mute (not Unmute)
+    const label = await muteBtn.textContent();
+    expect(label).toContain('Mute');
+    expect(label).not.toContain('Unmute');
+  });
+
+  test('clicking .hud-mute-btn toggles label to "🔇 Unmute" and persists in localStorage', async ({ page }) => {
+    // Navigate to page and wait for React mount
+    await page.goto('/');
+    await expect(page.locator('.hud-burger-btn')).toBeAttached({ timeout: 5000 });
+    if (await page.locator('.difficulty-overlay').isAttached()) {
+      await page.click('.difficulty-btn--normal');
+    }
+    // Clear any persisted mute state
+    await page.evaluate(() => { try { localStorage.removeItem('sfx-muted') } catch {} });
+    // Reload so HUD initializes with clean mute state
+    await page.goto('/');
+    await expect(page.locator('.hud-burger-btn')).toBeAttached({ timeout: 5000 });
+    if (await page.locator('.difficulty-overlay').isAttached()) {
+      await page.click('.difficulty-btn--normal');
+    }
+    // Open burger menu
+    await page.locator('.hud-burger-btn').click();
+    await expect(page.locator('.hud-burger-menu')).toBeVisible();
+    const muteBtn = page.locator('.hud-mute-btn');
+    await expect(muteBtn).toBeVisible();
+    // Click to mute
+    await muteBtn.click();
+    // Menu stays open — button label should switch to Unmute
+    await expect(page.locator('.hud-mute-btn')).toBeVisible();
+    const labelAfter = await page.locator('.hud-mute-btn').textContent();
+    expect(labelAfter).toContain('Unmute');
+    // localStorage must reflect muted=true
+    const stored = await page.evaluate(() => { try { return localStorage.getItem('sfx-muted') } catch { return null } });
+    expect(stored).toBe('true');
+  });
+
+  test('clicking .hud-mute-btn twice returns to unmuted state', async ({ page }) => {
+    // Navigate and wait for React mount
+    await page.goto('/');
+    await expect(page.locator('.hud-burger-btn')).toBeAttached({ timeout: 5000 });
+    if (await page.locator('.difficulty-overlay').isAttached()) {
+      await page.click('.difficulty-btn--normal');
+    }
+    // Clear mute state then reload
+    await page.evaluate(() => { try { localStorage.removeItem('sfx-muted') } catch {} });
+    await page.goto('/');
+    await expect(page.locator('.hud-burger-btn')).toBeAttached({ timeout: 5000 });
+    if (await page.locator('.difficulty-overlay').isAttached()) {
+      await page.click('.difficulty-btn--normal');
+    }
+    // Open burger menu and click mute then unmute
+    await page.locator('.hud-burger-btn').click();
+    await expect(page.locator('.hud-burger-menu')).toBeVisible();
+    await page.locator('.hud-mute-btn').click();
+    await page.locator('.hud-mute-btn').click();
+    // Should be back to Mute label
+    const labelFinal = await page.locator('.hud-mute-btn').textContent();
+    expect(labelFinal).toContain('Mute');
+    expect(labelFinal).not.toContain('Unmute');
+    // localStorage must be false
+    const stored = await page.evaluate(() => { try { return localStorage.getItem('sfx-muted') } catch { return null } });
+    expect(stored).toBe('false');
+  });
+
+  test('mute preference persists across page reload', async ({ page }) => {
+    // Navigate to get to a valid origin
+    await page.goto('/');
+    await expect(page.locator('.hud-burger-btn')).toBeAttached({ timeout: 5000 });
+    if (await page.locator('.difficulty-overlay').isAttached()) {
+      await page.click('.difficulty-btn--normal');
+    }
+    // Clear mute state, reload so HUD starts unmuted
+    await page.evaluate(() => { try { localStorage.removeItem('sfx-muted') } catch {} });
+    await page.goto('/');
+    await expect(page.locator('.hud-burger-btn')).toBeAttached({ timeout: 5000 });
+    if (await page.locator('.difficulty-overlay').isAttached()) {
+      await page.click('.difficulty-btn--normal');
+    }
+    // Mute via the button
+    await page.locator('.hud-burger-btn').click();
+    await expect(page.locator('.hud-burger-menu')).toBeVisible();
+    await page.locator('.hud-mute-btn').click();
+    const stored = await page.evaluate(() => { try { return localStorage.getItem('sfx-muted') } catch { return null } });
+    expect(stored).toBe('true');
+    // Reload and verify persistence
+    await page.goto('/');
+    await expect(page.locator('.hud-burger-btn')).toBeAttached({ timeout: 5000 });
+    if (await page.locator('.difficulty-overlay').isAttached()) {
+      await page.click('.difficulty-btn--normal');
+    }
+    await page.locator('.hud-burger-btn').click();
+    await expect(page.locator('.hud-burger-menu')).toBeVisible();
+    // Button must show Unmute (muted state was persisted via localStorage)
+    const labelReloaded = await page.locator('.hud-mute-btn').textContent();
+    expect(labelReloaded).toContain('Unmute');
+  });
 });
