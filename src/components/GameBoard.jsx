@@ -369,7 +369,7 @@ function GameBoard({
 
   return (
     <div className={`game-board-wrapper${screenShakeActive ? ' screen-shake' : ''}`}>
-      <div className="game-board">
+      <div className="game-board" style={{ '--tile-size': `${TILE_PX}px` }}>
         {tiles.map((row, rowIndex) =>
           row.map((tileType, colIndex) => {
             const key = `${rowIndex}-${colIndex}`

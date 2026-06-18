@@ -319,11 +319,6 @@ function App() {
     goldRef.current = gold
   }, [gold])
 
-  // Sync tileSize to the --tile-size CSS custom property and update on window resize.
-  useEffect(() => {
-    document.documentElement.style.setProperty('--tile-size', tileSize + 'px')
-  }, [tileSize])
-
   useEffect(() => {
     function handleResize() {
       setTileSize(computeTileSize())
