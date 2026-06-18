@@ -120,7 +120,7 @@ function UpgradePanel({ tower, gold, onUpgrade, onSell, getUpgradeCost, canUpgra
       <button
         className="upgrade-panel-sell-btn"
         disabled={sellDisabled}
-        onClick={() => !sellDisabled && onSell && onSell(tower.row, tower.col)}
+        onClick={() => !sellDisabled && onSell && onSell(tower)}
       >
         Sell ({refund}g)
       </button>

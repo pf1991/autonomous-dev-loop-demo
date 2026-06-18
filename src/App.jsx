@@ -962,12 +962,11 @@ function App() {
     )
   }
 
-  function handleSell(row, col) {
-    const tower = towers.find(t => t.row === row && t.col === col)
+  function handleSell(tower) {
     if (!tower) return
     const { refund } = sellTower(tower)
     setGold(g => g + refund)
-    setTowers(ts => ts.filter(t => !(t.row === row && t.col === col)))
+    setTowers(ts => ts.filter(t => !(t.row === tower.row && t.col === tower.col)))
     setSelectedTower(null)
   }
 
