@@ -313,6 +313,7 @@ function GameBoard({
   getUpgradeCost,
   canUpgrade,
   getNextUpgradeStats,
+  getUpgradePreview,
   sellTower,
   adjacencySynergies = null,
   synergyPartners = null,
@@ -470,6 +471,7 @@ function GameBoard({
                     getUpgradeCost={getUpgradeCost}
                     canUpgrade={canUpgrade}
                     getNextUpgradeStats={getNextUpgradeStats}
+                    getUpgradePreview={getUpgradePreview}
                     sellTower={sellTower}
                     synergies={upgradePanelSynergies}
                   />
