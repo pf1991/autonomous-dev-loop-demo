@@ -4938,15 +4938,22 @@ test.describe('DifficultySelector', () => {
   });
 
   // --- Sell tower feature (issue #136 / PR #143) ---
+  // Helper: navigate fresh, select Normal difficulty, then dismiss the NextWave overlay.
+  // Written inline in each test (self-contained) because beforeEach timing can leave
+  // difficultyMode=null when tests are isolated with --grep.
 
   test('upgrade panel shows .upgrade-panel-sell-btn after placing and selecting a tower', async ({ page }) => {
-    // Dismiss NextWave overlay
-    const startBtn = page.locator('.next-wave-start');
-    if (await startBtn.isVisible()) {
-      await startBtn.click();
-    }
+    // Full fresh setup: navigate, select difficulty, dismiss wave overlay
+    await page.goto('/');
+    await expect(page.locator('.difficulty-overlay')).toBeVisible({ timeout: 5000 });
+    await page.click('.difficulty-btn--normal');
+    await expect(page.locator('.next-wave-overlay')).toBeVisible({ timeout: 5000 });
+    await page.locator('.next-wave-start').click();
+    await expect(page.locator('.next-wave-overlay')).not.toBeVisible();
+
     // Place a BasicTower — auto-select opens the upgrade panel
     const slot = page.locator('.tower-slot').first();
+    await expect(slot).toBeVisible();
     await slot.click();
     await expect(page.locator('.tower-icon').first()).toBeVisible();
     // Upgrade panel must open automatically (auto-select behavior from issue #42)
@@ -4956,17 +4963,21 @@ test.describe('DifficultySelector', () => {
   });
 
   test('clicking .upgrade-panel-sell-btn removes the tower from the board and increases gold', async ({ page }) => {
-    // Dismiss NextWave overlay
-    const startBtn = page.locator('.next-wave-start');
-    if (await startBtn.isVisible()) {
-      await startBtn.click();
-    }
-    // Read starting gold from HUD
+    // Full fresh setup: navigate, select difficulty, dismiss wave overlay
+    await page.goto('/');
+    await expect(page.locator('.difficulty-overlay')).toBeVisible({ timeout: 5000 });
+    await page.click('.difficulty-btn--normal');
+    await expect(page.locator('.next-wave-overlay')).toBeVisible({ timeout: 5000 });
+    await page.locator('.next-wave-start').click();
+    await expect(page.locator('.next-wave-overlay')).not.toBeVisible();
+
+    // Read starting gold from HUD (Normal difficulty: 100g)
     const goldText = await page.locator('.hud-gold').textContent();
     const startGold = parseInt(goldText.replace(/[^0-9]/g, ''), 10);
 
     // Place a BasicTower (costs 50g) — auto-select opens the upgrade panel
     const slot = page.locator('.tower-slot').first();
+    await expect(slot).toBeVisible();
     await slot.click();
     await expect(page.locator('.tower-icon').first()).toBeVisible();
 
@@ -4995,13 +5006,17 @@ test.describe('DifficultySelector', () => {
   });
 
   test('.upgrade-panel-sell-btn is disabled when gold is at MAX_GOLD (9999)', async ({ page }) => {
-    // Dismiss NextWave overlay
-    const startBtn = page.locator('.next-wave-start');
-    if (await startBtn.isVisible()) {
-      await startBtn.click();
-    }
+    // Full fresh setup: navigate, select difficulty, dismiss wave overlay
+    await page.goto('/');
+    await expect(page.locator('.difficulty-overlay')).toBeVisible({ timeout: 5000 });
+    await page.click('.difficulty-btn--normal');
+    await expect(page.locator('.next-wave-overlay')).toBeVisible({ timeout: 5000 });
+    await page.locator('.next-wave-start').click();
+    await expect(page.locator('.next-wave-overlay')).not.toBeVisible();
+
     // Place a BasicTower — auto-select opens upgrade panel
     const slot = page.locator('.tower-slot').first();
+    await expect(slot).toBeVisible();
     await slot.click();
     await expect(page.locator('.tower-icon').first()).toBeVisible();
     await expect(page.locator('.upgrade-panel')).toBeVisible();
