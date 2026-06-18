@@ -36,6 +36,7 @@ import { checkAchievements, ACHIEVEMENTS } from './game/achievements'
 import { loadUnlockedAchievements, persistNewAchievements } from './utils/achievements'
 import { getPrestigeBonus, MAX_PRESTIGE_STARS } from './game/prestige'
 import { loadPrestigeStars, savePrestigeStars } from './utils/prestige'
+import { playSound } from './audio'
 
 /**
  * readOrCreateSeed reads the level seed from the URL hash (#seed=XXXXXXXX).
@@ -243,6 +244,7 @@ function App() {
     const merged = persistNewAchievements(newIds)
     unlockedAchievementsRef.current = merged
     setUnlockedAchievements(merged)
+    playSound('achievement')
     // Build toast entries (dismissed after 3s via real-time animation)
     const now = Date.now()
     const newToasts = newIds.map(id => {
@@ -344,6 +346,7 @@ function App() {
         if (amount > 0) {
           setGold(g => g + amount)
           totalGoldEarnedRef.current += amount
+          playSound('interest')
           // Trigger flash animation in HUD
           setInterestFlash({ amount, key: now })
           // Auto-clear flash after 1.8s (slightly longer than the 1.5s animation)
@@ -522,6 +525,13 @@ function App() {
       // Boss death screen shake — apply for 400ms
       setScreenShakeActive(true)
       setTimeout(() => setScreenShakeActive(false), 400)
+      playSound('enemy-death-boss')
+    }
+
+    // Play enemy-death sound for non-boss kills (boss already played enemy-death-boss)
+    const nonBossKilled = allKilledEnemies.filter(k => k.type !== 'colossus')
+    if (nonBossKilled.length > 0) {
+      playSound('enemy-death')
     }
 
     // Death burst particles — emit 5 dots per killed enemy, expire after 300ms
@@ -703,6 +713,25 @@ function App() {
       (t, i) => t.lastFiredAt !== towersRef.current[i]?.lastFiredAt
     )
     if (anyFired) {
+      // Play shot sound for each unique tower type that fired this tick.
+      // Use a Set to avoid playing the same sound multiple times per tick (e.g. 3 BasicTowers).
+      const firedTypes = new Set(
+        sourceTowers
+          .filter((t, i) => t.lastFiredAt !== towersRef.current[i]?.lastFiredAt)
+          .map(t => t.type)
+      )
+      for (const type of firedTypes) {
+        const soundName = {
+          BasicTower: 'tower-basic',
+          SniperTower: 'tower-sniper',
+          CannonTower: 'tower-cannon',
+          RapidTower: 'tower-rapid',
+          SlowTower: 'tower-slow',
+          MortarTower: 'tower-mortar',
+          PoisonTower: 'tower-poison',
+        }[type]
+        if (soundName) playSound(soundName)
+      }
       towersRef.current = sourceTowers
       setTowers(sourceTowers)
     } else if (towersRef.current.length > 0) {
@@ -886,6 +915,9 @@ function App() {
     const nextCrates = powerCratesRef.current.filter(c => c.id !== crateId)
     powerCratesRef.current = nextCrates
     setPowerCrates(nextCrates)
+
+    // Play pickup sound
+    playSound('power-crate')
 
     // Apply a random reward
     const reward = selectCrateReward()
@@ -1079,6 +1111,12 @@ function App() {
     interestCountdownRef.current = 10
     setInterestCountdown(10)
     lastInterestWallRef.current = Date.now()
+
+    // Play wave-start fanfare; boss waves also get a warning klaxon
+    playSound('wave-start')
+    if (isBossWave(waveRef.current)) {
+      playSound('boss-warning')
+    }
 
     syncPhase('playing')
   }

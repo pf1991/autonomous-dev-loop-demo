@@ -3997,4 +3997,159 @@ test.describe('DifficultySelector', () => {
     // Must contain "Level: #" followed by exactly 8 hex characters
     expect(hashText).toMatch(/Level:\s*#[0-9a-fA-F]{8}/);
   });
+
+  // --- Sound effects mute toggle (PR #128 / issue #113) ---
+
+  test('.hud-mute-btn is present inside the burger menu when the menu is open', async ({ page }) => {
+    await page.goto('/');
+    // Dismiss the difficulty overlay if it appeared
+    if (await page.locator('.difficulty-overlay').count() > 0) {
+      await page.click('.difficulty-btn--normal');
+    }
+    // Dismiss the next-wave-overlay if it appeared (it intercepts pointer events)
+    if (await page.locator('.next-wave-overlay').count() > 0) {
+      await page.click('.next-wave-start');
+    }
+    // Wait for the HUD burger button to be visible and actionable
+    await expect(page.locator('.hud-burger-btn')).toBeVisible({ timeout: 5000 });
+    // Open the burger menu
+    await page.locator('.hud-burger-btn').click();
+    await expect(page.locator('.hud-burger-menu')).toBeVisible();
+    // Mute button must be present inside the menu
+    await expect(page.locator('.hud-burger-menu .hud-mute-btn')).toBeVisible();
+  });
+
+  test('.hud-mute-btn shows "🔊 Mute" label when sound is not muted', async ({ page }) => {
+    // Navigate to a valid origin so localStorage is accessible
+    await page.goto('/');
+    if (await page.locator('.difficulty-overlay').count() > 0) {
+      await page.click('.difficulty-btn--normal');
+    }
+    // Clear any persisted mute state via evaluate (page is now on localhost)
+    await page.evaluate(() => { try { localStorage.removeItem('sfx-muted') } catch {} });
+    // Reload so the HUD picks up the cleared mute state
+    await page.goto('/');
+    if (await page.locator('.difficulty-overlay').count() > 0) {
+      await page.click('.difficulty-btn--normal');
+    }
+    // Dismiss the next-wave-overlay if it appeared (it intercepts pointer events)
+    if (await page.locator('.next-wave-overlay').count() > 0) {
+      await page.click('.next-wave-start');
+    }
+    await expect(page.locator('.hud-burger-btn')).toBeVisible({ timeout: 5000 });
+    // Open burger menu
+    await page.locator('.hud-burger-btn').click();
+    await expect(page.locator('.hud-burger-menu')).toBeVisible();
+    const muteBtn = page.locator('.hud-mute-btn');
+    await expect(muteBtn).toBeVisible();
+    // When not muted the label must contain Mute (not Unmute)
+    const label = await muteBtn.textContent();
+    expect(label).toContain('Mute');
+    expect(label).not.toContain('Unmute');
+  });
+
+  test('clicking .hud-mute-btn toggles label to "🔇 Unmute" and persists in localStorage', async ({ page }) => {
+    // Navigate to a valid origin so localStorage is accessible
+    await page.goto('/');
+    if (await page.locator('.difficulty-overlay').count() > 0) {
+      await page.click('.difficulty-btn--normal');
+    }
+    // Clear any persisted mute state
+    await page.evaluate(() => { try { localStorage.removeItem('sfx-muted') } catch {} });
+    // Reload so HUD initializes with clean mute state
+    await page.goto('/');
+    if (await page.locator('.difficulty-overlay').count() > 0) {
+      await page.click('.difficulty-btn--normal');
+    }
+    // Dismiss the next-wave-overlay if it appeared (it intercepts pointer events)
+    if (await page.locator('.next-wave-overlay').count() > 0) {
+      await page.click('.next-wave-start');
+    }
+    await expect(page.locator('.hud-burger-btn')).toBeVisible({ timeout: 5000 });
+    // Open burger menu
+    await page.locator('.hud-burger-btn').click();
+    await expect(page.locator('.hud-burger-menu')).toBeVisible();
+    const muteBtn = page.locator('.hud-mute-btn');
+    await expect(muteBtn).toBeVisible();
+    // Click to mute
+    await muteBtn.click();
+    // Menu stays open — button label should switch to Unmute
+    await expect(page.locator('.hud-mute-btn')).toBeVisible();
+    const labelAfter = await page.locator('.hud-mute-btn').textContent();
+    expect(labelAfter).toContain('Unmute');
+    // localStorage must reflect muted=true
+    const stored = await page.evaluate(() => { try { return localStorage.getItem('sfx-muted') } catch { return null } });
+    expect(stored).toBe('true');
+  });
+
+  test('clicking .hud-mute-btn twice returns to unmuted state', async ({ page }) => {
+    // Navigate to a valid origin so localStorage is accessible
+    await page.goto('/');
+    if (await page.locator('.difficulty-overlay').count() > 0) {
+      await page.click('.difficulty-btn--normal');
+    }
+    // Clear mute state then reload
+    await page.evaluate(() => { try { localStorage.removeItem('sfx-muted') } catch {} });
+    await page.goto('/');
+    if (await page.locator('.difficulty-overlay').count() > 0) {
+      await page.click('.difficulty-btn--normal');
+    }
+    // Dismiss the next-wave-overlay if it appeared (it intercepts pointer events)
+    if (await page.locator('.next-wave-overlay').count() > 0) {
+      await page.click('.next-wave-start');
+    }
+    await expect(page.locator('.hud-burger-btn')).toBeVisible({ timeout: 5000 });
+    // Open burger menu and click mute then unmute
+    await page.locator('.hud-burger-btn').click();
+    await expect(page.locator('.hud-burger-menu')).toBeVisible();
+    await page.locator('.hud-mute-btn').click();
+    await page.locator('.hud-mute-btn').click();
+    // Should be back to Mute label
+    const labelFinal = await page.locator('.hud-mute-btn').textContent();
+    expect(labelFinal).toContain('Mute');
+    expect(labelFinal).not.toContain('Unmute');
+    // localStorage must be false
+    const stored = await page.evaluate(() => { try { return localStorage.getItem('sfx-muted') } catch { return null } });
+    expect(stored).toBe('false');
+  });
+
+  test('mute preference persists across page reload', async ({ page }) => {
+    // Navigate to a valid origin so localStorage is accessible
+    await page.goto('/');
+    if (await page.locator('.difficulty-overlay').count() > 0) {
+      await page.click('.difficulty-btn--normal');
+    }
+    // Clear mute state, reload so HUD starts unmuted
+    await page.evaluate(() => { try { localStorage.removeItem('sfx-muted') } catch {} });
+    await page.goto('/');
+    if (await page.locator('.difficulty-overlay').count() > 0) {
+      await page.click('.difficulty-btn--normal');
+    }
+    // Dismiss the next-wave-overlay if it appeared (it intercepts pointer events)
+    if (await page.locator('.next-wave-overlay').count() > 0) {
+      await page.click('.next-wave-start');
+    }
+    await expect(page.locator('.hud-burger-btn')).toBeVisible({ timeout: 5000 });
+    // Mute via the button
+    await page.locator('.hud-burger-btn').click();
+    await expect(page.locator('.hud-burger-menu')).toBeVisible();
+    await page.locator('.hud-mute-btn').click();
+    const stored = await page.evaluate(() => { try { return localStorage.getItem('sfx-muted') } catch { return null } });
+    expect(stored).toBe('true');
+    // Reload and verify persistence
+    await page.goto('/');
+    if (await page.locator('.difficulty-overlay').count() > 0) {
+      await page.click('.difficulty-btn--normal');
+    }
+    // Dismiss the next-wave-overlay again after reload
+    if (await page.locator('.next-wave-overlay').count() > 0) {
+      await page.click('.next-wave-start');
+    }
+    await expect(page.locator('.hud-burger-btn')).toBeVisible({ timeout: 5000 });
+    await page.locator('.hud-burger-btn').click();
+    await expect(page.locator('.hud-burger-menu')).toBeVisible();
+    // Button must show Unmute (muted state was persisted via localStorage)
+    const labelReloaded = await page.locator('.hud-mute-btn').textContent();
+    expect(labelReloaded).toContain('Unmute');
+  });
 });
