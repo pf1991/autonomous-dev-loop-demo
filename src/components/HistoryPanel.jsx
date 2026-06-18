@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { loadHistory } from '../utils/sessionHistory.js'
 
 /**
@@ -17,15 +17,12 @@ function HistoryPanel({ onClose, currentHash }) {
     setHistory(loadHistory())
   }, [])
 
-  // Close on Escape key
-  const handleKeyDown = useCallback((e) => {
-    if (e.key === 'Escape') onClose()
-  }, [onClose])
-
+  // Close on Escape key — attach to window via useEffect for React-idiomatic event handling
   useEffect(() => {
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [handleKeyDown])
+    const handler = (e) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [onClose])
 
   function handlePlayAgain() {
     if (selectedIdx === null) return

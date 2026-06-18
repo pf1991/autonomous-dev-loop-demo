@@ -1000,6 +1000,26 @@ function App() {
     const next = Math.min(current + 1, MAX_PRESTIGE_STARS)
     savePrestigeStars(next)
     setPrestigeStars(next)
+    // Save session history entry on the win (prestige) path — mirrors the lose-path save above
+    if (difficultyMode !== null) {
+      const rawScore = computeScore({
+        kills: totalKillsRef.current,
+        goldEarned: totalGoldEarnedRef.current,
+        livesRemaining: livesRef.current,
+        wavesCompleted: wavesCompletedRef.current,
+      })
+      const score = applyDifficultyToScore(rawScore, difficultyMode)
+      const entry = { score, date: new Date().toLocaleDateString(), result: 'win', difficulty: difficultyMode ?? 'normal' }
+      saveLeaderboardEntry(entry)
+      saveSession({
+        seed: LEVEL_SEED,
+        hash: LEVEL_HASH,
+        maxWave: wavesReachedRef.current,
+        score,
+        difficulty: difficultyMode ?? 'normal',
+        playedAt: Date.now(),
+      })
+    }
     handleRestart()
   }
 
