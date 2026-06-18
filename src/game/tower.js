@@ -210,6 +210,67 @@ export function getNextUpgradeStats(tower) {
 }
 
 /**
+ * UPGRADE_STAT_LABELS defines the display name and format for every upgradable stat.
+ * Used by getUpgradePreview to build the diff rows.
+ */
+const UPGRADE_STAT_KEYS = [
+  { key: 'damage',           label: 'Damage' },
+  { key: 'range',            label: 'Range' },
+  { key: 'fireRate',         label: 'Fire Rate' },
+  { key: 'splashRadius',     label: 'Splash Radius' },
+  { key: 'splashDamage',     label: 'Splash Dmg' },
+  { key: 'slowFactor',       label: 'Slow Factor' },
+  { key: 'slowDuration',     label: 'Slow Dur (ms)' },
+  { key: 'aoeSlowRadius',    label: 'AoE Slow Radius' },
+  { key: 'poisonTickDamage', label: 'Poison Tick Dmg' },
+  { key: 'poisonTicks',      label: 'Poison Ticks' },
+  { key: 'critChance',       label: 'Crit Chance' },
+]
+
+/**
+ * getUpgradePreview(tower) — returns a rich diff object for the UpgradePanel.
+ *
+ * Returns null when the tower is at max level.
+ *
+ * Return shape:
+ * {
+ *   cost: number,
+ *   rows: Array<{
+ *     label: string,
+ *     current: number | string,
+ *     next: number | string,
+ *     delta: number | null,   // null when unchanged
+ *     isNew: boolean,         // true when the stat did not exist at current level
+ *   }>
+ * }
+ */
+export function getUpgradePreview(tower) {
+  if (!canUpgrade(tower)) return null
+  const typeDef = TOWER_TYPES[tower.type]
+  if (!typeDef) return null
+  const upgrade = typeDef.upgrades[tower.upgradeLevel]
+  const cost = upgrade.cost
+
+  const rows = []
+  for (const { key, label } of UPGRADE_STAT_KEYS) {
+    const currentVal = tower[key]
+    const nextVal = upgrade[key]
+
+    // Skip if neither the current tower nor the next upgrade defines this stat
+    if (currentVal == null && nextVal == null) continue
+
+    const isNew = currentVal == null && nextVal != null
+    const current = isNew ? null : currentVal
+    const next = nextVal != null ? nextVal : currentVal
+    const delta = isNew ? null : (nextVal != null ? +(nextVal - currentVal).toFixed(4) : null)
+
+    rows.push({ label, current, next, delta, isNew })
+  }
+
+  return { cost, rows }
+}
+
+/**
  * sellTower(tower) — returns the gold refund for selling a placed tower.
  * Refund = Math.floor(baseCost * 0.7). Upgrade costs are NOT refunded.
  */

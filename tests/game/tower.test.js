@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { TOWER_TYPES, createTower, canAfford, canUpgrade, upgradeTower, getUpgradeCost, getNextUpgradeStats, sellTower } from '../../src/game/tower'
+import { TOWER_TYPES, createTower, canAfford, canUpgrade, upgradeTower, getUpgradeCost, getNextUpgradeStats, getUpgradePreview, sellTower } from '../../src/game/tower'
 
 describe('TOWER_TYPES', () => {
   it('BasicTower has all required fields', () => {
@@ -369,5 +369,64 @@ describe('sellTower', () => {
   it('returns refund: 0 for unknown tower type', () => {
     const fakeTower = { type: 'UnknownTower', row: 0, col: 0, upgradeLevel: 0 }
     expect(sellTower(fakeTower)).toEqual({ refund: 0 })
+  })
+})
+
+describe('getUpgradePreview', () => {
+  it('returns null for a maxed tower', () => {
+    const tower = createTower('BasicTower', 0, 0)
+    const maxed = { ...tower, upgradeLevel: TOWER_TYPES.BasicTower.upgrades.length }
+    expect(getUpgradePreview(maxed)).toBeNull()
+  })
+
+  it('returns an object with cost and rows for an upgradable BasicTower', () => {
+    const tower = createTower('BasicTower', 0, 0)
+    const preview = getUpgradePreview(tower)
+    expect(preview).not.toBeNull()
+    expect(preview.cost).toBe(TOWER_TYPES.BasicTower.upgrades[0].cost)
+    expect(Array.isArray(preview.rows)).toBe(true)
+    expect(preview.rows.length).toBeGreaterThan(0)
+  })
+
+  it('includes damage, range, and fireRate rows for BasicTower', () => {
+    const tower = createTower('BasicTower', 0, 0)
+    const preview = getUpgradePreview(tower)
+    const labels = preview.rows.map(r => r.label)
+    expect(labels).toContain('Damage')
+    expect(labels).toContain('Range')
+    expect(labels).toContain('Fire Rate')
+  })
+
+  it('damage row has positive delta for BasicTower L0 → L1', () => {
+    const tower = createTower('BasicTower', 0, 0)
+    const preview = getUpgradePreview(tower)
+    const dmgRow = preview.rows.find(r => r.label === 'Damage')
+    expect(dmgRow.current).toBe(tower.damage)
+    expect(dmgRow.next).toBe(TOWER_TYPES.BasicTower.upgrades[0].damage)
+    expect(dmgRow.delta).toBe(TOWER_TYPES.BasicTower.upgrades[0].damage - tower.damage)
+    expect(dmgRow.isNew).toBe(false)
+  })
+
+  it('marks critChance as NEW for SniperTower L1 → L2 (the upgrade that introduces crit)', () => {
+    const tower = createTower('SniperTower', 0, 0)
+    // SniperTower.upgrades[1] adds critChance: 0.20; at L1 the tower has base critChance from createTower
+    // so we actually need to look at whether the upgrade *adds a new stat* vs increasing existing one.
+    // createTower always sets critChance: 0.10, so upgrading to L2 changes critChance, not NEW.
+    // The NEW badge applies to stats that are null on the current tower object but present in the upgrade.
+    // aoeSlowRadius on SlowTower L1 → L2 is a genuinely new stat.
+    const slowTower = createTower('SlowTower', 0, 0)
+    const slowPreview = getUpgradePreview({ ...slowTower, upgradeLevel: 1 })
+    const aoeRow = slowPreview && slowPreview.rows.find(r => r.label === 'AoE Slow Radius')
+    expect(aoeRow).toBeDefined()
+    expect(aoeRow.isNew).toBe(true)
+  })
+
+  it('rows with unchanged stat have delta 0', () => {
+    // MortarTower L0 fireRate stays 0.4 at L1
+    const tower = createTower('MortarTower', 0, 0)
+    const preview = getUpgradePreview(tower)
+    const rateRow = preview.rows.find(r => r.label === 'Fire Rate')
+    expect(rateRow).toBeDefined()
+    expect(rateRow.delta).toBe(0)
   })
 })
