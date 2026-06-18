@@ -39,6 +39,19 @@ import { loadPrestigeStars, savePrestigeStars } from './utils/prestige'
 import { playSound } from './audio'
 
 /**
+ * computeTileSize calculates the optimal tile size (px) based on current viewport.
+ * Caps at 40 px (the default) so large screens don't get oversized tiles.
+ * Subtracts 240 px from the viewport height to account for HUD + TowerPicker.
+ *
+ * @returns {number} tile size in whole pixels
+ */
+function computeTileSize() {
+  return Math.min(40, Math.floor(
+    Math.min(window.innerWidth / 20, (window.innerHeight - 240) / 15)
+  ))
+}
+
+/**
  * readOrCreateSeed reads the level seed from the URL hash (#seed=XXXXXXXX).
  * If absent, generates a new random seed and writes it to the hash.
  * Returns the numeric seed.
@@ -78,6 +91,10 @@ function App() {
   // difficultyMode: null = show selector; string = mode chosen for this run
   const [difficultyMode, setDifficultyMode] = useState(null)
   const difficultyModeRef = useRef(null)
+
+  // tileSize: dynamically computed tile size in px — recalculated on every resize.
+  // Written to the --tile-size CSS custom property so all tile styles scale automatically.
+  const [tileSize, setTileSize] = useState(() => computeTileSize())
 
   const [gold, setGold] = useState(INITIAL_STATE.gold)
   const [lives, setLives] = useState(INITIAL_STATE.lives)
@@ -301,6 +318,19 @@ function App() {
   useEffect(() => {
     goldRef.current = gold
   }, [gold])
+
+  // Sync tileSize to the --tile-size CSS custom property and update on window resize.
+  useEffect(() => {
+    document.documentElement.style.setProperty('--tile-size', tileSize + 'px')
+  }, [tileSize])
+
+  useEffect(() => {
+    function handleResize() {
+      setTileSize(computeTileSize())
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   // Real-time interest ticker — fires independent of speed multiplier.
   // Runs a 250 ms interval while 'playing'; accumulates wall-clock ms and pays
@@ -1190,6 +1220,7 @@ function App() {
           onHoverTowerType={setHoverTowerType}
         />
       <GameBoard
+        tileSize={tileSize}
         tiles={INITIAL_MAP}
         onTileClick={placeTower}
         onTowerClick={handleTowerClick}

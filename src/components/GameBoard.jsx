@@ -4,8 +4,8 @@ import WaveCountdownBanner from './WaveCountdownBanner.jsx'
 import { getEnemyRadius, isEnemyPoisoned } from '../game/enemy.js'
 import { TOWER_TYPES, towerKey } from '../game/tower.js'
 
-// Tile size in pixels — must match the CSS (.tile width/height)
-const TILE_PX = 40
+// Default tile size in pixels — overridden by the tileSize prop from App.jsx
+const DEFAULT_TILE_PX = 40
 
 /**
  * killBadgeClass — returns the CSS modifier class for the kill-count badge
@@ -288,6 +288,7 @@ function cooldownBarClass(type) {
  *   damageNumbers  — array of { id, value, row, col, expiresAt } for floating crit damage labels
  */
 function GameBoard({
+  tileSize = DEFAULT_TILE_PX,
   tiles,
   onTileClick,
   onTowerClick,
@@ -326,6 +327,8 @@ function GameBoard({
   countdownEventType = 'normal',
   onCountdownStart,
 }) {
+  // Use the prop-driven tile size so all pixel calculations scale with viewport
+  const TILE_PX = tileSize
   // hoveredTower: { row, col } | null — the tower tile the cursor is currently over
   const [hoveredTower, setHoveredTower] = useState(null)
 
