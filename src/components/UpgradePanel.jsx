@@ -3,7 +3,7 @@
  * Displays a two-column before/after stat comparison with deltas highlighted.
  * Maxed towers show "MAX LEVEL" without the diff table.
  */
-function UpgradePanel({ tower, gold, onUpgrade, onSell, getUpgradeCost, canUpgrade, getNextUpgradeStats, getUpgradePreview, sellTower, synergies = [] }) {
+function UpgradePanel({ tower, gold, onUpgrade, onSell, getUpgradeCost, canUpgrade, getNextUpgradeStats, getUpgradePreview, sellTower, maxGold = 9999, synergies = [] }) {
   const upgradable = canUpgrade ? canUpgrade(tower) : false
   const cost = getUpgradeCost ? getUpgradeCost(tower) : null
   const canAffordUpgrade = upgradable && cost !== null && gold >= cost
@@ -12,6 +12,8 @@ function UpgradePanel({ tower, gold, onUpgrade, onSell, getUpgradeCost, canUpgra
   const nextStats = (!preview && getNextUpgradeStats) ? getNextUpgradeStats(tower) : null
   const sellResult = sellTower ? sellTower(tower) : { refund: 0 }
   const refund = sellResult.refund
+  // Sell is disabled when adding the refund would not increase gold (player already at cap)
+  const sellDisabled = gold >= maxGold
 
   function formatVal(val, isNew) {
     if (isNew || val == null) return '—'
@@ -117,7 +119,8 @@ function UpgradePanel({ tower, gold, onUpgrade, onSell, getUpgradeCost, canUpgra
       )}
       <button
         className="upgrade-panel-sell-btn"
-        onClick={() => onSell && onSell(tower.row, tower.col)}
+        disabled={sellDisabled}
+        onClick={() => !sellDisabled && onSell && onSell(tower.row, tower.col)}
       >
         Sell ({refund}g)
       </button>

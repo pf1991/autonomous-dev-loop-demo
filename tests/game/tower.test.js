@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { TOWER_TYPES, createTower, canAfford, canUpgrade, upgradeTower, getUpgradeCost, getNextUpgradeStats, getUpgradePreview, sellTower } from '../../src/game/tower'
+import { TOWER_TYPES, createTower, canAfford, canUpgrade, upgradeTower, getUpgradeCost, getNextUpgradeStats, getUpgradePreview, sellTower, MAX_GOLD } from '../../src/game/tower'
 
 describe('TOWER_TYPES', () => {
   it('BasicTower has all required fields', () => {
@@ -342,22 +342,22 @@ describe('SlowTower', () => {
     expect(t.splashRadius).toBeUndefined()
   })
 
-  it('sellTower returns 70% of base cost rounded down', () => {
+  it('sellTower returns 50% of base cost rounded down', () => {
     const t = createTower('SlowTower', 0, 0)
-    const expected = Math.floor(TOWER_TYPES.SlowTower.cost * 0.7)
+    const expected = Math.floor(TOWER_TYPES.SlowTower.cost * 0.5)
     expect(sellTower(t)).toEqual({ refund: expected })
   })
 })
 
 describe('sellTower', () => {
-  it('returns 70% of BasicTower base cost (50), rounded down = 35', () => {
+  it('returns 50% of BasicTower base cost (50), rounded down = 25', () => {
     const tower = createTower('BasicTower', 0, 0)
-    expect(sellTower(tower)).toEqual({ refund: 35 })
+    expect(sellTower(tower)).toEqual({ refund: 25 })
   })
 
-  it('returns 70% of SniperTower base cost (100), rounded down = 70', () => {
+  it('returns 50% of SniperTower base cost (100), rounded down = 50', () => {
     const tower = createTower('SniperTower', 2, 3)
-    expect(sellTower(tower)).toEqual({ refund: 70 })
+    expect(sellTower(tower)).toEqual({ refund: 50 })
   })
 
   it('refund is the same regardless of upgrade level (upgrade costs are not refunded)', () => {
@@ -369,6 +369,25 @@ describe('sellTower', () => {
   it('returns refund: 0 for unknown tower type', () => {
     const fakeTower = { type: 'UnknownTower', row: 0, col: 0, upgradeLevel: 0 }
     expect(sellTower(fakeTower)).toEqual({ refund: 0 })
+  })
+
+  it('refund for each tower type is Math.floor(baseCost * 0.5)', () => {
+    for (const [type, def] of Object.entries(TOWER_TYPES)) {
+      const tower = createTower(type, 0, 0)
+      const expected = Math.floor(def.cost * 0.5)
+      expect(sellTower(tower).refund, `${type} refund`).toBe(expected)
+    }
+  })
+})
+
+describe('MAX_GOLD', () => {
+  it('is a positive number', () => {
+    expect(typeof MAX_GOLD).toBe('number')
+    expect(MAX_GOLD).toBeGreaterThan(0)
+  })
+
+  it('is exported from tower.js', () => {
+    expect(MAX_GOLD).toBeDefined()
   })
 })
 

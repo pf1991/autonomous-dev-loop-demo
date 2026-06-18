@@ -23,7 +23,7 @@ function generateSeed() {
   crypto.getRandomValues(arr)
   return arr[0]
 }
-import { TOWER_TYPES, createTower, canAfford, canUpgrade, upgradeTower, getUpgradeCost, getNextUpgradeStats, getUpgradePreview, sellTower, getAdjacentSynergies, getSynergyPartners } from './game/tower'
+import { TOWER_TYPES, createTower, canAfford, canUpgrade, upgradeTower, getUpgradeCost, getNextUpgradeStats, getUpgradePreview, sellTower, getAdjacentSynergies, getSynergyPartners, MAX_GOLD } from './game/tower'
 import { createEnemy, moveEnemy, getEnemyHpForWave, tickHealerAbilities } from './game/enemy'
 import { processCombat, processEffectTick } from './game/combat'
 import { getWaveEnemyHp, getWaveEnemyCount, getWaveComposition, getEarlyWaveBonus, isBossWave, getWaveEventType, WAVE_EVENT_CONFIG, getWavePreview } from './game/wave'
@@ -1295,6 +1295,7 @@ function App() {
         getNextUpgradeStats={getNextUpgradeStats}
         getUpgradePreview={getUpgradePreview}
         sellTower={sellTower}
+        maxGold={MAX_GOLD}
         adjacencySynergies={adjacencySynergies}
         synergyPartners={synergyPartners}
         showSynergies={showSynergies}

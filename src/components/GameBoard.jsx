@@ -315,6 +315,7 @@ function GameBoard({
   getNextUpgradeStats,
   getUpgradePreview,
   sellTower,
+  maxGold = 9999,
   adjacencySynergies = null,
   synergyPartners = null,
   showSynergies = false,
@@ -473,6 +474,7 @@ function GameBoard({
                     getNextUpgradeStats={getNextUpgradeStats}
                     getUpgradePreview={getUpgradePreview}
                     sellTower={sellTower}
+                    maxGold={maxGold}
                     synergies={upgradePanelSynergies}
                   />
                 )}
