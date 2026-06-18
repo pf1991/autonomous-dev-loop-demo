@@ -41,6 +41,7 @@ function copyLevelUrl() {
  *   onNewMap             — callback to navigate to a fresh map
  *   initialMenuOpen      — boolean: start with burger menu open (default false; used in tests)
  *   bossEnemy            — the Colossus enemy object { hp, maxHp } when present, or null
+ *   onHistoryOpen        — callback invoked when the History button is clicked
  */
 function HUD({
   lives,
@@ -70,6 +71,7 @@ function HUD({
   onNewMap,
   initialMenuOpen = false,
   bossEnemy = null,
+  onHistoryOpen,
 }) {
   const isRampage = comboCount >= 5
   const [menuOpen, setMenuOpen] = useState(initialMenuOpen)
@@ -195,6 +197,16 @@ function HUD({
               >
                 Achievements ({unlockedAchievements.length}/{totalAchievements})
               </button>
+              {onHistoryOpen && (
+                <button
+                  className="hud-burger-item hud-history-btn"
+                  onClick={() => { onHistoryOpen(); setMenuOpen(false) }}
+                  aria-label="View session history"
+                  title="View session history"
+                >
+                  🕐 History
+                </button>
+              )}
               <div className="hud-burger-stars" aria-label={`Prestige stars: ${prestigeStars} of 5`}>
                 {Array.from({ length: 5 }, (_, i) => (
                   <span key={i} className={i < prestigeStars ? 'prestige-star prestige-star--filled' : 'prestige-star prestige-star--hollow'}>
