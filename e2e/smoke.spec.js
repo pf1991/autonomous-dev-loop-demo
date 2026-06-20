@@ -1030,11 +1030,11 @@ test.describe('Tower Defense - smoke tests', () => {
     await expect(page.locator('.tower-icon').first()).toBeVisible();
     const panel = page.locator('.upgrade-panel');
     await expect(panel).toBeVisible();
-    // Sell button must be visible and show the refund amount (35g for BasicTower)
+    // Sell button must be visible and show the refund amount (25g for BasicTower: Math.floor(50 * 0.5))
     const sellBtn = panel.locator('.upgrade-panel-sell-btn');
     await expect(sellBtn).toBeVisible();
     await expect(sellBtn).toContainText('Sell');
-    await expect(sellBtn).toContainText('35g');
+    await expect(sellBtn).toContainText('25g');
   });
 
   test('clicking Sell removes the tower and refunds gold', async ({ page }) => {
@@ -1063,10 +1063,10 @@ test.describe('Tower Defense - smoke tests', () => {
     // Upgrade panel should be closed
     await expect(page.locator('.upgrade-panel')).not.toBeVisible();
 
-    // Gold should be goldNum - 50 (buy) + 35 (sell refund) = goldNum - 15
+    // Gold should be goldNum - 50 (buy) + 25 (sell refund: Math.floor(50 * 0.5)) = goldNum - 25
     const goldAfterText = await page.locator('.hud-gold').textContent();
     const goldAfterNum = parseInt(goldAfterText.replace(/\D/g, ''), 10);
-    expect(goldAfterNum).toBe(goldNum - 50 + 35);
+    expect(goldAfterNum).toBe(goldNum - 50 + 25);
 
     // The tile should now be a clickable .tower-slot again
     await expect(page.locator('.tower-slot').first()).toBeVisible();
@@ -4935,5 +4935,128 @@ test.describe('DifficultySelector', () => {
     expect(entry).toHaveProperty('maxWave');
     expect(entry).toHaveProperty('score');
     expect(entry).toHaveProperty('playedAt');
+  });
+
+  // --- Sell tower feature (issue #136 / PR #143) ---
+  // Helper: navigate fresh, select Normal difficulty, then dismiss the NextWave overlay.
+  // Written inline in each test (self-contained) because beforeEach timing can leave
+  // difficultyMode=null when tests are isolated with --grep.
+
+  test('upgrade panel shows .upgrade-panel-sell-btn after placing and selecting a tower', async ({ page }) => {
+    // Full fresh setup: navigate, select difficulty, dismiss wave overlay
+    await page.goto('/');
+    await expect(page.locator('.difficulty-overlay')).toBeVisible({ timeout: 5000 });
+    await page.click('.difficulty-btn--normal');
+    await expect(page.locator('.next-wave-overlay')).toBeVisible({ timeout: 5000 });
+    await page.locator('.next-wave-start').click();
+    await expect(page.locator('.next-wave-overlay')).not.toBeVisible();
+
+    // Place a BasicTower — auto-select opens the upgrade panel
+    const slot = page.locator('.tower-slot').first();
+    await expect(slot).toBeVisible();
+    await slot.click();
+    await expect(page.locator('.tower-icon').first()).toBeVisible();
+    // Upgrade panel must open automatically (auto-select behavior from issue #42)
+    await expect(page.locator('.upgrade-panel')).toBeVisible();
+    // Sell button must be present inside the panel
+    await expect(page.locator('.upgrade-panel-sell-btn')).toBeVisible();
+  });
+
+  test('clicking .upgrade-panel-sell-btn removes the tower from the board and increases gold', async ({ page }) => {
+    // Full fresh setup: navigate, select difficulty, dismiss wave overlay
+    await page.goto('/');
+    await expect(page.locator('.difficulty-overlay')).toBeVisible({ timeout: 5000 });
+    await page.click('.difficulty-btn--normal');
+    await expect(page.locator('.next-wave-overlay')).toBeVisible({ timeout: 5000 });
+    await page.locator('.next-wave-start').click();
+    await expect(page.locator('.next-wave-overlay')).not.toBeVisible();
+
+    // Read starting gold from HUD (Normal difficulty: 100g)
+    const goldText = await page.locator('.hud-gold').textContent();
+    const startGold = parseInt(goldText.replace(/[^0-9]/g, ''), 10);
+
+    // Place a BasicTower (costs 50g) — auto-select opens the upgrade panel
+    const slot = page.locator('.tower-slot').first();
+    await expect(slot).toBeVisible();
+    await slot.click();
+    await expect(page.locator('.tower-icon').first()).toBeVisible();
+
+    const towerCountBefore = await page.locator('.tower-icon').count();
+    expect(towerCountBefore).toBeGreaterThan(0);
+
+    // Wait for upgrade panel and the sell button to appear
+    await expect(page.locator('.upgrade-panel')).toBeVisible();
+    const sellBtn = page.locator('.upgrade-panel-sell-btn');
+    await expect(sellBtn).toBeVisible();
+
+    // Sell button must be enabled (gold < MAX_GOLD=9999 after placement)
+    await expect(sellBtn).not.toBeDisabled();
+
+    // Click sell
+    await sellBtn.click();
+
+    // Tower must be removed from the board
+    const towerCountAfter = await page.locator('.tower-icon').count();
+    expect(towerCountAfter).toBeLessThan(towerCountBefore);
+
+    // Gold displayed in HUD must have increased (refund added back)
+    const goldTextAfter = await page.locator('.hud-gold').textContent();
+    const goldAfter = parseInt(goldTextAfter.replace(/[^0-9]/g, ''), 10);
+    expect(goldAfter).toBeGreaterThan(startGold - 50); // at least some refund returned
+  });
+
+  test('.upgrade-panel-sell-btn is disabled when gold is at MAX_GOLD (9999)', async ({ page }) => {
+    // Full fresh setup: navigate, select difficulty, dismiss wave overlay
+    await page.goto('/');
+    await expect(page.locator('.difficulty-overlay')).toBeVisible({ timeout: 5000 });
+    await page.click('.difficulty-btn--normal');
+    await expect(page.locator('.next-wave-overlay')).toBeVisible({ timeout: 5000 });
+    await page.locator('.next-wave-start').click();
+    await expect(page.locator('.next-wave-overlay')).not.toBeVisible();
+
+    // Place a BasicTower — auto-select opens upgrade panel
+    const slot = page.locator('.tower-slot').first();
+    await expect(slot).toBeVisible();
+    await slot.click();
+    await expect(page.locator('.tower-icon').first()).toBeVisible();
+    await expect(page.locator('.upgrade-panel')).toBeVisible();
+
+    // Inject gold = 9999 (MAX_GOLD) via React fiber: stateHooks[2] = gold
+    // Hook indices from verified comment at top of this file (post-PR #135, unchanged by PR #143):
+    //   stateHook[2] = gold
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          const stateHooks = [];
+          let hookNode = fiber.memoizedState;
+          while (hookNode) {
+            if (hookNode.queue && typeof hookNode.queue.dispatch === 'function') {
+              stateHooks.push(hookNode);
+            }
+            hookNode = hookNode.next;
+          }
+          // stateHooks[2] = gold (verified against live App.jsx post-PR #135)
+          if (stateHooks[2] && stateHooks[2].queue && stateHooks[2].queue.dispatch) {
+            stateHooks[2].queue.dispatch(9999);
+            return;
+          }
+          throw new Error('Could not find gold hook dispatcher (expected stateHooks[2])');
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find App fiber for gold injection');
+    });
+
+    // Wait for HUD gold to reflect 9999
+    await expect(page.locator('.hud-gold')).toContainText('9999', { timeout: 2000 });
+
+    // Sell button must now be disabled — selling would overflow gold beyond MAX_GOLD
+    const sellBtn = page.locator('.upgrade-panel-sell-btn');
+    await expect(sellBtn).toBeVisible();
+    await expect(sellBtn).toBeDisabled();
   });
 });

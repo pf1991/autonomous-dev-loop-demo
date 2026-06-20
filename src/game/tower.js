@@ -271,13 +271,19 @@ export function getUpgradePreview(tower) {
 }
 
 /**
+ * MAX_GOLD — the maximum gold a player can hold.
+ * Selling a tower when gold is already at this cap is disallowed (the Sell button is disabled).
+ */
+export const MAX_GOLD = 9999
+
+/**
  * sellTower(tower) — returns the gold refund for selling a placed tower.
- * Refund = Math.floor(baseCost * 0.7). Upgrade costs are NOT refunded.
+ * Refund = Math.floor(baseCost * 0.5). Upgrade costs are NOT refunded.
  */
 export function sellTower(tower) {
   const typeDef = TOWER_TYPES[tower.type]
   if (!typeDef) return { refund: 0 }
-  return { refund: Math.floor(typeDef.cost * 0.7) }
+  return { refund: Math.floor(typeDef.cost * 0.5) }
 }
 
 /**

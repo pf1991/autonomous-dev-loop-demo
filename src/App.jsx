@@ -23,7 +23,7 @@ function generateSeed() {
   crypto.getRandomValues(arr)
   return arr[0]
 }
-import { TOWER_TYPES, createTower, canAfford, canUpgrade, upgradeTower, getUpgradeCost, getNextUpgradeStats, getUpgradePreview, sellTower, getAdjacentSynergies, getSynergyPartners } from './game/tower'
+import { TOWER_TYPES, createTower, canAfford, canUpgrade, upgradeTower, getUpgradeCost, getNextUpgradeStats, getUpgradePreview, sellTower, getAdjacentSynergies, getSynergyPartners, MAX_GOLD } from './game/tower'
 import { createEnemy, moveEnemy, getEnemyHpForWave, tickHealerAbilities } from './game/enemy'
 import { processCombat, processEffectTick } from './game/combat'
 import { getWaveEnemyHp, getWaveEnemyCount, getWaveComposition, getEarlyWaveBonus, isBossWave, getWaveEventType, WAVE_EVENT_CONFIG, getWavePreview } from './game/wave'
@@ -962,12 +962,11 @@ function App() {
     )
   }
 
-  function handleSell(row, col) {
-    const tower = towers.find(t => t.row === row && t.col === col)
+  function handleSell(tower) {
     if (!tower) return
     const { refund } = sellTower(tower)
     setGold(g => g + refund)
-    setTowers(ts => ts.filter(t => !(t.row === row && t.col === col)))
+    setTowers(ts => ts.filter(t => !(t.row === tower.row && t.col === tower.col)))
     setSelectedTower(null)
   }
 
@@ -1295,6 +1294,7 @@ function App() {
         getNextUpgradeStats={getNextUpgradeStats}
         getUpgradePreview={getUpgradePreview}
         sellTower={sellTower}
+        maxGold={MAX_GOLD}
         adjacencySynergies={adjacencySynergies}
         synergyPartners={synergyPartners}
         showSynergies={showSynergies}
