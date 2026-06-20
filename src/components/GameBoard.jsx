@@ -638,24 +638,6 @@ function GameBoard({
                   fill: none;
                   opacity: 0.85;
                 }
-                @keyframes lightning-flash {
-                  0%   { opacity: 1; stroke-width: 3; }
-                  50%  { opacity: 0.7; stroke-width: 2; }
-                  100% { opacity: 0; stroke-width: 1; }
-                }
-                .projectile-lightning {
-                  stroke: #ffe033;
-                  stroke-width: 3;
-                  stroke-linecap: round;
-                  fill: none;
-                  filter: url(#lightning-glow);
-                  animation: lightning-flash 0.2s ease-out forwards;
-                }
-                .projectile-lightning-chain {
-                  stroke: #b3d9ff;
-                  stroke-width: 2;
-                  opacity: 0.8;
-                }
               `}</style>
             </defs>
             {/* Global synergy overlay lines */}
