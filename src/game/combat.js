@@ -2,6 +2,7 @@
  * combat.js — pure game logic for tower combat.
  * No side effects, no React imports.
  */
+import { getChainTargets } from './tower.js'
 
 /**
  * rollCrit determines whether an attack is a critical hit.
@@ -342,6 +343,55 @@ export function processCombat(towers, enemies, nowMs, adjacencySynergies, rng = 
           slowUntil: freezeUntil,
         })
       }
+    }
+
+    // Lightning chain — LightningTower arcs between up to maxChains additional enemies
+    if (tower.type === 'LightningTower' && tower.chainRadius != null && tower.maxChains != null) {
+      const primaryTarget = enemyMap.get(nearestId)
+      // Use all living enemies in the map as candidates for chaining
+      const livingEnemies = Array.from(enemyMap.values())
+      const chainTargets = getChainTargets(
+        { id: nearestId, pos: primaryTarget ? primaryTarget.pos : target.pos },
+        livingEnemies,
+        tower.chainRadius,
+        tower.maxChains
+      )
+
+      // Each chain target takes 50% of the previous hit's damage (decaying chain)
+      let chainDamage = effectiveDamage * 0.5
+      const chainPositions = []
+      for (const chainEnemy of chainTargets) {
+        const current = enemyMap.get(chainEnemy.id)
+        if (!current) continue
+        const chainResist = current.damageResist?.[tower.type] ?? 1
+        const chainShield = current.shieldedDamageReduction ?? 1
+        const actualChainDamage = chainDamage * chainResist * chainShield
+        const chainNewHp = current.hp - actualChainDamage
+        const chainKilled = chainNewHp <= 0
+        enemyMap.set(chainEnemy.id, {
+          ...current,
+          hp: chainNewHp,
+          ...(chainKilled && current._killedByTowerIndex == null ? { _killedByTowerIndex: towerIndex } : {}),
+        })
+        chainPositions.push({ row: chainEnemy.pos.row, col: chainEnemy.pos.col })
+        chainDamage *= 0.5
+      }
+
+      // Record the primary lightning bolt projectile with chain positions for visual rendering
+      projectiles.push({
+        id: `${tower.row}-${tower.col}-${nowMs}`,
+        fromRow: tower.row,
+        fromCol: tower.col,
+        toRow: target.pos.row,
+        toCol: target.pos.col,
+        createdAt: nowMs,
+        towerType: tower.type,
+        upgradeLevel: tower.upgradeLevel ?? 0,
+        isCrit,
+        chainPositions,
+      })
+
+      return { ...tower, lastFiredAt: nowMs }
     }
 
     // Record the projectile for visual feedback

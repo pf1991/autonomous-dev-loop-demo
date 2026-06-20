@@ -26,6 +26,8 @@ function TowerPicker({ selectedType, gold, onSelect, onHoverTowerType }) {
           specialLine = `Slow: ${Math.round((1 - config.slowFactor) * 100)}%`
         } else if (config.poisonTickDamage != null) {
           specialLine = `Poison: ${config.poisonTicks}×${config.poisonTickDamage} DoT`
+        } else if (config.chainRadius != null) {
+          specialLine = `Chain: ${config.maxChains} hops (r=${config.chainRadius}t)`
         }
         const tooltip = [
           type,

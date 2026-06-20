@@ -79,6 +79,17 @@ function TowerPickerIcon({ type }) {
       </svg>
     )
   }
+  if (type === 'LightningTower') {
+    return (
+      <svg width="32" height="32" viewBox="0 0 30 30" aria-hidden="true">
+        <circle className="tower-lightning-orb" cx="15" cy="7" r="4" />
+        <polyline
+          className="tower-lightning-bolt"
+          points="15,11 10,17 14,17 9,25 20,16 15,16 20,11"
+        />
+      </svg>
+    )
+  }
   return null
 }
 
