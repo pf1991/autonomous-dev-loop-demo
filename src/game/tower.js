@@ -117,6 +117,70 @@ export const TOWER_TYPES = {
       { cost: 100, range: 5, damage: 16, fireRate: 1.2, poisonTickDamage: 35, poisonTicks: 5, poisonTickInterval: 1000 },
     ],
   },
+  /**
+   * LightningTower — fires a bolt that arcs between up to 3 nearby enemies.
+   * Primary target takes full damage; each chain target takes 50% of the previous hit.
+   * chainRadius: maximum tile distance between chained targets.
+   * maxChains: total chain hops after the primary target.
+   * L1 upgrade: wider chain radius, slightly higher fire rate.
+   * L2 upgrade: +1 chain hop (4 total), more damage.
+   */
+  LightningTower: {
+    cost: 110,
+    range: 4,
+    damage: 45,
+    fireRate: 0.8,
+    chainRadius: 2.5,
+    maxChains: 3,
+    upgrades: [
+      { cost: 80, range: 4.5, damage: 60, fireRate: 1.0, chainRadius: 3.0, maxChains: 3 },
+      { cost: 120, range: 5, damage: 85, fireRate: 1.2, chainRadius: 3.5, maxChains: 4 },
+    ],
+  },
+}
+
+/**
+ * getChainTargets(primary, enemies, chainRadius, maxChains) — pure function.
+ * Returns an ordered list of enemies that the lightning bolt chains to after the primary target.
+ *
+ * Algorithm:
+ *   Starting from the primary target's position, find the nearest enemy (not yet hit)
+ *   within chainRadius tiles. Chain up to maxChains times.
+ *   The returned list does NOT include the primary target itself.
+ *
+ * @param {{ id: string|number, pos: { row: number, col: number } }} primary - the first target
+ * @param {Array<{ id: string|number, pos: { row: number, col: number } }>} enemies - all living enemies
+ * @param {number} chainRadius - maximum tile distance for each chain hop
+ * @param {number} maxChains - maximum number of additional targets (hops after primary)
+ * @returns {Array<{ id: string|number, pos: { row: number, col: number } }>}
+ */
+export function getChainTargets(primary, enemies, chainRadius, maxChains) {
+  const targets = []
+  const hitIds = new Set([primary.id])
+  let currentPos = primary.pos
+
+  for (let hop = 0; hop < maxChains; hop++) {
+    let bestDist = Infinity
+    let bestEnemy = null
+
+    for (const enemy of enemies) {
+      if (hitIds.has(enemy.id)) continue
+      const dr = currentPos.row - enemy.pos.row
+      const dc = currentPos.col - enemy.pos.col
+      const dist = Math.sqrt(dr * dr + dc * dc)
+      if (dist <= chainRadius && dist < bestDist) {
+        bestDist = dist
+        bestEnemy = enemy
+      }
+    }
+
+    if (!bestEnemy) break
+    targets.push(bestEnemy)
+    hitIds.add(bestEnemy.id)
+    currentPos = bestEnemy.pos
+  }
+
+  return targets
 }
 
 /**
@@ -137,6 +201,8 @@ export function createTower(type, row, col) {
   if (typeDef.poisonTickDamage  != null) tower.poisonTickDamage  = typeDef.poisonTickDamage
   if (typeDef.poisonTicks       != null) tower.poisonTicks       = typeDef.poisonTicks
   if (typeDef.poisonTickInterval!= null) tower.poisonTickInterval= typeDef.poisonTickInterval
+  if (typeDef.chainRadius       != null) tower.chainRadius       = typeDef.chainRadius
+  if (typeDef.maxChains         != null) tower.maxChains         = typeDef.maxChains
   return tower
 }
 
@@ -184,6 +250,8 @@ export function upgradeTower(tower) {
   if (upgrade.poisonTicks       != null) updated.poisonTicks       = upgrade.poisonTicks
   if (upgrade.poisonTickInterval!= null) updated.poisonTickInterval= upgrade.poisonTickInterval
   if (upgrade.critChance        != null) updated.critChance        = upgrade.critChance
+  if (upgrade.chainRadius       != null) updated.chainRadius       = upgrade.chainRadius
+  if (upgrade.maxChains         != null) updated.maxChains         = upgrade.maxChains
   return updated
 }
 
@@ -225,6 +293,8 @@ const UPGRADE_STAT_KEYS = [
   { key: 'poisonTickDamage', label: 'Poison Tick Dmg' },
   { key: 'poisonTicks',      label: 'Poison Ticks' },
   { key: 'critChance',       label: 'Crit Chance' },
+  { key: 'chainRadius',      label: 'Chain Radius' },
+  { key: 'maxChains',        label: 'Chain Hops' },
 ]
 
 /**

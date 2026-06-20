@@ -238,6 +238,31 @@ function TowerSVG({ type, upgradeLevel }) {
     )
   }
 
+  if (type === 'LightningTower') {
+    // Lightning bolt: jagged downward-pointing bolt with an orb at the top emitter
+    return (
+      <span className="tower-icon">
+        <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
+          {/* Emitter orb */}
+          <circle className="tower-lightning-orb" cx="15" cy="7" r="4" />
+          {/* Jagged lightning bolt pointing downward */}
+          <polyline
+            className="tower-lightning-bolt"
+            points="15,11 10,17 14,17 9,25 20,16 15,16 20,11"
+          />
+          {/* Upgrade: outer glow ring at L1 */}
+          {upgradeLevel >= 1 && (
+            <circle className="tower-lightning-ring" cx="15" cy="7" r="6" />
+          )}
+          {/* Second ring at L2 */}
+          {upgradeLevel >= 2 && (
+            <circle className="tower-lightning-ring" cx="15" cy="7" r="8" />
+          )}
+        </svg>
+      </span>
+    )
+  }
+
   // Fallback — should never reach here
   return (
     <span className="tower-icon">
@@ -255,13 +280,14 @@ function TowerSVG({ type, upgradeLevel }) {
  */
 function cooldownBarClass(type) {
   const map = {
-    BasicTower:  'tower-cooldown-bar--basic',
-    SniperTower: 'tower-cooldown-bar--sniper',
-    RapidTower:  'tower-cooldown-bar--rapid',
-    CannonTower: 'tower-cooldown-bar--cannon',
-    SlowTower:   'tower-cooldown-bar--slow',
-    MortarTower: 'tower-cooldown-bar--mortar',
-    PoisonTower: 'tower-cooldown-bar--poison',
+    BasicTower:     'tower-cooldown-bar--basic',
+    SniperTower:    'tower-cooldown-bar--sniper',
+    RapidTower:     'tower-cooldown-bar--rapid',
+    CannonTower:    'tower-cooldown-bar--cannon',
+    SlowTower:      'tower-cooldown-bar--slow',
+    MortarTower:    'tower-cooldown-bar--mortar',
+    PoisonTower:    'tower-cooldown-bar--poison',
+    LightningTower: 'tower-cooldown-bar--lightning',
   }
   return map[type] ?? 'tower-cooldown-bar--basic'
 }
@@ -592,6 +618,13 @@ function GameBoard({
                   <feMergeNode in="SourceGraphic" />
                 </feMerge>
               </filter>
+              <filter id="lightning-glow" x="-100%" y="-100%" width="300%" height="300%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
               <style>{`
                 @keyframes synergy-dash {
                   from { stroke-dashoffset: 20; }
@@ -680,6 +713,43 @@ function GameBoard({
                     cy={cy}
                     r={splashPx}
                   />
+                )
+              }
+
+              // LightningTower: render animated SVG bolt lines from tower → primary → chain targets
+              if (p.towerType === 'LightningTower') {
+                const segments = []
+                // Segment 0: tower → primary target
+                segments.push({
+                  x1: (p.fromCol + 0.5) * TILE_PX,
+                  y1: (p.fromRow + 0.5) * TILE_PX,
+                  x2: (p.toCol + 0.5) * TILE_PX,
+                  y2: (p.toRow + 0.5) * TILE_PX,
+                })
+                // Chain segments: primary → each chain target in order
+                const chainPos = p.chainPositions ?? []
+                let prevCol = p.toCol
+                let prevRow = p.toRow
+                for (const cp of chainPos) {
+                  segments.push({
+                    x1: (prevCol + 0.5) * TILE_PX,
+                    y1: (prevRow + 0.5) * TILE_PX,
+                    x2: (cp.col + 0.5) * TILE_PX,
+                    y2: (cp.row + 0.5) * TILE_PX,
+                  })
+                  prevCol = cp.col
+                  prevRow = cp.row
+                }
+                return (
+                  <g key={p.id} className="lightning-bolt-group">
+                    {segments.map((seg, si) => (
+                      <line
+                        key={si}
+                        className={`projectile-lightning${si > 0 ? ' projectile-lightning-chain' : ''}`}
+                        x1={seg.x1} y1={seg.y1} x2={seg.x2} y2={seg.y2}
+                      />
+                    ))}
+                  </g>
                 )
               }
 

@@ -5059,4 +5059,223 @@ test.describe('DifficultySelector', () => {
     await expect(sellBtn).toBeVisible();
     await expect(sellBtn).toBeDisabled();
   });
+
+  // --- LightningTower (issue #137 / PR #144) ---
+  // LightningTower costs 110g (player starts with 100g on Normal difficulty, so we
+  // inject gold via fiber before selecting/placing it).
+  //
+  // Hook indices are UNCHANGED from PR #135 (this PR touches no App.jsx useState hooks):
+  //   stateHooks[2] = gold  (verified post-PR #135)
+  //
+  // New E2E coverage:
+  //   1. LightningTower appears in the tower picker sidebar.
+  //   2. LightningTower can be placed on the board (after injecting enough gold).
+  //   3. After placing a LightningTower, the upgrade panel shows chainRadius and maxChains stats.
+
+  test('TowerPicker shows LightningTower button in the sidebar', async ({ page }) => {
+    await expect(page.locator('.tower-picker')).toBeVisible();
+    // LightningTower must have a button in the picker — attached even if currently unaffordable
+    await expect(
+      page.locator('.tower-picker button').filter({ hasText: 'LightningTower' })
+    ).toBeAttached();
+  });
+
+  test('LightningTower picker button shows Chain tooltip mentioning hops and radius', async ({ page }) => {
+    const lightningBtn = page.locator('.tower-picker-btn').filter({ hasText: 'LightningTower' });
+    await expect(lightningBtn).toBeAttached();
+    // TowerPicker builds a native title tooltip with specialLine for chainRadius towers
+    const title = await lightningBtn.getAttribute('title');
+    expect(title).toMatch(/Chain/);
+    expect(title).toMatch(/hops/);
+  });
+
+  test('LightningTower can be placed on the board after receiving enough gold', async ({ page }) => {
+    // Dismiss NextWave overlay so the board is interactive
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+
+    // Inject 200g (LightningTower costs 110g) via React fiber stateHooks[2] = gold
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          const stateHooks = [];
+          let hookNode = fiber.memoizedState;
+          while (hookNode) {
+            if (hookNode.queue && typeof hookNode.queue.dispatch === 'function') {
+              stateHooks.push(hookNode);
+            }
+            hookNode = hookNode.next;
+          }
+          // stateHooks[2] = gold (verified post-PR #135, unchanged by PR #144)
+          if (stateHooks[2] && stateHooks[2].queue && stateHooks[2].queue.dispatch) {
+            stateHooks[2].queue.dispatch(200);
+            return;
+          }
+          throw new Error('Could not find gold hook dispatcher (expected stateHooks[2])');
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find App fiber for gold injection');
+    });
+
+    // Wait for the HUD to reflect the injected gold
+    await expect(page.locator('.hud-gold')).toContainText('200', { timeout: 2000 });
+
+    // Select LightningTower from the picker
+    const lightningBtn = page.locator('.tower-picker button').filter({ hasText: 'LightningTower' });
+    await expect(lightningBtn).not.toBeDisabled();
+    await lightningBtn.click();
+    await expect(lightningBtn).toHaveClass(/selected/);
+
+    // Place on the first available tower slot
+    const slot = page.locator('.tower-slot').first();
+    await expect(slot).toBeVisible();
+    await slot.click();
+
+    // A tower icon must now be visible on the board
+    await expect(page.locator('.tower-icon').first()).toBeVisible();
+  });
+
+  test('placed LightningTower renders SVG with tower-lightning-orb and tower-lightning-bolt', async ({ page }) => {
+    // Dismiss NextWave overlay
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+
+    // Inject 200g so LightningTower is affordable
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          const stateHooks = [];
+          let hookNode = fiber.memoizedState;
+          while (hookNode) {
+            if (hookNode.queue && typeof hookNode.queue.dispatch === 'function') {
+              stateHooks.push(hookNode);
+            }
+            hookNode = hookNode.next;
+          }
+          if (stateHooks[2] && stateHooks[2].queue && stateHooks[2].queue.dispatch) {
+            stateHooks[2].queue.dispatch(200);
+            return;
+          }
+          throw new Error('Could not find gold hook dispatcher');
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find App fiber');
+    });
+    await expect(page.locator('.hud-gold')).toContainText('200', { timeout: 2000 });
+
+    // Select and place LightningTower
+    const lightningBtn = page.locator('.tower-picker button').filter({ hasText: 'LightningTower' });
+    await expect(lightningBtn).not.toBeDisabled();
+    await lightningBtn.click();
+    await page.locator('.tower-slot').first().click();
+
+    // The tower icon must contain an SVG with lightning orb and bolt
+    const towerIcon = page.locator('.tower-icon').first();
+    await expect(towerIcon).toBeVisible();
+    const svgEl = towerIcon.locator('svg');
+    await expect(svgEl).toBeAttached();
+    await expect(svgEl.locator('circle.tower-lightning-orb').first()).toBeAttached();
+    await expect(svgEl.locator('polyline.tower-lightning-bolt').first()).toBeAttached();
+  });
+
+  test('upgrade panel shows chainRadius and maxChains stats after placing a LightningTower', async ({ page }) => {
+    // Dismiss NextWave overlay
+    const startBtn = page.locator('.next-wave-start');
+    if (await startBtn.isVisible()) {
+      await startBtn.click();
+    }
+
+    // Inject 200g so LightningTower is affordable
+    await page.evaluate(() => {
+      const gameEl = document.querySelector('#game');
+      const fiberKey = Object.keys(gameEl).find(k => k.startsWith('__reactFiber'));
+      if (!fiberKey) throw new Error('React fiber not found — not a dev build?');
+      let fiber = gameEl[fiberKey];
+      while (fiber) {
+        if (fiber.memoizedState && typeof fiber.type === 'function') {
+          const stateHooks = [];
+          let hookNode = fiber.memoizedState;
+          while (hookNode) {
+            if (hookNode.queue && typeof hookNode.queue.dispatch === 'function') {
+              stateHooks.push(hookNode);
+            }
+            hookNode = hookNode.next;
+          }
+          if (stateHooks[2] && stateHooks[2].queue && stateHooks[2].queue.dispatch) {
+            stateHooks[2].queue.dispatch(200);
+            return;
+          }
+          throw new Error('Could not find gold hook dispatcher');
+        }
+        fiber = fiber.return;
+      }
+      throw new Error('Could not find App fiber');
+    });
+    await expect(page.locator('.hud-gold')).toContainText('200', { timeout: 2000 });
+
+    // Select and place LightningTower — auto-select opens the upgrade panel
+    const lightningBtn = page.locator('.tower-picker button').filter({ hasText: 'LightningTower' });
+    await expect(lightningBtn).not.toBeDisabled();
+    await lightningBtn.click();
+    await page.locator('.tower-slot').first().click();
+    await expect(page.locator('.tower-icon').first()).toBeVisible();
+
+    // Upgrade panel must open automatically (auto-select behavior from issue #42)
+    const panel = page.locator('.upgrade-panel');
+    await expect(panel).toBeVisible();
+
+    // Diff table must be present (LightningTower has 2 upgrades; level 0 is upgradable)
+    await expect(panel.locator('.upgrade-panel-diff-table')).toBeVisible();
+
+    // The diff table rows must include Chain Radius and Chain Hops stat labels
+    const rowText = await panel.locator('.upgrade-panel-diff-table').textContent();
+    expect(rowText).toMatch(/Chain Radius/);
+    expect(rowText).toMatch(/Chain Hops/);
+  });
+
+  test('LightningTower CSS classes have correct visual styles applied from index.css', async ({ page }) => {
+    // Verify the CSS rules for .tower-lightning-orb and .tower-lightning-bolt are loaded.
+    const styles = await page.evaluate(() => {
+      const ns = 'http://www.w3.org/2000/svg';
+      const svg = document.createElementNS(ns, 'svg');
+      svg.style.position = 'absolute';
+      svg.style.top = '-9999px';
+      document.body.appendChild(svg);
+
+      const orb = document.createElementNS(ns, 'circle');
+      orb.setAttribute('class', 'tower-lightning-orb');
+      svg.appendChild(orb);
+
+      const bolt = document.createElementNS(ns, 'polyline');
+      bolt.setAttribute('class', 'tower-lightning-bolt');
+      svg.appendChild(bolt);
+
+      const orbFill = getComputedStyle(orb).fill;
+      const boltStroke = getComputedStyle(bolt).stroke;
+      document.body.removeChild(svg);
+      return { orbFill, boltStroke };
+    });
+
+    // Orb must have a non-transparent fill (electric yellow: #ffe033)
+    expect(styles.orbFill).not.toBe('');
+    expect(styles.orbFill).not.toBe('none');
+    // Bolt must have a non-black stroke
+    expect(styles.boltStroke).not.toBe('');
+    expect(styles.boltStroke).not.toBe('rgb(0, 0, 0)');
+    expect(styles.boltStroke).not.toBe('none');
+  });
 });
